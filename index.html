@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#050816">
   <title>Acerola AI</title>
   <style>
-    :root{--bg:#050816;--panel:#0b1024;--panel2:#0e1630;--line:#1c2b52;--cyan:#00f0ff;--pink:#ff007f;--text:#e9f7ff;--muted:#7f93ad;--good:#61ff9a}
+    :root{--bg:#050816;--panel:#0b1024;--line:#1c2b52;--cyan:#00f0ff;--pink:#ff007f;--text:#e9f7ff;--muted:#7f93ad;--good:#61ff9a}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 10%,#111c3b 0,transparent 35%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;height:100vh;overflow:hidden}
     button,input{font:inherit}button{cursor:pointer}.app{height:100%;display:grid;grid-template-columns:260px 1fr 290px}.side,.right{background:rgba(7,12,29,.92);border-color:var(--line);border-style:solid}.side{border-width:0 1px 0 0;padding:22px 16px}.right{border-width:0 0 0 1px;padding:22px 16px;overflow:auto}
     .brand{display:flex;align-items:center;gap:10px;margin-bottom:30px}.orb{width:38px;height:38px;border:1px solid var(--cyan);border-radius:50%;box-shadow:0 0 18px #00f0ff55;display:grid;place-items:center;color:var(--cyan);font-weight:800}.brand strong{letter-spacing:1px}.brand small{display:block;color:var(--muted)}
@@ -23,44 +23,76 @@
   <aside class="side">
     <div class="brand"><div class="orb">A</div><div><strong>ACEROLA AI</strong><small>personal intelligence</small></div></div>
     <nav class="nav"><button class="active" data-view="chat">◈ <span>Chat</span></button><button data-view="memory">▣ <span>Memory</span></button><button data-view="actions">⚡ <span>Actions</span></button><button data-view="system">◌ <span>System</span></button></nav>
-    <div class="side-bottom"><div class="status"><span class="dot"></span> Core online<br><span class="tiny">Local foundation v0.1</span></div></div>
+    <div class="side-bottom"><div class="status"><span class="dot"></span> Core online<br><span class="tiny">Agent Core v0.2</span></div></div>
   </aside>
   <main>
-    <header class="top"><div><h1 id="title">Acerola AI</h1><span id="subtitle">Your personal intelligence system</span></div><span>FOUNDATION // ONLINE</span></header>
+    <header class="top"><div><h1 id="title">Acerola AI</h1><span id="subtitle">Your personal intelligence system</span></div><span id="connectionStatus">AGENT CORE // ONLINE</span></header>
     <section id="chat" class="chat" aria-live="polite"></section>
     <form class="composer" id="composer"><button type="button" class="icon" id="mic" title="Voice input">🎙</button><input id="input" autocomplete="off" placeholder="Talk to Acerola AI…"><button class="send">SEND</button></form>
   </main>
   <aside class="right">
-    <section class="section"><h2>Core status</h2><div class="card"><div class="metric"><span>Interface</span><b>ONLINE</b></div><div class="metric"><span>Memory</span><b id="memoryCount">0</b></div><div class="metric"><span>Voice input</span><b id="voiceStatus">CHECKING</b></div></div></section>
+    <section class="section"><h2>Core status</h2><div class="card"><div class="metric"><span>Interface</span><b>ONLINE</b></div><div class="metric"><span>Memory</span><b id="memoryCount">0</b></div><div class="metric"><span>Voice input</span><b id="voiceStatus">CHECKING</b></div><div class="metric"><span>Model gateway</span><b id="gatewayStatus">OFFLINE</b></div></div></section>
     <section class="section"><h2>Recent memory</h2><div id="memories"></div></section>
-    <section class="section"><h2>Architecture</h2><div class="card tiny">UI → agent core → memory → tools/actions → model providers</div><div class="card tiny">No API keys are stored in this frontend.</div></section>
+    <section class="section"><h2>Architecture</h2><div class="card tiny">UI → Agent Core → memory/tools → server gateway → model</div><div class="card tiny">No provider API keys are stored in this frontend.</div></section>
   </aside>
 </div>
+<script src="agent-core.js"></script>
 <script>
-  const KEY='acerola-ai-memory-v1';
+  'use strict';
   const $=s=>document.querySelector(s);
   const chat=$('#chat'), input=$('#input'), memories=$('#memories'), count=$('#memoryCount');
-  let memory=JSON.parse(localStorage.getItem(KEY)||'[]');
-  const save=()=>{localStorage.setItem(KEY,JSON.stringify(memory));renderMemory()};
+  const core=new window.AcerolaAI.AgentCore({gatewayOptions:{endpoint:window.ACEROLA_AI_GATEWAY||'/api/chat'}});
+
+  function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
   function addMsg(who,text){const el=document.createElement('article');el.className='msg '+(who==='You'?'user':'');el.innerHTML=`<div class="who">${who}</div><div>${escapeHtml(text).replace(/\n/g,'<br>')}</div>`;chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
-  function escapeHtml(s){return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-  function renderMemory(){count.textContent=memory.length;memories.innerHTML=memory.length?memory.slice(-5).reverse().map((m,i)=>`<div class="card memory"><span>${escapeHtml(m)}</span><button onclick="removeMemory(${memory.length-1-i})">×</button></div>`).join(''):'<div class="empty">No saved memories yet.</div>'}
-  window.removeMemory=i=>{memory.splice(i,1);save()};
-  function reply(text){addMsg('Acerola',text)}
-  function handle(text){
+  function renderMemory(){
+    const items=core.memory.all();
+    count.textContent=items.length;
+    memories.innerHTML=items.length?items.slice(-5).reverse().map((m,i)=>`<div class="card memory"><span>${escapeHtml(m)}</span><button data-memory-index="${items.length-1-i}" title="Forget memory">×</button></div>`).join(''):'<div class="empty">No saved memories yet.</div>';
+    memories.querySelectorAll('[data-memory-index]').forEach(btn=>btn.addEventListener('click',()=>{core.memory.items.splice(Number(btn.dataset.memoryIndex),1);core.memory._save();renderMemory()}));
+  }
+  async function handle(text){
     const t=text.trim(); if(!t)return;
-    addMsg('You',t);
-    if(/^remember\s+/i.test(t)){const m=t.replace(/^remember\s+/i,'').trim();if(m){memory.push(m);save();reply('Stored locally. When the persistent memory backend is connected, this can move into your encrypted memory store.');}return}
-    if(/^forget\s+/i.test(t)){const q=t.replace(/^forget\s+/i,'').toLowerCase();const before=memory.length;memory=memory.filter(m=>!m.toLowerCase().includes(q));save();reply(before===memory.length?'I could not find that memory.':'Removed the matching local memory.');return}
-    if(/^clear memory$/i.test(t)){memory=[];save();reply('Local memory cleared.');return}
-    if(/^status$/i.test(t)){reply('Core online. Frontend foundation is active. Persistent AI inference and server-side actions are the next integration layer.');return}
-    if(/^help$/i.test(t)){reply('Try: “remember …”, “forget …”, “clear memory”, or “status”. The full agent will later route natural-language requests through tools and model providers.');return}
-    reply('I’m online. The interface and local memory layer are working; the model gateway is not connected yet, so I won’t pretend this response came from a live AI model.');
+    addMsg('You',t); input.disabled=true;
+    try{
+      const result=await core.process(t,{source:'web-ui'});
+      renderMemory();
+      if(result.type==='memory') addMsg('Acerola',result.text);
+      else if(result.type==='status') addMsg('Acerola',`Agent Core ${result.version} online. ${result.memoryCount} memories stored locally. ${result.tools.length} tools registered.`);
+      else if(result.type==='empty') return;
+      else if(result.type==='model_request'){
+        $('#gatewayStatus').textContent='CONNECTING';
+        try{
+          const response=await core.gateway.complete(result.payload);
+          const reply=response.reply||response.message||response.text;
+          if(!reply) throw new Error('Gateway returned no reply');
+          $('#gatewayStatus').textContent='ONLINE';
+          addMsg('Acerola',String(reply));
+        }catch(error){
+          $('#gatewayStatus').textContent='OFFLINE';
+          addMsg('Acerola','Agent Core received your request, but the server-side model gateway is not connected yet. I won’t fake a model response.');
+        }
+      }
+    }catch(error){addMsg('Acerola',`Core error: ${error.message||'Unknown error'}`)}
+    finally{input.disabled=false;input.focus()}
   }
   $('#composer').addEventListener('submit',e=>{e.preventDefault();handle(input.value);input.value=''});
-  document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const v=b.dataset.view;$('#title').textContent=v==='chat'?'Acerola AI':v[0].toUpperCase()+v.slice(1);$('#subtitle').textContent=v==='chat'?'Your personal intelligence system':'Foundation module';if(v!=='chat')reply(`The ${v} module is reserved for the next build layer. The foundation is ready.`)}));
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){$('#voiceStatus').textContent='READY';const r=new SR();r.lang='en-US';r.onresult=e=>{input.value=e.results[0][0].transcript;input.focus()};r.onerror=()=>$('#voiceStatus').textContent='READY';$('#mic').onclick=()=>r.start()}else{$('#voiceStatus').textContent='UNAVAILABLE';$('#mic').disabled=true}
-  renderMemory();addMsg('Acerola','Acerola AI core interface initialized. Local memory and voice input are ready.');
+
+  document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    const v=b.dataset.view;
+    $('#title').textContent=v==='chat'?'Acerola AI':v[0].toUpperCase()+v.slice(1);
+    $('#subtitle').textContent=v==='chat'?'Your personal intelligence system':'Agent Core module';
+    if(v==='memory') renderMemory();
+    if(v!=='chat') addMsg('Acerola',`${v[0].toUpperCase()+v.slice(1)} module selected. Agent Core is connected; this module will gain its dedicated tools in the next layer.`);
+  }));
+
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(SR){$('#voiceStatus').textContent='READY';const r=new SR();r.lang='en-US';r.onresult=e=>{input.value=e.results[0][0].transcript;input.focus()};r.onerror=()=>$('#voiceStatus').textContent='READY';$('#mic').onclick=()=>r.start()}
+  else{$('#voiceStatus').textContent='UNAVAILABLE';$('#mic').disabled=true}
+
+  renderMemory();
+  addMsg('Acerola','Acerola AI Agent Core initialized. Memory commands are now routed through the core, and natural-language requests are ready for the server gateway.');
 </script>
 </body>
 </html>
