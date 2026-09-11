@@ -1,11 +1,13 @@
-/* Acerola AI — Agent Core v0.2
+/* Acerola AI — Agent Core v0.3
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.2.0';
+  const VERSION = '0.3.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
+  const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
 
   class MemoryManager {
     constructor(key = MEMORY_KEY) {
@@ -64,14 +66,24 @@
   }
 
   class ModelGateway {
-    constructor({ endpoint = '/api/chat' } = {}) { this.endpoint = endpoint; }
+    constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) {
+      this.endpoint = endpoint;
+      this.apiKey = apiKey;
+    }
     async complete(payload) {
       const response = await fetch(this.endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.apiKey
+        },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error(`Model gateway returned ${response.status}`);
+      if (!response.ok) {
+        let detail = '';
+        try { detail = (await response.json()).error || ''; } catch (_) {}
+        throw new Error(detail || `Model gateway returned ${response.status}`);
+      }
       return response.json();
     }
   }
@@ -81,7 +93,7 @@
       this.version = VERSION;
       this.memory = options.memory || new MemoryManager();
       this.tools = options.tools || new ToolRouter();
-      this.gateway = options.gateway || new ModelGateway(options.gatewayOptions);
+      this.gateway = options.gateway || new ModelGateway(options.gatewayOptions || {});
       this.tools
         .register('memory.recent', ({ limit = 5 }) => this.memory.recent(limit), 'Read recent local memories')
         .register('memory.add', ({ text }) => this.memory.add(text), 'Store a local memory')
@@ -110,8 +122,6 @@
         return { type: 'status', version: this.version, memoryCount: this.memory.all().length, tools: this.tools.list() };
       }
 
-      // Natural-language requests go to the server-side gateway once connected.
-      // No provider key is ever accepted or stored by this browser module.
       return {
         type: 'model_request',
         payload: {
