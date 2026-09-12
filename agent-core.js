@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.9.1
+/* Acerola AI — Agent Core v0.9.2
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.9.1';
+  const VERSION = '0.9.2';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -55,9 +55,7 @@
     if (raw.startsWith('{') && raw.endsWith('}')) {
       try {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
-          return { ...result, reply: parsed.message, plan: result.plan || parsed };
-        }
+        if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') return { ...result, reply: parsed.message, plan: result.plan || parsed };
       } catch (_) {}
     }
     return result;
@@ -69,8 +67,19 @@
     async request(body) {
       const headers = { 'Content-Type': 'application/json', 'apikey': this.apiKey };
       if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
-      const response = await fetch(this.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
-      if (!response.ok) { let detail = ''; try { detail = (await response.json()).error || ''; } catch (_) {} throw new Error(detail || `Gateway returned ${response.status}`); }
+      let response;
+      try {
+        response = await fetch(this.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+      } catch (error) {
+        throw new Error(`Gateway network error: ${error?.message || 'Unable to reach Acerola AI backend'}`);
+      }
+      if (!response.ok) {
+        let detail = {};
+        try { detail = await response.json(); } catch (_) {}
+        const code = detail?.code ? ` [${detail.code}]` : '';
+        const requestId = detail?.request_id ? ` (request ${detail.request_id})` : '';
+        throw new Error(`${detail?.error || `Gateway returned ${response.status}`}${code}${requestId}`);
+      }
       return response.json();
     }
     async complete(payload) { return normalizeGatewayResponse(await this.request(payload)); }
@@ -123,9 +132,11 @@
         if (!session) { const result = await this.auth.auth.signInAnonymously(); if (result.error) throw result.error; session = result.data.session; }
         if (!session?.access_token) throw new Error('No Supabase access token');
         this.gateway.setAccessToken(session.access_token);
-        const remote = await this.gateway.memory('load');
-        if (remote.ok && Array.isArray(remote.memories)) this.memory.replace(remote.memories.map(item => item.memory_value));
-        this.remoteMemory = true;
+        try {
+          const remote = await this.gateway.memory('load');
+          if (remote.ok && Array.isArray(remote.memories)) this.memory.replace(remote.memories.map(item => item.memory_value));
+          this.remoteMemory = true;
+        } catch (_) { this.remoteMemory = false; }
         return { authenticated: true, anonymous: !!session.user?.is_anonymous, memoryCount: this.memory.all().length };
       } catch (error) { this.remoteMemory = false; return { authenticated: false, reason: error?.message || 'Authentication unavailable' }; }
     }
@@ -147,8 +158,8 @@
       const forget = text.match(/^forget\s+(.+)/i); if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^clear (?:chat|conversation|conversation history)$/i.test(text)) { this.clearConversation(); return { type: 'action', action: 'conversation.clear', result: 'Conversation context cleared.' }; }
-      if (/^(what(?:'s| is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
-      if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
+      if (/^(what(?:'s|\s+is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
+      if (/^(what(?:'s|\s+is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
       const math = text.match(/^(?:calculate|calc|compute)\s+(.+)$/i); if (math) return { type: 'action', action: 'calculator.calculate', result: await this.actions.execute('calculator.calculate', { expression: math[1] }) };
       const moduleMatch = text.match(/^(?:open|show|go to)\s+(chat|memory|actions|system)(?:\s+module)?$/i); if (moduleMatch) return { type: 'action', action: 'ui.open_module', result: await this.actions.execute('ui.open_module', { module: moduleMatch[1] }) };
       const notify = text.match(/^(?:notify|notification)\s*:\s*(.+)$/i); if (notify) return { type: 'action', action: 'ui.notify', result: await this.actions.execute('ui.notify', { message: notify[1] }) };
