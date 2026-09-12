@@ -1,2 +1,4 @@
+project_id = "djumpimcwzhjujysznox"
+
 [functions.acerola-ai-gateway]
 verify_jwt = true
