@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.9
+/* Acerola AI — Agent Core v0.9.1
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.9.0';
+  const VERSION = '0.9.1';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -48,6 +48,21 @@
     list() { return this.tools.list(); }
   }
 
+  function normalizeGatewayResponse(result) {
+    if (!result || typeof result !== 'object') return result;
+    const raw = typeof result.reply === 'string' ? result.reply.trim() : '';
+    if (result.plan?.message && raw.startsWith('{')) return { ...result, reply: String(result.plan.message) };
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
+          return { ...result, reply: parsed.message, plan: result.plan || parsed };
+        }
+      } catch (_) {}
+    }
+    return result;
+  }
+
   class ModelGateway {
     constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) { this.endpoint = endpoint; this.apiKey = apiKey; this.accessToken = ''; }
     setAccessToken(token) { this.accessToken = token || ''; }
@@ -58,7 +73,7 @@
       if (!response.ok) { let detail = ''; try { detail = (await response.json()).error || ''; } catch (_) {} throw new Error(detail || `Gateway returned ${response.status}`); }
       return response.json();
     }
-    async complete(payload) { return this.request(payload); }
+    async complete(payload) { return normalizeGatewayResponse(await this.request(payload)); }
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
@@ -142,5 +157,29 @@
     }
   }
 
+  function installMobileRuntime() {
+    if (!global.document) return;
+    const style = document.createElement('style');
+    style.id = 'acerola-agent-runtime-fixes';
+    style.textContent = '#app{position:relative}.chat{position:relative}.composer-area{position:absolute!important;left:0;right:0;bottom:0}.messages{min-height:0}.inner{scroll-padding-bottom:20px}';
+    document.head.appendChild(style);
+    const syncViewport = () => {
+      const vv = global.visualViewport;
+      const height = vv?.height || global.innerHeight || document.documentElement.clientHeight;
+      document.documentElement.style.setProperty('--vh', `${Math.max(1, Math.round(height))}px`);
+      const composer = document.querySelector('.composer-area');
+      const inner = document.querySelector('.inner');
+      if (composer && inner) inner.style.paddingBottom = `${Math.max(155, composer.offsetHeight + 24)}px`;
+    };
+    syncViewport();
+    global.visualViewport?.addEventListener('resize', syncViewport, { passive: true });
+    global.visualViewport?.addEventListener('scroll', syncViewport, { passive: true });
+    global.addEventListener('resize', syncViewport, { passive: true });
+    const composer = document.querySelector('.composer-area');
+    if (composer && global.ResizeObserver) new ResizeObserver(syncViewport).observe(composer);
+  }
+
   global.AcerolaAI = Object.freeze({ VERSION, MemoryManager, ConversationManager, ToolRouter, ActionEngine, ModelGateway, AgentCore });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installMobileRuntime, { once: true });
+  else installMobileRuntime();
 })(window);
