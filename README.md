@@ -2,28 +2,29 @@
 
 A personal AI agent project by AcerolaOrion.
 
-Acerola AI is intended to grow beyond a normal chatbot into a personal intelligence system with:
+Acerola AI is designed to grow beyond a normal chatbot into a personal intelligence system with reasoning, persistent memory, voice interaction, tool execution, and modular agent architecture.
 
-- AI reasoning
-- persistent long-term memory
-- voice interaction
-- tool and action execution
-- a modular agent architecture
-- a web interface
+## Current milestone — Agent Core v0.9
 
-## Current milestone — Foundation v0.1
+The current foundation includes:
 
-The first implementation establishes a dependency-free web interface with:
-
-- cyberpunk/dark Acerola AI UI
-- responsive layout for phone and desktop
-- local browser memory using `localStorage`
-- explicit `remember`, `forget`, and `clear memory` commands
+- cyberpunk/dark responsive web interface
+- Agent Core orchestration layer
+- server-side OpenAI model gateway
+- GPT-5.6 Luna through the gateway
+- persistent Supabase memory per authenticated user
+- local memory fallback when authentication is unavailable
+- bounded conversation context stored locally
+- keyword-based memory search
+- safe arithmetic calculator without `eval`
+- allowlisted tool routing and action execution
+- UI module navigation through agent actions
+- safe UI notifications
 - browser speech-recognition input where supported
-- system/status panel
-- provider-safe frontend design: no secret API keys are placed in client code
+- system status and capability reporting
+- duplicate conversation-turn protection
 
-## Architecture direction
+## Architecture
 
 ```text
 User
@@ -31,20 +32,34 @@ User
 Acerola AI UI
   ↓
 Agent Core
-  ├── Model Gateway
+  ├── Conversation Manager
   ├── Memory Manager
   ├── Tool Router
-  └── Action Executor
+  └── Action Engine
        ↓
-  External services / APIs
+  Server Gateway
+       ↓
+  OpenAI Responses API
+
+Persistent memory:
+  Agent Core → authenticated Supabase Edge Function → acerola_memory
 ```
 
-The next integration layer is a server-side model gateway and persistent memory backend. Secrets must remain server-side; the browser should never contain provider API keys or service-role credentials.
+The browser only contains the Supabase publishable key. OpenAI and Supabase service-role secrets remain server-side.
+
+## Security
+
+- Supabase Row Level Security is enabled on `public.acerola_memory`.
+- Memory access is scoped to the authenticated user by the gateway.
+- The AI gateway requires a valid Supabase JWT.
+- The gateway validates planned tool calls against the registered allowlist.
+- Arbitrary tool names and arbitrary code execution are not permitted.
+- Provider API keys, service-role keys, and access tokens must never be committed to this repository.
 
 ## Run
 
 Open `index.html` in a browser, or publish the repository with GitHub Pages.
 
-## Security rule
+## Project direction
 
-Never commit API keys, access tokens, Supabase service-role keys, or other secrets to this repository.
+Future agent capabilities should be added through explicit, allowlisted tools and authenticated server-side integrations. Actions that affect external accounts or create meaningful side effects should require appropriate authorization and confirmation rather than being executed solely from model output.
