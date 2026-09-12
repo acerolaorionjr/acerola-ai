@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.7
+/* Acerola AI — Agent Core v0.8
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.7.0';
+  const VERSION = '0.8.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
   const SUPABASE_URL = 'https://djumpimcwzhjujysznox.supabase.co';
@@ -70,11 +70,7 @@
     }
     function multiplicative() {
       let value = primary();
-      while (peek() === '*' || peek() === '/' || peek() === '%') {
-        const op = take(); const right = primary();
-        if ((op === '/' || op === '%') && right === 0) throw new Error('Cannot divide by zero');
-        value = op === '*' ? value * right : op === '/' ? value / right : value % right;
-      }
+      while (peek() === '*' || peek() === '/' || peek() === '%') { const op = take(); const right = primary(); if ((op === '/' || op === '%') && right === 0) throw new Error('Cannot divide by zero'); value = op === '*' ? value * right : op === '/' ? value / right : value % right; }
       return value;
     }
     function additive() {
@@ -105,7 +101,9 @@
         .register('system.date', () => new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), 'Get the current local date')
         .register('system.status', () => ({ version: this.version, memoryCount: this.memory.all().length, remoteMemory: this.remoteMemory, tools: this.tools.list().length }), 'Get Agent Core status')
         .register('system.capabilities', () => this.tools.list(), 'List available Agent Core capabilities')
-        .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression');
+        .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression')
+        .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola AI interface')
+        .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola AI interface');
     }
 
     async initialize() {
@@ -148,6 +146,21 @@
       if (this.remoteMemory) { try { await this.gateway.memory('clear'); } catch (_) {} }
     }
 
+    openModule(module) {
+      const allowed = new Set(['chat', 'memory', 'actions', 'system']);
+      const value = String(module || '').toLowerCase().trim();
+      if (!allowed.has(value)) throw new Error('Unknown UI module');
+      global.dispatchEvent(new CustomEvent('acerola:open-module', { detail: { module: value } }));
+      return { module: value, opened: true };
+    }
+
+    notify(message) {
+      const text = String(message || '').trim();
+      if (!text || text.length > 300) throw new Error('Invalid notification');
+      global.dispatchEvent(new CustomEvent('acerola:notify', { detail: { message: text } }));
+      return { notified: true, message: text };
+    }
+
     async executePlannedAction(plan) {
       if (!plan || plan.type !== 'tool_call') return null;
       const name = String(plan.tool || '').trim();
@@ -168,6 +181,10 @@
       if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
       const math = text.match(/^(?:calculate|calc|compute)\s+(.+)$/i);
       if (math) return { type: 'action', action: 'calculator.calculate', result: await this.actions.execute('calculator.calculate', { expression: math[1] }) };
+      const moduleMatch = text.match(/^(?:open|show|go to)\s+(chat|memory|actions|system)(?:\s+module)?$/i);
+      if (moduleMatch) return { type: 'action', action: 'ui.open_module', result: await this.actions.execute('ui.open_module', { module: moduleMatch[1] }) };
+      const notify = text.match(/^(?:notify|notification)\s*:\s*(.+)$/i);
+      if (notify) return { type: 'action', action: 'ui.notify', result: await this.actions.execute('ui.notify', { message: notify[1] }) };
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, tools: this.tools.list(), remoteMemory: this.remoteMemory };
       return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context, available_tools: this.tools.list(), agent_mode: true } };
     }
