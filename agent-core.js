@@ -28,7 +28,7 @@
     constructor(key = HISTORY_KEY, limit = 12) { this.key = key; this.limit = limit; this.items = this._load(); }
     _load() { try { const value = global.localStorage?.getItem(this.key); const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
     _save() { try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); } catch (_) {} }
-    add(role, content) { const r = role === 'assistant' ? 'assistant' : 'user'; const text = String(content || '').trim(); if (!text) return false; this.items.push({ role: r, content: text, at: Date.now() }); if (this.items.length > this.limit) this.items = this.items.slice(-this.limit); this._save(); return true; }
+    add(role, content) { const r = role === 'assistant' ? 'assistant' : 'user'; const text = String(content || '').trim(); if (!text) return false; const last = this.items[this.items.length - 1]; if (last?.role === r && last?.content === text) return true; this.items.push({ role: r, content: text, at: Date.now() }); if (this.items.length > this.limit) this.items = this.items.slice(-this.limit); this._save(); return true; }
     recent(limit = this.limit) { return this.items.slice(-Math.max(0, Number(limit) || this.limit)).map(({ role, content }) => ({ role, content })); }
     clear() { this.items = []; this._save(); }
     count() { return this.items.length; }
@@ -115,12 +115,7 @@
       } catch (error) { this.remoteMemory = false; return { authenticated: false, reason: error?.message || 'Authentication unavailable' }; }
     }
 
-    async remember(text) {
-      const value = String(text || '').trim(); if (!value) return false;
-      this.memory.add(value);
-      if (this.remoteMemory) { try { await this.gateway.memory('add', { memory: { key: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`, value, type: 'fact' } }); } catch (_) {} }
-      return true;
-    }
+    async remember(text) { const value = String(text || '').trim(); if (!value) return false; this.memory.add(value); if (this.remoteMemory) { try { await this.gateway.memory('add', { memory: { key: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`, value, type: 'fact' } }); } catch (_) {} } return true; }
     async forget(query) { const removed = this.memory.remove(query); if (this.remoteMemory) { try { await this.gateway.memory('remove', { query: String(query || '') }); } catch (_) {} } return removed; }
     async clearMemory() { this.memory.clear(); if (this.remoteMemory) { try { await this.gateway.memory('clear'); } catch (_) {} } }
     recordUser(text) { return this.conversation.add('user', text); }
