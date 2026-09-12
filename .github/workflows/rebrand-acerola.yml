@@ -1,0 +1,55 @@
+name: Rebrand Acerola
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  rebrand:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Replace public brand name
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          skip = {'.git', '.github'}
+          extensions = {'.html', '.js', '.ts', '.md', '.yml', '.yaml', '.toml', '.sql', '.txt'}
+          changed = []
+
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or path.suffix.lower() not in extensions:
+                  continue
+              if any(part in skip for part in path.parts):
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              new = text.replace('Acerola AI', 'Acerola')
+              if new != text:
+                  path.write_text(new, encoding='utf-8')
+                  changed.append(str(path))
+
+          print('Updated:', ', '.join(changed) if changed else 'none')
+          PY
+
+      - name: Commit branding changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No branding changes needed."
+            exit 0
+          fi
+          git commit -m "refactor: make Acerola the public brand"
+          git push
