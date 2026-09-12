@@ -15,6 +15,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Deno
-        uses: denoland/setup-deno@e95548e56dfa95d7b05e8f5a1c8e7d7f0b1d8d7f # v2
+        uses: denoland/setup-deno@e7b7129b7a92b7500ded88f8f5baa25a7f59e56e
         with:
           deno-version: v2.x
       - name: Type-check gateway
