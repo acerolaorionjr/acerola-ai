@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.5
+/* Acerola AI — Agent Core v0.6
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.5.0';
+  const VERSION = '0.6.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
   const SUPABASE_URL = 'https://djumpimcwzhjujysznox.supabase.co';
@@ -15,9 +15,9 @@
     _load() { try { const value = global.localStorage?.getItem(this.key); const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
     _save() { try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); } catch (_) {} }
     add(text) { const value = String(text || '').trim(); if (!value) return false; this.items.push(value); this._save(); return true; }
-    remove(query) { const q = String(query || '').toLowerCase().trim(); const before = this.items.length; this.items = this.items.filter(item => !item.toLowerCase().includes(q)); this._save(); return before - this.items.length; }
+    remove(query) { const q = String(query || '').toLowerCase().trim(); if (!q) return 0; const before = this.items.length; this.items = this.items.filter(item => !item.toLowerCase().includes(q)); this._save(); return before - this.items.length; }
     clear() { this.items = []; this._save(); }
-    recent(limit = 5) { return this.items.slice(-limit).reverse(); }
+    recent(limit = 5) { return this.items.slice(-Math.max(0, Number(limit) || 5)).reverse(); }
     all() { return [...this.items]; }
     replace(items) { this.items = Array.isArray(items) ? items.map(String) : []; this._save(); }
   }
@@ -112,6 +112,14 @@
       if (this.remoteMemory) { try { await this.gateway.memory('clear'); } catch (_) {} }
     }
 
+    async executePlannedAction(plan) {
+      if (!plan || plan.type !== 'tool_call') return null;
+      const name = String(plan.tool || '').trim();
+      if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` };
+      const result = await this.actions.execute(name, plan.arguments && typeof plan.arguments === 'object' ? plan.arguments : {});
+      return { ok: true, tool: name, result };
+    }
+
     async process(input, context = {}) {
       const text = String(input || '').trim();
       if (!text) return { type: 'empty', text: '' };
@@ -120,14 +128,10 @@
       const forget = text.match(/^forget\s+(.+)/i);
       if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
-      if (/^(what(?:'s| is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) {
-        return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
-      }
-      if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) {
-        return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
-      }
+      if (/^(what(?:'s| is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
+      if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, tools: this.tools.list(), remoteMemory: this.remoteMemory };
-      return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context, available_tools: this.tools.list() } };
+      return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context, available_tools: this.tools.list(), agent_mode: true } };
     }
   }
 
