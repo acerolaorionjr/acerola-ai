@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.4
+/* Acerola AI — Agent Core v0.5
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.4.0';
+  const VERSION = '0.5.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
   const SUPABASE_URL = 'https://djumpimcwzhjujysznox.supabase.co';
@@ -30,6 +30,15 @@
     async execute(name, input = {}) { const tool = this.tools.get(name); if (!tool) throw new Error(`Unknown tool: ${name}`); return tool.handler(input); }
   }
 
+  class ActionEngine {
+    constructor(tools) { this.tools = tools; }
+    async execute(name, input = {}) {
+      if (!this.tools.has(name)) throw new Error(`Unknown action: ${name}`);
+      return this.tools.execute(name, input);
+    }
+    list() { return this.tools.list(); }
+  }
+
   class ModelGateway {
     constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) { this.endpoint = endpoint; this.apiKey = apiKey; this.accessToken = ''; }
     setAccessToken(token) { this.accessToken = token || ''; }
@@ -49,13 +58,18 @@
       this.version = VERSION;
       this.memory = options.memory || new MemoryManager();
       this.tools = options.tools || new ToolRouter();
+      this.actions = new ActionEngine(this.tools);
       this.gateway = options.gateway || new ModelGateway(options.gatewayOptions || {});
       this.auth = null;
       this.remoteMemory = false;
       this.tools
         .register('memory.recent', ({ limit = 5 }) => this.memory.recent(limit), 'Read recent memories')
         .register('memory.add', ({ text }) => this.remember(text), 'Store a persistent memory')
-        .register('memory.remove', ({ query }) => this.forget(query), 'Remove matching memories');
+        .register('memory.remove', ({ query }) => this.forget(query), 'Remove matching memories')
+        .register('memory.clear', () => this.clearMemory(), 'Clear persistent memory')
+        .register('system.time', () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), 'Get the current local time')
+        .register('system.date', () => new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), 'Get the current local date')
+        .register('system.status', () => ({ version: this.version, memoryCount: this.memory.all().length, remoteMemory: this.remoteMemory, tools: this.tools.list().length }), 'Get Agent Core status');
     }
 
     async initialize() {
@@ -106,10 +120,16 @@
       const forget = text.match(/^forget\s+(.+)/i);
       if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
+      if (/^(what(?:'s| is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) {
+        return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
+      }
+      if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) {
+        return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
+      }
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, tools: this.tools.list(), remoteMemory: this.remoteMemory };
-      return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context } };
+      return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context, available_tools: this.tools.list() } };
     }
   }
 
-  global.AcerolaAI = Object.freeze({ VERSION, MemoryManager, ToolRouter, ModelGateway, AgentCore });
+  global.AcerolaAI = Object.freeze({ VERSION, MemoryManager, ToolRouter, ActionEngine, ModelGateway, AgentCore });
 })(window);
