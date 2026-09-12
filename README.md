@@ -1,8 +1,8 @@
-# Acerola AI
+# Acerola
 
 A personal AI agent project by AcerolaOrion.
 
-Acerola AI is designed to grow beyond a normal chatbot into a personal intelligence system with reasoning, persistent memory, voice interaction, tool execution, and modular agent architecture.
+Acerola is designed to grow beyond a normal chatbot into a personal intelligence system with reasoning, persistent memory, voice interaction, tool execution, and modular agent architecture.
 
 ## Current milestone — Agent Core v0.9
 
@@ -29,7 +29,7 @@ The current foundation includes:
 ```text
 User
   ↓
-Acerola AI UI
+Acerola UI
   ↓
 Agent Core
   ├── Conversation Manager

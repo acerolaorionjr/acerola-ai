@@ -1,8 +1,8 @@
 # Security
 
-## Acerola AI security baseline
+## Acerola security baseline
 
-Acerola AI uses a browser client, Supabase Auth/Edge Functions, a server-side AI gateway, and a server-owned memory table.
+Acerola uses a browser client, Supabase Auth/Edge Functions, a server-side AI gateway, and a server-owned memory table.
 
 ### Current controls
 
@@ -23,7 +23,7 @@ Acerola AI uses a browser client, Supabase Auth/Edge Functions, a server-side AI
 2. Add CAPTCHA/Turnstile protection before scaling anonymous sign-ins beyond a small personal deployment.
 3. Monitor OpenAI and Edge Function usage to detect abuse and unexpected cost spikes.
 4. Keep the gateway source version-controlled and deploy it through CI/CD rather than editing production code manually.
-5. Replace browser `localStorage` persistence for sensitive long-term data with server-backed storage if Acerola AI begins handling sensitive personal information.
+5. Replace browser `localStorage` persistence for sensitive long-term data with server-backed storage if Acerola begins handling sensitive personal information.
 
 ## Incident rule
 

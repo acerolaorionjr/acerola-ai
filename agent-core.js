@@ -1,4 +1,4 @@
-/* Acerola AI — Agent Core v0.9.2
+/* Acerola — Agent Core v0.9.2
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
@@ -71,7 +71,7 @@
       try {
         response = await fetch(this.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
       } catch (error) {
-        throw new Error(`Gateway network error: ${error?.message || 'Unable to reach Acerola AI backend'}`);
+        throw new Error(`Gateway network error: ${error?.message || 'Unable to reach Acerola backend'}`);
       }
       if (!response.ok) {
         let detail = {};
@@ -120,8 +120,8 @@
         .register('system.status', () => ({ version: this.version, memoryCount: this.memory.all().length, conversationTurns: this.conversation.count(), remoteMemory: this.remoteMemory, tools: this.tools.list().length }), 'Get Agent Core status')
         .register('system.capabilities', () => this.tools.list(), 'List available Agent Core capabilities')
         .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression')
-        .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola AI interface')
-        .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola AI interface');
+        .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola interface')
+        .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola interface');
     }
 
     async initialize() {
