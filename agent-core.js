@@ -1,10 +1,10 @@
-/* Acerola AI — Agent Core v0.6
+/* Acerola AI — Agent Core v0.7
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '0.6.0';
+  const VERSION = '0.7.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
   const SUPABASE_URL = 'https://djumpimcwzhjujysznox.supabase.co';
@@ -53,6 +53,40 @@
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
+  function calculate(expression) {
+    const source = String(expression || '').replace(/,/g, '').trim();
+    if (!source || source.length > 200) throw new Error('Invalid calculation');
+    const tokens = source.match(/\d*\.?\d+|[()+\-*/%]/g);
+    if (!tokens || tokens.join('') !== source.replace(/\s+/g, '')) throw new Error('Only numbers, parentheses, +, -, *, / and % are allowed');
+    let i = 0;
+    const peek = () => tokens[i];
+    const take = () => tokens[i++];
+    function primary() {
+      if (peek() === '(') { take(); const value = additive(); if (take() !== ')') throw new Error('Missing closing parenthesis'); return value; }
+      if (peek() === '+' || peek() === '-') { const sign = take() === '-' ? -1 : 1; return sign * primary(); }
+      const value = Number(take());
+      if (!Number.isFinite(value)) throw new Error('Invalid number');
+      return value;
+    }
+    function multiplicative() {
+      let value = primary();
+      while (peek() === '*' || peek() === '/' || peek() === '%') {
+        const op = take(); const right = primary();
+        if ((op === '/' || op === '%') && right === 0) throw new Error('Cannot divide by zero');
+        value = op === '*' ? value * right : op === '/' ? value / right : value % right;
+      }
+      return value;
+    }
+    function additive() {
+      let value = multiplicative();
+      while (peek() === '+' || peek() === '-') { const op = take(); const right = multiplicative(); value = op === '+' ? value + right : value - right; }
+      return value;
+    }
+    const result = additive();
+    if (i !== tokens.length || !Number.isFinite(result)) throw new Error('Invalid calculation');
+    return Number(result.toFixed(12));
+  }
+
   class AgentCore {
     constructor(options = {}) {
       this.version = VERSION;
@@ -69,7 +103,9 @@
         .register('memory.clear', () => this.clearMemory(), 'Clear persistent memory')
         .register('system.time', () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), 'Get the current local time')
         .register('system.date', () => new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), 'Get the current local date')
-        .register('system.status', () => ({ version: this.version, memoryCount: this.memory.all().length, remoteMemory: this.remoteMemory, tools: this.tools.list().length }), 'Get Agent Core status');
+        .register('system.status', () => ({ version: this.version, memoryCount: this.memory.all().length, remoteMemory: this.remoteMemory, tools: this.tools.list().length }), 'Get Agent Core status')
+        .register('system.capabilities', () => this.tools.list(), 'List available Agent Core capabilities')
+        .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression');
     }
 
     async initialize() {
@@ -130,6 +166,8 @@
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^(what(?:'s| is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
       if (/^(what(?:'s| is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
+      const math = text.match(/^(?:calculate|calc|compute)\s+(.+)$/i);
+      if (math) return { type: 'action', action: 'calculator.calculate', result: await this.actions.execute('calculator.calculate', { expression: math[1] }) };
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, tools: this.tools.list(), remoteMemory: this.remoteMemory };
       return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context, available_tools: this.tools.list(), agent_mode: true } };
     }
