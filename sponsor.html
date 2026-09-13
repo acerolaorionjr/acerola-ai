@@ -1,1 +1,146 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#050816"><title>Support Acerola</title><style>:root{--bg:#050816;--line:#203452;--cyan:#00eaff;--text:#f3f8ff;--muted:#8495b1;--ok:#63ffb0}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#17386f 0,transparent 45%),radial-gradient(circle at 90% 90%,#4d0730 0,transparent 35%),var(--bg);color:var(--text);font-family:system-ui,sans-serif;padding:22px}.wrap{width:min(520px,100%);margin:auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.brand{font-weight:900;letter-spacing:2px;color:var(--cyan)}.pill{font-size:10px;letter-spacing:1.5px;border:1px solid #274568;padding:7px 10px;border-radius:999px;color:var(--muted)}.card{border:1px solid var(--line);border-radius:26px;background:#080f20ee;box-shadow:0 24px 100px #0009;padding:28px}.orb{width:78px;height:78px;border:1px solid var(--cyan);border-radius:24px;display:grid;place-items:center;color:var(--cyan);font-size:34px;font-weight:900;box-shadow:0 0 40px #00eaff22;margin-bottom:18px}.tag{font-size:10px;letter-spacing:2px;color:var(--cyan)}h1{font-size:38px;line-height:1;margin:10px 0}h2{font-size:17px;margin:26px 0 10px}p{color:var(--muted);line-height:1.65;font-size:14px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:16px 0}.amount{padding:14px;border:1px solid #274568;border-radius:14px;background:#0b172b;color:var(--text);font-weight:800;cursor:pointer}.amount.active{border-color:var(--cyan);box-shadow:0 0 18px #00eaff1c}.field{width:100%;padding:14px;border:1px solid #274568;border-radius:14px;background:#060c18;color:var(--text);outline:none;margin-top:8px}.btn{width:100%;padding:15px;border:1px solid var(--cyan);border-radius:14px;background:linear-gradient(90deg,#0b2138,#141027);color:var(--text);font-weight:900;cursor:pointer;margin-top:12px}.btn.secondary{border-color:#294361;color:#b9c7da}.btn:disabled{opacity:.5;cursor:not-allowed}.status{min-height:20px;margin-top:12px;font-size:12px;color:var(--muted);text-align:center}.success{display:none;border:1px solid #236847;background:#071b16;border-radius:16px;padding:16px;margin-top:18px}.success strong{color:var(--ok)}code{font-size:11px;word-break:break-all;color:#b9c7da}.sep{height:1px;background:#172a45;margin:24px 0}</style></head><body><main class="wrap"><div class="top"><div class="brand">ACEROLA / CORE</div><div class="pill">SPONSOR CHANNEL</div></div><section class="card"><div class="orb">A</div><div class="tag">PERSONAL INTELLIGENCE SYSTEM</div><h1>Support Acerola</h1><p>Help keep the core online while Acerola grows into a personal intelligence system with reasoning, persistent memory, cloud conversations and an action layer.</p><div class="sep"></div><h2>Choose support amount</h2><div class="grid"><button class="amount active" data-amount="500">₦500</button><button class="amount" data-amount="1000">₦1,000</button><button class="amount" data-amount="2000">₦2,000</button><button class="amount" data-amount="5000">₦5,000</button></div><label class="tag" for="custom">CUSTOM AMOUNT</label><input id="custom" class="field" type="number" min="100" step="50" placeholder="Enter amount in naira"><input id="email" class="field" type="email" autocomplete="email" placeholder="Your email for the payment receipt"><button id="pay" class="btn">⚡ SPONSOR ACEROLA AI</button><button id="launch" class="btn secondary">OPEN ACEROLA AI</button><div id="status" class="status">Secure Paystack checkout · NGN</div><div id="success" class="success"><strong>PAYMENT RECEIVED</strong><p>Thanks for supporting Acerola. Your Paystack reference is:</p><code id="ref"></code></div></section></main><script src="https://js.paystack.co/v2/inline.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>const PAYSTACK_KEY='pk_live_4d86608eaa38e7662056eef33b8f604ce4fcf293';const SUPA_URL='https://djumpimcwzhjujysznox.supabase.co';const SUPA_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';const sb=supabase.createClient(SUPA_URL,SUPA_KEY);const status=document.getElementById('status'),email=document.getElementById('email'),custom=document.getElementById('custom'),pay=document.getElementById('pay'),launch=document.getElementById('launch'),success=document.getElementById('success'),ref=document.getElementById('ref');let selected=500;document.querySelectorAll('.amount').forEach(b=>b.onclick=()=>{document.querySelectorAll('.amount').forEach(x=>x.classList.remove('active'));b.classList.add('active');selected=Number(b.dataset.amount);custom.value=''});custom.oninput=()=>{if(custom.value)document.querySelectorAll('.amount').forEach(x=>x.classList.remove('active'))};function getAmount(){const n=custom.value?Number(custom.value):selected;if(!Number.isFinite(n)||n<100)return null;return Math.round(n*100)}pay.onclick=()=>{const amount=getAmount(),mail=email.value.trim();if(!amount){status.textContent='Enter at least ₦100.';return}if(!/^\S+@\S+\.\S+$/.test(mail)){status.textContent='Enter a valid email for the receipt.';email.focus();return}pay.disabled=true;status.textContent='Opening secure Paystack checkout…';try{const popup=new Paystack();popup.newTransaction({key:PAYSTACK_KEY,email:mail,amount,currency:'NGN',metadata:{source:'acerola-ai-sponsor',product:'Acerola'},onSuccess:t=>{success.style.display='block';ref.textContent=t.reference||t.trxref||'Payment completed';status.textContent='Payment completed. Server verification will be added before sponsor records are treated as confirmed.';pay.disabled=false},onCancel:()=>{status.textContent='Checkout cancelled.';pay.disabled=false},onError:e=>{status.textContent=e?.message||'Unable to open Paystack checkout.';pay.disabled=false}})}catch(e){status.textContent=e?.message||'Paystack could not start.';pay.disabled=false}};launch.onclick=async()=>{const {data}=await sb.auth.getSession();if(data.session)location.href='./cloud.html';else{const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./cloud.html',location.href).href}});if(error)status.textContent=error.message}};</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050816">
+<title>Support Acerola AI</title>
+<style>
+:root{--bg:#050816;--panel:#080f20ee;--line:#203452;--cyan:#00eaff;--pink:#ff2b9a;--text:#f3f8ff;--muted:#8495b1;--ok:#63ffb0;--danger:#ff718f}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#17386f 0,transparent 45%),radial-gradient(circle at 90% 90%,#4d0730 0,transparent 35%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:20px}
+.wrap{width:min(560px,100%);margin:auto}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.brand{font-weight:900;letter-spacing:2px;color:var(--cyan)}.pill{font-size:10px;letter-spacing:1.5px;border:1px solid #274568;padding:7px 10px;border-radius:999px;color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:28px;background:var(--panel);box-shadow:0 24px 100px #0009;padding:26px;backdrop-filter:blur(14px)}
+.orb{width:76px;height:76px;border:1px solid var(--cyan);border-radius:24px;display:grid;place-items:center;color:var(--cyan);font-size:34px;font-weight:900;box-shadow:0 0 40px #00eaff22;margin-bottom:18px}
+.tag{font-size:10px;letter-spacing:2px;color:var(--cyan)}h1{font-size:38px;line-height:1;margin:10px 0 8px}p{color:var(--muted);line-height:1.65;font-size:14px}.sep{height:1px;background:#172a45;margin:22px 0}h2{font-size:17px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.amount{padding:15px;border:1px solid #274568;border-radius:15px;background:#0b172b;color:var(--text);font-size:15px;font-weight:900;cursor:pointer;transition:.18s}.amount:hover{transform:translateY(-1px);border-color:#4b6b91}.amount.active{border-color:var(--cyan);box-shadow:0 0 22px #00eaff24;background:#0b2035}
+.amountBox{margin:16px 0;border:1px solid #315071;border-radius:18px;background:#060c18;padding:15px}.amountBoxTop{display:flex;justify-content:space-between;align-items:center}.selectedLabel{font-size:10px;letter-spacing:1.8px;color:var(--muted)}.selectedAmount{font-size:30px;font-weight:950;color:var(--cyan);letter-spacing:-1px;margin-top:3px}.custom{width:100%;margin-top:12px;padding:13px;border:1px solid #274568;border-radius:13px;background:#09111f;color:var(--text);outline:none;font-size:15px}.custom:focus,.field:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #00eaff12}
+.field{width:100%;padding:14px;border:1px solid #274568;border-radius:14px;background:#060c18;color:var(--text);outline:none;margin-top:9px;font-size:15px}.btn{width:100%;padding:15px;border:1px solid var(--cyan);border-radius:14px;background:linear-gradient(90deg,#0b2138,#141027);color:var(--text);font-weight:950;cursor:pointer;margin-top:12px}.btn.secondary{border-color:#294361;color:#b9c7da}.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{min-height:20px;margin-top:12px;font-size:12px;color:var(--muted);text-align:center}.status.ok{color:var(--ok)}.status.error{color:var(--danger)}
+.success{display:none;border:1px solid #236847;background:#071b16;border-radius:18px;padding:17px;margin-top:18px}.success strong{color:var(--ok)}.success p{margin:8px 0}.success code{font-size:11px;word-break:break-all;color:#b9c7da}.secure{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:15px;color:#687b98;font-size:10px;letter-spacing:1px}
+@media(max-width:430px){body{padding:12px}.card{padding:21px}h1{font-size:33px}.top{gap:8px}.pill{font-size:9px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<div class="top"><div class="brand">ACEROLA / CORE</div><div class="pill">SPONSOR CHANNEL</div></div>
+<section class="card">
+<div class="orb">A</div>
+<div class="tag">PERSONAL INTELLIGENCE SYSTEM</div>
+<h1>Support Acerola AI</h1>
+<p>Help keep the core online as Acerola grows into a personal intelligence system with reasoning, persistent memory, cloud conversations and an action layer.</p>
+<div class="sep"></div>
+<h2>Choose your support</h2>
+<div class="grid">
+<button type="button" class="amount active" data-amount="500">₦500</button>
+<button type="button" class="amount" data-amount="1000">₦1,000</button>
+<button type="button" class="amount" data-amount="2000">₦2,000</button>
+<button type="button" class="amount" data-amount="5000">₦5,000</button>
+</div>
+<div class="amountBox">
+<div class="amountBoxTop"><span class="selectedLabel">SELECTED AMOUNT</span><span class="selectedLabel">NGN</span></div>
+<div id="selectedAmount" class="selectedAmount">₦500</div>
+<input id="custom" class="custom" type="number" min="100" max="1000000" step="50" inputmode="numeric" placeholder="Or enter a custom amount">
+</div>
+<input id="email" class="field" type="email" autocomplete="email" placeholder="Your email for the payment receipt">
+<button id="pay" class="btn">⚡ SPONSOR ACEROLA AI</button>
+<button id="launch" class="btn secondary">OPEN ACEROLA AI</button>
+<div id="status" class="status">Secure Paystack checkout · NGN</div>
+<div id="success" class="success"><strong>PAYMENT VERIFIED ✓</strong><p>Thanks for supporting Acerola AI. Your payment was verified by the server.</p><code id="ref"></code></div>
+<div class="secure">🔒 SECURE CHECKOUT · SERVER VERIFIED · PAYSTACK</div>
+</section>
+</main>
+<script src="https://js.paystack.co/v2/inline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPA_URL='https://djumpimcwzhjujysznox.supabase.co';
+const SUPA_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
+const INIT_URL=SUPA_URL+'/functions/v1/paystack-payment';
+const VERIFY_URL=SUPA_URL+'/functions/v1/paystack-verify';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+const statusEl=document.getElementById('status');
+const emailEl=document.getElementById('email');
+const customEl=document.getElementById('custom');
+const selectedEl=document.getElementById('selectedAmount');
+const payEl=document.getElementById('pay');
+const launchEl=document.getElementById('launch');
+const successEl=document.getElementById('success');
+const refEl=document.getElementById('ref');
+let selected=500;
+
+function naira(n){return '₦'+Number(n).toLocaleString('en-NG',{maximumFractionDigits:0});}
+function setStatus(text,type=''){statusEl.textContent=text;statusEl.className='status'+(type?' '+type:'');}
+function selectPreset(value){selected=Number(value);customEl.value='';selectedEl.textContent=naira(selected);document.querySelectorAll('.amount').forEach(b=>b.classList.toggle('active',Number(b.dataset.amount)===selected));}
+function currentAmount(){const raw=customEl.value.trim();const n=raw?Number(raw):selected;if(!Number.isFinite(n)||n<100||n>1000000)return null;return Math.round(n);}
+
+document.querySelectorAll('.amount').forEach(b=>b.addEventListener('click',()=>selectPreset(b.dataset.amount)));
+customEl.addEventListener('input',()=>{const n=Number(customEl.value);if(customEl.value && Number.isFinite(n)){selectedEl.textContent=naira(n);document.querySelectorAll('.amount').forEach(b=>b.classList.remove('active'));}});
+
+async function postJson(url,body){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||'Server request failed');
+  return data;
+ }finally{clearTimeout(timer);}
+}
+
+async function verifyPayment(reference,amount){
+ setStatus('Verifying payment securely…');
+ const data=await postJson(VERIFY_URL,{reference,amount});
+ if(!data.verified)throw new Error(data.error||data.reason||'Payment could not be verified');
+ return data;
+}
+
+payEl.addEventListener('click',async()=>{
+ const amount=currentAmount();
+ const mail=emailEl.value.trim();
+ if(!amount){setStatus('Enter an amount from ₦100 to ₦1,000,000.','error');customEl.focus();return;}
+ if(!/^\S+@\S+\.\S+$/.test(mail)){setStatus('Enter a valid email for the payment receipt.','error');emailEl.focus();return;}
+ if(typeof PaystackPop==='undefined'){setStatus('Paystack checkout could not load. Refresh and try again.','error');return;}
+ payEl.disabled=true;launchEl.disabled=true;successEl.style.display='none';setStatus('Securing your payment session…');
+ try{
+  // The secret-key operation happens only inside the Supabase Edge Function.
+  const init=await postJson(INIT_URL,{email:mail,amount});
+  if(!init.success||!init.access_code||!init.reference)throw new Error(init.error||'Unable to initialize payment');
+  const reference=init.reference;
+  setStatus('Opening secure Paystack checkout…');
+  const popup=new PaystackPop();
+  popup.resumeTransaction(init.access_code,{
+   onSuccess:async transaction=>{
+    const callbackReference=transaction?.reference||transaction?.trxref||reference;
+    try{
+     const verified=await verifyPayment(callbackReference,amount);
+     refEl.textContent=verified.reference||callbackReference;
+     successEl.style.display='block';
+     setStatus('Payment verified successfully. Thank you!','ok');
+    }catch(error){
+     setStatus(error.message||'Payment completed, but verification is still pending.','error');
+    }finally{payEl.disabled=false;launchEl.disabled=false;}
+   },
+   onCancel:()=>{setStatus('Checkout cancelled.');payEl.disabled=false;launchEl.disabled=false;},
+   onError:error=>{setStatus(error?.message||'Paystack checkout failed.','error');payEl.disabled=false;launchEl.disabled=false;}
+  });
+ }catch(error){
+  setStatus(error.name==='AbortError'?'Payment service timed out. Try again.':(error.message||'Unable to start payment.'),'error');
+  payEl.disabled=false;launchEl.disabled=false;
+ }
+});
+
+launchEl.addEventListener('click',async()=>{
+ launchEl.disabled=true;setStatus('Opening Acerola AI…');
+ try{
+  const {data}=await sb.auth.getSession();
+  if(data.session){location.href='./cloud.html';return;}
+  const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./cloud.html',location.href).href}});
+  if(error)throw error;
+ }catch(error){setStatus(error.message||'Could not open Acerola AI.','error');launchEl.disabled=false;}
+});
+
+selectPreset(500);
+</script>
+</body>
+</html>
