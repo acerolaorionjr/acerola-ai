@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050816"><title>Acerola AI — Sign in</title>
+<style>
+:root{--bg:#050816;--panel:#0b1428;--line:#203452;--cyan:#00eaff;--pink:#ff3ca6;--text:#f3f8ff;--muted:#8495b1;--good:#65f5a0}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% -10%,#17386f 0,transparent 45%),var(--bg);color:var(--text)}
+body{display:grid;place-items:center;padding:24px}.card{width:min(430px,100%);padding:28px;border:1px solid var(--line);border-radius:24px;background:#080f20ee;box-shadow:0 20px 80px #0008;text-align:center}.logo{font-size:12px;letter-spacing:2px;color:var(--cyan);margin-bottom:12px}.orb{width:72px;height:72px;margin:0 auto 18px;border:1px solid #236078;border-radius:22px;display:grid;place-items:center;background:#0b2030;color:var(--cyan);font-size:30px;box-shadow:0 0 35px #00eaff18}.grad{background:linear-gradient(90deg,#fff,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}.card h1{font-size:36px;letter-spacing:-1.8px;margin:0 0 10px}.card p{color:var(--muted);font-size:13px;line-height:1.6;margin:0 auto 24px}.google{width:100%;padding:13px 16px;border:1px solid #315071;border-radius:13px;background:#0d192d;color:var(--text);font-weight:700;cursor:pointer}.google:hover{border-color:var(--cyan)}.status{min-height:22px;margin-top:14px;color:var(--muted);font-size:11px}.status.error{color:#ff7bbf}.status.ok{color:var(--good)}.foot{margin-top:20px;color:#536783;font-size:9px}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo">AGENT CORE // AUTHENTICATION</div>
+  <div class="orb">A</div>
+  <h1>Enter <span class="grad">Acerola.</span></h1>
+  <p>Sign in with Google to use your Acerola AI account, persistent memory, and cloud conversation features.</p>
+  <button class="google" id="google">Continue with Google</button>
+  <div class="status" id="status">Checking session…</div>
+  <div class="foot">Acerola AI · Created by Michael Chukwudi</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(()=>{
+  const SUPABASE_URL='https://djumpimcwzhjujysznox.supabase.co';
+  const SUPABASE_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
+  const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const status=document.getElementById('status'), button=document.getElementById('google');
+  const appUrl=new URL('./',window.location.href).href;
+  function setStatus(text,kind=''){status.textContent=text;status.className='status '+kind}
+  async function ensureProfile(user){
+    const displayName=user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Acerola User';
+    const avatar=user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    const {error}=await supabase.from('profiles').upsert({id:user.id,display_name:displayName,avatar_url:avatar,preferences:{}},{onConflict:'id'});
+    if(error) console.warn('Profile sync:',error.message);
+  }
+  async function start(){
+    const {data,error}=await supabase.auth.getSession();
+    if(error){setStatus(error.message,'error');return}
+    if(data.session){await ensureProfile(data.session.user);setStatus('Signed in. Opening Acerola…','ok');setTimeout(()=>location.replace(appUrl),250);return}
+    setStatus('Ready.');
+  }
+  button.onclick=async()=>{
+    button.disabled=true;setStatus('Opening Google…');
+    const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+    if(error){button.disabled=false;setStatus(error.message,'error')}
+  };
+  supabase.auth.onAuthStateChange(async(event,session)=>{
+    if(session){await ensureProfile(session.user);if(event==='SIGNED_IN')location.replace(appUrl)}
+  });
+  start();
+})();
+</script>
+</body>
+</html>
