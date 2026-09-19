@@ -34,7 +34,8 @@ jobs:
           test -f ui-enhancements.js
           test -f support.js
       - name: Load Acerola modules
-        run: python3 -c "from pathlib import Path; p=Path('index.html'); s=p.read_text(); marker='</body>'; inject='<script src=\\"account-system.js\\"></script><script src=\\"chat-enhancements.js\\"></script><script src=\\"ui-enhancements.js\\"></script><script src=\\"support.js\\"></script></body>'; assert marker in s; p.write_text(s.replace(marker, inject, 1))"
+        run: |
+          sed -i 's#</body>#<script src="account-system.js"></script><script src="chat-enhancements.js"></script><script src="ui-enhancements.js"></script><script src="support.js"></script></body>#' index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
