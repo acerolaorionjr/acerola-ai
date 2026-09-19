@@ -35,7 +35,7 @@ jobs:
           test -f support.js
       - name: Load Acerola modules
         run: |
-          sed -i 's#</body>#<script src="account-system.js"></script><script src="chat-enhancements.js"></script><script src="ui-enhancements.js"></script><script src="support.js"></script></body>#' index.html
+          sed -i 's#</body>#<script src="account-system.js"></script><script src="chat-enhancements.js"></script><script src="ui-enhancements.js"></script><script src="support.js"></script><script src="engine-runtime.js"></script></body>#' index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
