@@ -86,6 +86,24 @@
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
+  function extractMemoryRequest(text) {
+    const source = String(text || '').trim();
+    if (!source) return null;
+    const direct = source.match(/^(?:please\s+)?remember\s+(?:that\s+)?(?!about\b|when\b|how\b|what\b)(.+)$/i);
+    if (direct) return direct[1].trim().replace(/[.!?]+$/, '');
+    const forget = source.match(/^(?:please\s+)?(?:don't|do not)\s+forget\s+(?:that\s+)?(.+)$/i);
+    if (forget) return forget[1].trim().replace(/[.!?]+$/, '');
+    const save = source.match(/^(?:please\s+)?(?:save|store)\s+(?:this|that)\s*:?[\s]*(.+)$/i);
+    if (save) return save[1].trim().replace(/[.!?]+$/, '');
+    const trailing = source.match(/^(.+?)\s+(?:and\s+(?:it|you)\s+should\s+)?remember\s+(?:that)?$/i);
+    if (trailing) return trailing[1].trim().replace(/[.!?]+$/, '');
+    return null;
+  }
+
+  async function safeRemoteMemoryError(error) {
+    return error?.message || 'Persistent memory service is unavailable.';
+  }
+
   function calculate(expression) {
     const source = String(expression || '').replace(/,/g, '').trim();
     if (!source || source.length > 200) throw new Error('Invalid calculation');
@@ -141,7 +159,25 @@
       } catch (error) { this.remoteMemory = false; return { authenticated: false, reason: error?.message || 'Authentication unavailable' }; }
     }
 
-    async remember(text) { const value = String(text || '').trim(); if (!value) return false; this.memory.add(value); if (this.remoteMemory) { try { await this.gateway.memory('add', { memory: { key: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`, value, type: 'fact' } }); } catch (_) {} } return true; }
+    async remember(text) {
+      const value = String(text || '').trim();
+      if (!value) return false;
+      const localSaved = this.memory.add(value);
+      if (!this.remoteMemory) return { ok: false, persistent: false, local: localSaved, error: 'Persistent memory backend is not connected.' };
+      try {
+        const result = await this.gateway.memory('add', {
+          memory: {
+            key: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+            value,
+            type: 'fact'
+          }
+        });
+        if (!result?.ok) throw new Error(result?.error || 'Persistent memory save failed.');
+        return { ok: true, persistent: true, local: localSaved, memory: result.memory || null };
+      } catch (error) {
+        return { ok: false, persistent: false, local: localSaved, error: await safeRemoteMemoryError(error) };
+      }
+    }
     async forget(query) { const removed = this.memory.remove(query); if (this.remoteMemory) { try { await this.gateway.memory('remove', { query: String(query || '') }); } catch (_) {} } return removed; }
     async clearMemory() { this.memory.clear(); if (this.remoteMemory) { try { await this.gateway.memory('clear'); } catch (_) {} } }
     recordUser(text) { return this.conversation.add('user', text); }
@@ -208,7 +244,12 @@
     async process(input, context = {}) {
       const text = String(input || '').trim(); if (!text) return { type: 'empty', text: '' };
       this.recordUser(text);
-      const remember = text.match(/^remember\s+(.+)/i); if (remember) { await this.remember(remember[1]); return { type: 'memory', action: 'add', text: 'Stored in persistent memory.' }; }
+      const memoryRequest = extractMemoryRequest(text);
+      if (memoryRequest) {
+        const saved = await this.remember(memoryRequest);
+        if (saved?.persistent) return { type: 'memory', action: 'add', text: 'Stored in persistent memory.', persistent: true };
+        return { type: 'memory', action: 'add', text: saved?.error || 'I could not save that to persistent memory.', persistent: false, local: !!saved?.local };
+      }
       const forget = text.match(/^forget\s+(.+)/i); if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^clear (?:chat|conversation|conversation history)$/i.test(text)) { this.clearConversation(); return { type: 'action', action: 'conversation.clear', result: 'Conversation context cleared.' }; }
@@ -248,9 +289,7 @@
   global.AcerolaAI = { VERSION, MemoryManager, ConversationManager, ToolRouter, ActionEngine, ModelGateway, AgentCore };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', installMobileRuntime, { once: true });
-    document.addEventListener('DOMContentLoaded', installSupportWidget, { once: true });
   } else {
     installMobileRuntime();
-    installSupportWidget();
   }
 })(window);
