@@ -1,11 +1,11 @@
-/* Acerola Engine Runtime v0.4.0
+/* Acerola Engine Runtime v0.7.0
  * Standalone orchestration engine over Agent Core.
  * Adds persistent run state, planning context, and bounded failure recovery.
  */
 (function (global) {
   'use strict';
 
-  const ENGINE_VERSION = '0.6.0';
+  const ENGINE_VERSION = '0.7.0';
   const STATE_KEY = 'acerola-engine-state-v2';
 
   class AcerolaEngine {
