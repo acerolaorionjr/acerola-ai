@@ -134,11 +134,14 @@
 
         for (let attempt = 0; attempt <= retries; attempt++) {
           try {
+            this._setStep(task, 1, 'thinking', '', 'Planning the request…');
             const result = await this.core.runAgent(prepared.payload, { maxSteps });
+            const trace = Array.isArray(result?.trace) ? result.trace : [];
+            trace.forEach((item, index) => this._setStep(task, index + 1, item?.result?.ok === false ? 'failed' : 'completed', item?.tool || '', item?.tool ? 'Using ' + item.tool : 'Processing…'));
             const invalidTool = result?.trace?.find(item => item?.tool && !this._toolExists(item.tool));
             if (invalidTool) throw new Error(`Engine rejected unknown tool: ${invalidTool.tool}`);
 
-            task.steps = result?.steps || attempt + 1;
+            task.steps = result?.steps || trace.length || attempt + 1;
             task.status = result?.ok === false ? 'failure' : 'success';
             task.finishedAt = Date.now();
             this._recordTask(task); this._emitTaskEvent(task.status === 'success' ? 'complete' : 'failed', task);
@@ -188,6 +191,15 @@
 
     _emitTaskEvent(type, task) {
       try { global.dispatchEvent(new CustomEvent('acerola:engine-task', { detail: { type, task: { ...task } } })); } catch (_) {}
+    }
+
+    _setStep(task, step, status, tool = '', message = '') {
+      task.steps = Math.max(task.steps || 0, step);
+      task.currentStep = step;
+      task.currentTool = tool;
+      task.stepStatus = status;
+      task.stepMessage = String(message || '').slice(0, 180);
+      this._emitTaskEvent('step', task);
     }
 
     taskHistory() {
