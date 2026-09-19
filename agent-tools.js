@@ -1,4 +1,4 @@
-/* Acerola Agent Tools v1.0.0
+/* Acerola Agent Tools v1.1.0
  * Browser/device capabilities. All permissioned APIs remain user-controlled.
  */
 (function (global) {
@@ -16,10 +16,11 @@
         return { ok: true, written: true };
       }, 'Copy text to the user clipboard after browser permission/user gesture where required.')
 
-      .register('browser.clipboard.read', async () => {
+      .register('browser.clipboard.read', async ({ confirmed = false } = {}) => {
+        if (!confirmed) throw new Error('Clipboard read requires explicit user confirmation.');
         if (!navigator.clipboard?.readText) throw new Error('Clipboard read is unavailable in this browser.');
         return { ok: true, text: await navigator.clipboard.readText() };
-      }, 'Read text from the user clipboard when the browser permits it.')
+      }, 'Read text from the user clipboard only after explicit user confirmation.')
 
       .register('browser.speak', ({ text: value, rate = 1, pitch = 1 }) => {
         if (!('speechSynthesis' in global)) throw new Error('Text-to-speech is unavailable.');
@@ -54,7 +55,7 @@
         if (message) payload.text = text(message).slice(0, 10000);
         if (url) {
           const value = text(url);
-          if (!/^https?:\\/\\//i.test(value)) throw new Error('Share URL must use http or https.');
+          if (!/^https?:\/\//g/i.test(value)) throw new Error('Share URL must use http or https.');
           payload.url = value;
         }
         await navigator.share(payload);
@@ -63,7 +64,7 @@
 
       .register('browser.open_url', ({ url }) => {
         const value = text(url);
-        if (!/^https?:\\/\\//i.test(value)) throw new Error('Only http and https URLs can be opened.');
+        if (!/^https?:\/\//g/i.test(value)) throw new Error('Only http and https URLs can be opened.');
         global.open(value, '_blank', 'noopener,noreferrer');
         return { ok: true, opened: value };
       }, 'Open a safe http/https URL in a new browser tab/window.')
