@@ -1,12 +1,12 @@
-/* Acerola Engine Runtime v0.3.0
+/* Acerola Engine Runtime v0.4.0
  * Standalone orchestration engine over Agent Core.
  * Adds persistent run state, planning context, and bounded failure recovery.
  */
 (function (global) {
   'use strict';
 
-  const ENGINE_VERSION = '0.3.0';
-  const STATE_KEY = 'acerola-engine-state-v1';
+  const ENGINE_VERSION = '0.4.0';
+  const STATE_KEY = 'acerola-engine-state-v2';
 
   class AcerolaEngine {
     constructor(options = {}) {
@@ -31,12 +31,13 @@
           lastError: parsed.lastError || '',
           lastTool: parsed.lastTool || '',
           lastRunAt: Number(parsed.lastRunAt) || 0,
-          recentRuns: Array.isArray(parsed.recentRuns) ? parsed.recentRuns.slice(-8) : []
+          recentRuns: Array.isArray(parsed.recentRuns) ? parsed.recentRuns.slice(-8) : [],
+          taskHistory: Array.isArray(parsed.taskHistory) ? parsed.taskHistory.slice(-5) : []
         };
       } catch (_) {
         return {
           runCount: 0, successCount: 0, failureCount: 0, lastStatus: 'idle',
-          lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: []
+          lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: [], taskHistory: [], taskHistory: []
         };
       }
     }
@@ -62,6 +63,19 @@
         error: String(entry.error || '').slice(0, 240)
       });
       this.state.recentRuns = this.state.recentRuns.slice(-8);
+      this._saveState();
+    }
+
+    _recordTask(task) {
+      this.state.taskHistory.push({
+        id: task.id,
+        objective: String(task.objective || '').slice(0, 200),
+        status: task.status,
+        steps: task.steps || 0,
+        startedAt: task.startedAt,
+        finishedAt: task.finishedAt || Date.now()
+      });
+      this.state.taskHistory = this.state.taskHistory.slice(-5);
       this._saveState();
     }
 
@@ -96,14 +110,18 @@
       if (!input) return { ok: false, error: 'Message is required.' };
       if (!this.ready) await this.initialize();
 
-      this.activeRun = { startedAt: Date.now(), message: input };
+      const task = { id: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`, objective: input, status: 'running', startedAt: Date.now(), steps: 0 };
+      this.activeRun = task;
+      this._emitTaskEvent('start', task);
       const planningContext = this._buildPlanningContext(context);
 
       try {
         const prepared = await this.core.process(input, planningContext);
         if (prepared.type !== 'model_request') {
+          task.status = 'success'; task.steps = 1; task.finishedAt = Date.now();
+          this._recordTask(task); this._emitTaskEvent('complete', task);
           this._recordRun({ status: 'success', message: input });
-          return prepared;
+          return { ...prepared, engine: { version: this.version, taskId: task.id } };
         }
 
         if (Array.isArray(context.attachments) && context.attachments.length) {
@@ -120,6 +138,10 @@
             const invalidTool = result?.trace?.find(item => item?.tool && !this._toolExists(item.tool));
             if (invalidTool) throw new Error(`Engine rejected unknown tool: ${invalidTool.tool}`);
 
+            task.steps = result?.steps || attempt + 1;
+            task.status = result?.ok === false ? 'failure' : 'success';
+            task.finishedAt = Date.now();
+            this._recordTask(task); this._emitTaskEvent(task.status === 'success' ? 'complete' : 'failed', task);
             this._recordRun({
               status: result?.ok === false ? 'failure' : 'success',
               message: input,
@@ -131,7 +153,9 @@
               engine: {
                 version: this.version,
                 attempt: attempt + 1,
-                recovered: attempt > 0
+                recovered: attempt > 0,
+                taskId: task.id,
+                taskStatus: task.status
               }
             };
           } catch (error) {
@@ -149,16 +173,25 @@
         }
 
         const errorMessage = lastError?.message || 'Agent execution failed';
+        task.status = 'failure'; task.finishedAt = Date.now(); this._recordTask(task); this._emitTaskEvent('failed', task);
         this._recordRun({ status: 'failure', message: input, error: errorMessage });
         return {
           ok: false,
           reply: `Acerola Engine could not complete that request after recovery attempts. ${errorMessage}`,
           error: errorMessage,
-          engine: { version: this.version, recovered: false }
+          engine: { version: this.version, recovered: false, taskId: task.id, taskStatus: task.status }
         };
       } finally {
         this.activeRun = null;
       }
+    }
+
+    _emitTaskEvent(type, task) {
+      try { global.dispatchEvent(new CustomEvent('acerola:engine-task', { detail: { type, task: { ...task } } })); } catch (_) {}
+    }
+
+    taskHistory() {
+      return this.state.taskHistory.slice();
     }
 
     capabilities() {
@@ -180,7 +213,8 @@
           failureCount: this.state.failureCount,
           lastStatus: this.state.lastStatus,
           lastTool: this.state.lastTool,
-          lastRunAt: this.state.lastRunAt
+          lastRunAt: this.state.lastRunAt,
+          taskHistory: this.state.taskHistory.slice(-5)
         },
         activeRun: !!this.activeRun
       };
