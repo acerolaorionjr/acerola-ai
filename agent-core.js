@@ -1,10 +1,10 @@
-/* Acerola — Agent Core v0.9.2
+/* Acerola — Agent Core v1.1.0
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -149,7 +149,61 @@
     clearConversation() { this.conversation.clear(); }
     openModule(module) { const allowed = new Set(['chat', 'memory', 'actions', 'system']); const value = String(module || '').toLowerCase().trim(); if (!allowed.has(value)) throw new Error('Unknown UI module'); global.dispatchEvent(new CustomEvent('acerola:open-module', { detail: { module: value } })); return { module: value, opened: true }; }
     notify(message) { const text = String(message || '').trim(); if (!text || text.length > 300) throw new Error('Invalid notification'); global.dispatchEvent(new CustomEvent('acerola:notify', { detail: { message: text } })); return { notified: true, message: text }; }
-    async executePlannedAction(plan) { if (!plan || plan.type !== 'tool_call') return null; const name = String(plan.tool || '').trim(); if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` }; const result = await this.actions.execute(name, plan.arguments && typeof plan.arguments === 'object' ? plan.arguments : {}); return { ok: true, tool: name, result }; }
+    async executePlannedAction(plan) {
+      if (!plan || plan.type !== 'tool_call') return null;
+      const name = String(plan.tool || '').trim();
+      if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` };
+      try {
+        const args = plan.arguments && typeof plan.arguments === 'object' ? plan.arguments : {};
+        const result = await this.actions.execute(name, args);
+        return { ok: true, tool: name, arguments: args, result };
+      } catch (error) {
+        return { ok: false, tool: name, error: error?.message || 'Tool execution failed' };
+      }
+    }
+
+    async runAgent(payload, options = {}) {
+      const maxSteps = Math.min(8, Math.max(1, Number(options.maxSteps) || 6));
+      let request = { ...payload, agent_mode: true };
+      const trace = [];
+      for (let step = 0; step < maxSteps; step++) {
+        const output = await this.gateway.complete(request);
+        const plan = output?.plan && typeof output.plan === 'object'
+          ? output.plan
+          : (typeof output?.reply === 'string' ? (() => {
+              const s = output.reply.trim();
+              if (!s.startsWith('{') || !s.endsWith('}')) return null;
+              try { return JSON.parse(s); } catch (_) { return null; }
+            })() : null);
+
+        if (plan?.type === 'tool_call') {
+          const action = await this.executePlannedAction(plan);
+          trace.push({ step: step + 1, type: 'tool_call', tool: plan.tool, result: action });
+          request = {
+            ...payload,
+            agent_mode: true,
+            tool_results: trace.map(item => ({
+              step: item.step,
+              tool: item.tool,
+              ok: item.result?.ok !== false,
+              result: item.result?.result ?? null,
+              error: item.result?.error ?? null
+            })),
+            previous_reply: output?.reply || plan.message || ''
+          };
+          continue;
+        }
+
+        return { ...output, trace, steps: step + 1, final: true };
+      }
+      return {
+        ok: false,
+        reply: 'I reached the maximum number of actions for this request. Please continue with the next step.',
+        trace,
+        steps: maxSteps,
+        final: true
+      };
+    }
 
     async process(input, context = {}) {
       const text = String(input || '').trim(); if (!text) return { type: 'empty', text: '' };
