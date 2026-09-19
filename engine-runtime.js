@@ -5,7 +5,7 @@
 (function (global) {
   'use strict';
 
-  const ENGINE_VERSION = '0.4.0';
+  const ENGINE_VERSION = '0.6.0';
   const STATE_KEY = 'acerola-engine-state-v2';
 
   class AcerolaEngine {
