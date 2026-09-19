@@ -37,7 +37,7 @@
       } catch (_) {
         return {
           runCount: 0, successCount: 0, failureCount: 0, lastStatus: 'idle',
-          lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: [], taskHistory: [], taskHistory: []
+          lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: [], taskHistory: []
         };
       }
     }
@@ -231,7 +231,7 @@
     resetState() {
       this.state = {
         runCount: 0, successCount: 0, failureCount: 0, lastStatus: 'idle',
-        lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: []
+        lastMessage: '', lastError: '', lastTool: '', lastRunAt: 0, recentRuns: [], taskHistory: []
       };
       this._saveState();
       return true;
