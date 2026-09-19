@@ -248,7 +248,7 @@
     if (!global.document || document.getElementById('acerola-support-widget')) return;
     const style = document.createElement('style');
     style.id = 'acerola-support-widget-style';
-    style.textContent = `#acerola-support-widget{position:fixed;right:12px;top:68px;z-index:12;border:1px solid #5b2d63;border-radius:999px;background:linear-gradient(135deg,#160f25,#0a1b2b);color:#fff;padding:9px 12px;font:900 10px/1 system-ui,sans-serif;letter-spacing:.7px;box-shadow:0 8px 28px #0008;backdrop-filter:blur(10px);cursor:pointer}#acerola-support-widget:hover{border-color:#ff3ca6;box-shadow:0 0 22px #ff3ca633}#acerola-support-widget .dot{color:#ff3ca6;margin-right:5px}`;
+    style.textContent = `#acerola-support-widget{position:static;width:100%;margin:8px 0 0;z-index:12;border:1px solid #5b2d63;border-radius:999px;background:linear-gradient(135deg,#160f25,#0a1b2b);color:#fff;padding:9px 12px;font:900 10px/1 system-ui,sans-serif;letter-spacing:.7px;box-shadow:0 8px 28px #0008;backdrop-filter:blur(10px);cursor:pointer}#acerola-support-widget:hover{border-color:#ff3ca6;box-shadow:0 0 22px #ff3ca633}#acerola-support-widget .dot{color:#ff3ca6;margin-right:5px}`;
     document.head.appendChild(style);
     const button = document.createElement('button');
     button.id = 'acerola-support-widget';
@@ -256,7 +256,7 @@
     button.innerHTML = '<span class="dot">◆</span> SUPPORT / PRO';
     button.title = 'Support Acerola or unlock Pro';
     button.addEventListener('click', () => { global.location.href = './sponsor.html?v=4'; });
-    document.body.appendChild(button);
+    (document.querySelector('.drawer-foot') || document.body).appendChild(button);
   }
 
   global.AcerolaAI = { VERSION, MemoryManager, ConversationManager, ToolRouter, ActionEngine, ModelGateway, AgentCore };
