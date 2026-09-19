@@ -117,6 +117,37 @@
         return { ok: true, key: k };
       }, 'Store a small value in this Acerola site local storage.');
 
+
+
+    core.tools.register('media.generate_short', async ({ prompt, aspect_ratio = '9:16', model = 'veo-3.1-fast-generate-preview' }) => {
+      const value = text(prompt);
+      if (!value) throw new Error('A Short prompt is required.');
+      if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
+      const base = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-media';
+      const response = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
+        body: JSON.stringify({ prompt: value.slice(0, 4000), aspect_ratio: aspect_ratio === '16:9' ? '16:9' : '9:16', model: model === 'veo-3.1-generate-preview' ? model : 'veo-3.1-fast-generate-preview' })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Video generation could not start.');
+      if (!data.operation) throw new Error('Veo did not return an operation.');
+      return { ok: true, operation: data.operation, status: data.status || 'queued', aspect_ratio: data.aspect_ratio || '9:16' };
+    }, 'Start an AI video/Short generation job. Returns an operation ID for the UI to monitor.');
+
+    core.tools.register('media.check_short', async ({ operation }) => {
+      const op = text(operation);
+      if (!op) throw new Error('A Veo operation is required.');
+      if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
+      const base = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-media';
+      const response = await fetch(base + '?operation=' + encodeURIComponent(op), {
+        headers: { apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not check the video job.');
+      return { ok: true, operation: data.operation || op, done: !!data.done, error: data.error || null };
+    }, 'Check the status of an AI video/Short generation job.');
+
     core.tools.register('system.permissions', () => ({
       clipboard: !!navigator.clipboard,
       speech: 'speechSynthesis' in global,
