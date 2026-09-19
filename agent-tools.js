@@ -1,4 +1,4 @@
-/* Acerola Agent Tools v1.1.0
+/* Acerola Agent Tools v1.2.0
  * Browser/device capabilities. All permissioned APIs remain user-controlled.
  */
 (function (global) {
@@ -38,6 +38,27 @@
         if ('speechSynthesis' in global) global.speechSynthesis.cancel();
         return { ok: true, speaking: false };
       }, 'Stop Acerola text-to-speech.')
+      .register('voice.listen', ({ confirmed = false, language = '' } = {}) => {
+        if (!confirmed) throw new Error('Microphone listening requires explicit user confirmation.');
+        const SR = global.SpeechRecognition || global.webkitSpeechRecognition;
+        if (!SR) throw new Error('Voice input is unavailable in this browser.');
+        return new Promise((resolve, reject) => {
+          const recognition = new SR();
+          recognition.lang = text(language) || navigator.language || 'en-US';
+          recognition.interimResults = false;
+          recognition.continuous = false;
+          recognition.maxAlternatives = 1;
+          let settled = false;
+          const finish = (fn, value) => { if (settled) return; settled = true; fn(value); };
+          recognition.onresult = event => {
+            const transcript = [...event.results].map(r => r[0]?.transcript || '').join(' ').trim();
+            finish(resolve, { ok: true, transcript });
+          };
+          recognition.onerror = event => finish(reject, new Error(event.error || 'Voice recognition failed.'));
+          recognition.onend = () => { if (!settled) finish(resolve, { ok: true, transcript: '' }); };
+          try { recognition.start(); } catch (error) { finish(reject, error); }
+        });
+      }, 'Listen for one short spoken instruction after the user explicitly starts microphone input.')
 
       .register('browser.notification', async ({ title = 'Acerola', message }) => {
         const body = text(message);
