@@ -12,6 +12,7 @@
     constructor(options = {}) {
       if (!global.AcerolaAI?.AgentCore) throw new Error('Acerola Agent Core is not loaded.');
       this.core = options.core || new global.AcerolaAI.AgentCore(options);
+      if (typeof global.AcerolaAI.installTools === 'function') global.AcerolaAI.installTools(this.core);
       this.version = ENGINE_VERSION;
       this.ready = false;
       this.state = this._loadState();
