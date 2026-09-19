@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '0.9.2';
+  const VERSION = '1.0.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -205,7 +205,7 @@
     document.body.appendChild(button);
   }
 
-  global.AcerolaAI = Object.freeze({ VERSION, MemoryManager, ConversationManager, ToolRouter, ActionEngine, ModelGateway, AgentCore });
+  global.AcerolaAI = { VERSION, MemoryManager, ConversationManager, ToolRouter, ActionEngine, ModelGateway, AgentCore };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', installMobileRuntime, { once: true });
     document.addEventListener('DOMContentLoaded', installSupportWidget, { once: true });
