@@ -34,11 +34,14 @@ jobs:
           test -f ui-enhancements.js
           test -f support.js
       - name: Load Acerola modules
-        run: python3 -c "from pathlib import Path; p=Path('index.html'); s=p.read_text(); marker='</body>'; inject='<script src=\"account-system.js\"></script><script src=\"chat-enhancements.js\"></script><script src=\"ui-enhancements.js\"></script><script src=\"support.js\"></script></body>'; assert marker in s; p.write_text(s.replace(marker, inject, 1))"
+        run: python3 -c "from pathlib import Path; p=Path('index.html'); s=p.read_text(); marker='</body>'; inject='<script src=\\"account-system.js\\"></script><script src=\\"chat-enhancements.js\\"></script><script src=\\"ui-enhancements.js\\"></script><script src=\\"support.js\\"></script></body>'; assert marker in s; p.write_text(s.replace(marker, inject, 1))"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
