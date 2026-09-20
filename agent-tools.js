@@ -84,7 +84,7 @@
       }, 'Open the device share sheet for user-approved sharing.')
 
       .register('code.inspect_file', async ({ path = 'index.html', start = 1, end = 240 } = {}) => {
-        const value = text(path).replace(/^\\/+/, '');
+        let value = text(path); while (value.startsWith('/')) value = value.slice(1);
         if (!value || value.includes('..') || value.includes('\\0')) throw new Error('Invalid repository path.');
         if (!/^[A-Za-z0-9_./-]+$/.test(value)) throw new Error('Invalid repository path.');
         const s = Math.max(1, Number(start) || 1), e = Math.min(1200, Math.max(s, Number(end) || s + 239));
