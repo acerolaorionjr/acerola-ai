@@ -62,11 +62,11 @@ Deno.serve(async(req:Request)=>{
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
   const user=await getUser(req);if(!user?.id)return json({error:"Authentication required",code:"AUTH_REQUIRED",request_id:id},401,origin,{"X-Request-Id":id});
-  const rl=rateLimit(user);if(!rl.ok)return json({error:"Rate limit exceeded",retry_after_seconds:rl.retry,request_id:id},429,origin,{"Retry-After":String(rl.retry),"X-RateLimit-Remaining":"0","X-Request-Id":id});
+  const ownerContext = await getOwnerContext(user);\n  const rl=rateLimit(user);if(!rl.ok)return json({error:"Rate limit exceeded",retry_after_seconds:rl.retry,request_id:id},429,origin,{"Retry-After":String(rl.retry),"X-RateLimit-Remaining":"0","X-Request-Id":id});
   const common={"X-RateLimit-Remaining":String(rl.remaining),"X-Request-Id":id};if(body.memory_action)return memoryAction(user,body,origin,id);
   const apiKey=Deno.env.get("OPENAI_API_KEY");if(!apiKey)return json({error:"AI provider is not configured yet",code:"MISSING_OPENAI_API_KEY",request_id:id},503,origin,common);
   const message=String(body.message||"").trim();if(!message)return json({error:"message is required",request_id:id},400,origin,common);if(message.length>MAX_MESSAGE_CHARS)return json({error:`message exceeds ${MAX_MESSAGE_CHARS} characters`,request_id:id},413,origin,common);
-  const context=body.context&&typeof body.context==="object"?JSON.stringify(body.context).slice(0,18000):"{}",rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
+  const context=body.context&&typeof body.context==="object"?JSON.stringify({...body.context, owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}).slice(0,18000):JSON.stringify({owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}),rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
   if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey}});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
@@ -106,5 +106,5 @@ Deno.serve(async(req:Request)=>{
       }
     }catch{/* model returned non-JSON; client will treat it as final text */}
   }
-  return json({ok:true,reply:plan?.message||reply,plan,model:result.model||usedModel,provider:"openai",response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,request_id:id},200,origin,common);
+  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider:"openai",response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,request_id:id},200,origin,common);
 });
