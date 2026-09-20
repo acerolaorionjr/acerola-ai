@@ -2,8 +2,8 @@
   'use strict';
   const SUPABASE_URL='https://djumpimcwzhjujysznox.supabase.co';
   const SUPABASE_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
-  const CHAT_KEY='acerola-ai-chats-v5';
-  const ACTIVE_KEY='acerola-ai-active-v5';
+  const CHAT_KEY='acerola-ai-chats-v6';
+  const ACTIVE_KEY='acerola-ai-active-v6';
   const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
   if(!db)return;
   const $=s=>document.querySelector(s);
@@ -13,7 +13,9 @@
   const body=$('#accBody'),title=$('#accTitle'),sub=$('#accSub');
   function open(){sheet.classList.add('open');render()}function close(){sheet.classList.remove('open')}$('#accClose').onclick=close;sheet.onclick=e=>{if(e.target===sheet)close()};
   function oauthRedirect(){return new URL('./',location.href).href}
-  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button><div class="account-msg" id="accMsg"></div>`;$('#google').onclick=async()=>{const r=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r.error)$('#accMsg').textContent=r.error.message};$('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
+  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button><div class="account-msg" id="accMsg"></div>`;
+    $('#google').onclick=async()=>{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)$('#accMsg').textContent=r.error.message};
+    $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
   async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email if confirmation is required.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
   function voices(){return speechSynthesis?.getVoices?.()||[]}
   function voiceOptions(selected){const vs=voices();return vs.map((v,i)=>`<option value="${i}" ${String(i)===String(selected)?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')||'<option value="">Browser voices unavailable</option>'}
