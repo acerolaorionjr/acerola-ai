@@ -151,7 +151,29 @@
         .register('system.capabilities', () => this.tools.list(), 'List available Agent Core capabilities')
         .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression')
         .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola interface')
-        .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola interface');
+        .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola interface')
+        .register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png' } = {}) => {
+          if (!this.gateway.accessToken) throw new Error('Acerola authentication is not ready.');
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/acerola-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${this.gateway.accessToken}` },
+            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), size, quality, output_format })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data?.image) throw new Error(data?.error || `Image generation failed (${response.status})`);
+          return { image: data.image, size: data.size || size, quality: data.quality || quality, format: data.format || output_format };
+        }, 'Generate an actual image from a natural-language description')
+        .register('media.generate_short', async ({ prompt, aspect_ratio = '9:16' } = {}) => {
+          if (!this.gateway.accessToken) throw new Error('Acerola authentication is not ready.');
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/acerola-media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${this.gateway.accessToken}` },
+            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), aspect_ratio })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data?.operation) throw new Error(data?.error || `Video generation failed (${response.status})`);
+          return { operation: data.operation, aspect_ratio: data.aspect_ratio || aspect_ratio };
+        }, 'Generate a short video and return its background operation');
     }
 
     async initialize() {
