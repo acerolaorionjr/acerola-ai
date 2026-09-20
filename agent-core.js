@@ -227,6 +227,40 @@
         if (plan?.type === 'tool_call') {
           const action = await this.executePlannedAction(plan);
           trace.push({ step: step + 1, type: 'tool_call', tool: plan.tool, result: action });
+
+          // Media tools produce results that the chat UI must render directly.
+          if (action?.ok && plan.tool === 'media.generate_image' && action.result?.image) {
+            return {
+              ok: true,
+              type: 'media_result',
+              media: {
+                kind: 'image',
+                image: action.result.image,
+                size: action.result.size || null,
+                quality: action.result.quality || null,
+                format: action.result.format || null
+              },
+              trace,
+              steps: step + 1,
+              final: true
+            };
+          }
+
+          if (action?.ok && plan.tool === 'media.generate_short' && action.result?.operation) {
+            return {
+              ok: true,
+              type: 'media_result',
+              media: {
+                kind: 'video',
+                operation: action.result.operation,
+                aspect_ratio: action.result.aspect_ratio || '9:16'
+              },
+              trace,
+              steps: step + 1,
+              final: true
+            };
+          }
+
           request = {
             ...payload,
             agent_mode: true,
@@ -271,8 +305,8 @@
       const moduleMatch = text.match(/^(?:open|show|go to)\s+(chat|memory|actions|system)(?:\s+module)?$/i); if (moduleMatch) return { type: 'action', action: 'ui.open_module', result: await this.actions.execute('ui.open_module', { module: moduleMatch[1] }) };
       const notify = text.match(/^(?:notify|notification)\s*:\s*(.+)$/i); if (notify) return { type: 'action', action: 'ui.notify', result: await this.actions.execute('ui.notify', { message: notify[1] }) };
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, conversationTurns: this.conversation.count(), tools: this.tools.list(), remoteMemory: this.remoteMemory };
-      const media = detectMediaIntent(text);
-      if (media) return { type: 'media_request', media };
+      // Let the model choose capabilities from the real tool catalog instead of
+      // forcing natural-language requests through brittle keyword/regex routing.
       return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context: { ...context, conversation: this.conversation.recent(12) }, available_tools: this.tools.list(), agent_mode: true } };
     }
   }
