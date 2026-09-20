@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://acerolaorionjr.github.io/acerola-ai/sitemap.xml
