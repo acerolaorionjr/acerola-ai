@@ -28,13 +28,13 @@
     const bg=document.createElement('div');bg.id='acSupportBg';bg.className='ac-support-bg';
     bg.innerHTML=`<section class="ac-support" role="dialog" aria-modal="true" aria-label="Acerola Support and Pro">
       <div class="ac-support-head"><h2>Support Acerola</h2><button class="ac-support-close" id="acSupportClose">×</button></div>
-      <div class="ac-support-sub">Everything stays inside Acerola. Support development or unlock the optional Pro experience.</div>
+      <div class="ac-support-sub">Everything stays inside Acerola. Support development or unlock Acerola Pro with a one-time payment.</div>
       <div class="ac-tabs"><button class="ac-tab active" data-ac-tab="donate">♡ SUPPORT</button><button class="ac-tab" data-ac-tab="pro">◆ ACEROLA PRO</button></div>
       <div id="acDonate" class="ac-panel active"><div class="ac-hero"><b>Help keep the Core growing</b><span>Choose a preset or enter your own amount.</span></div>
         <div class="ac-amounts"><button class="ac-amount active" data-ac-amount="500">₦500</button><button class="ac-amount" data-ac-amount="1000">₦1,000</button><button class="ac-amount" data-ac-amount="2000">₦2,000</button><button class="ac-amount" data-ac-amount="5000">₦5,000</button></div>
         <input id="acCustom" class="ac-field" type="number" min="100" max="1000000" step="50" inputmode="numeric" placeholder="Custom amount (₦100 minimum)">
         <input id="acEmail" class="ac-field" type="email" autocomplete="email" placeholder="Email for payment receipt"><button id="acDonatePay" class="ac-pay">⚡ SUPPORT ACEROLA</button></div>
-      <div id="acPro" class="ac-panel"><div class="ac-hero"><b>Acerola Pro · ₦1,000 one-time</b><span>Optional Pro status for premium features as they are released.</span></div><div class="ac-note">◆ Pro identity · ⚡ Premium modes · 🎨 Premium UI · ☁ Future cloud-first features</div>
+      <div id="acPro" class="ac-panel"><div class="ac-hero"><b>Acerola Pro · ₦1,000 one-time</b><span>One-time access to premium Acerola features. Pro purchases are verified server-side.</span></div><div class="ac-note">◆ Pro identity · ⚡ Premium modes · 🎨 Premium UI · ☁ Future cloud-first features</div>
         <input id="acProEmail" class="ac-field" type="email" autocomplete="email" placeholder="Email for payment receipt"><button id="acProPay" class="ac-pay pro">◆ UNLOCK ACEROLA PRO</button></div>
       <div id="acStatus" class="ac-status">Secure Paystack checkout · NGN</div><div id="acSuccess" class="ac-success"></div><div class="ac-note">Payments are initialized and verified by the Acerola server.</div>
     </section>`;
