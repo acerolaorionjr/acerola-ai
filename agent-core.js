@@ -86,6 +86,18 @@
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
+  function detectMediaIntent(text) {
+    const source = String(text || '').trim();
+    if (!source) return null;
+    const imageVerb = /\b(create|make|generate|draw|design|render|produce|paint|illustrate)\b/i.test(source);
+    const imageNoun = /\b(image|picture|photo|artwork|illustration|wallpaper|logo|poster|portrait|drawing)\b/i.test(source);
+    const videoVerb = /\b(create|make|generate|render|produce)\b/i.test(source);
+    const videoNoun = /\b(video|short|clip|animation)\b/i.test(source);
+    if (imageVerb && imageNoun) return { kind: 'image', prompt: source };
+    if (videoVerb && videoNoun) return { kind: 'video', prompt: source };
+    return null;
+  }
+
   function extractMemoryRequest(text) {
     const source = String(text || '').trim();
     if (!source) return null;
@@ -259,6 +271,8 @@
       const moduleMatch = text.match(/^(?:open|show|go to)\s+(chat|memory|actions|system)(?:\s+module)?$/i); if (moduleMatch) return { type: 'action', action: 'ui.open_module', result: await this.actions.execute('ui.open_module', { module: moduleMatch[1] }) };
       const notify = text.match(/^(?:notify|notification)\s*:\s*(.+)$/i); if (notify) return { type: 'action', action: 'ui.notify', result: await this.actions.execute('ui.notify', { message: notify[1] }) };
       if (/^status$/i.test(text)) return { type: 'status', version: this.version, memoryCount: this.memory.all().length, conversationTurns: this.conversation.count(), tools: this.tools.list(), remoteMemory: this.remoteMemory };
+      const media = detectMediaIntent(text);
+      if (media) return { type: 'media_request', media };
       return { type: 'model_request', payload: { message: text, memories: this.memory.recent(10), context: { ...context, conversation: this.conversation.recent(12) }, available_tools: this.tools.list(), agent_mode: true } };
     }
   }
