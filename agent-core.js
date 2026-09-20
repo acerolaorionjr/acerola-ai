@@ -161,7 +161,7 @@
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data?.operation) throw new Error(data?.error || `Video generation failed (${response.status})`);
           return { operation: data.operation, aspect_ratio: data.aspect_ratio || aspect_ratio };
-        }, 'Generate a short video and return its background operation'); 
+        }, 'Generate a short video and return its background operation')
         .register('memory.search_and_recall', ({ query, limit = 8 } = {}) => this.memory.search(query, limit), 'Recall relevant saved memories for a natural-language request')
         .register('conversation.recent_context', ({ limit = 12 } = {}) => this.conversation.recent(limit), 'Read recent conversation context before acting');
     }
