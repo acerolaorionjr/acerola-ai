@@ -54,7 +54,19 @@
   function loadPaystack(){return new Promise((resolve,reject)=>{if(window.PaystackPop)return resolve();const s=document.createElement('script');s.src='https://js.paystack.co/v2/inline.js';s.onload=resolve;s.onerror=()=>reject(new Error('Paystack checkout could not load.'));document.head.appendChild(s)})}
   async function start({email,amount:amt,product,button}){if(product==='premium')amt=1000;if(!amt){setStatus('Enter an amount from ₦100 to ₦1,000,000.','error');return}if(!/^\S+@\S+\.\S+$/.test(email)){setStatus('Enter a valid email for the payment receipt.','error');return}button.disabled=true;const buttons=[$('#acDonatePay'),$('#acProPay')];buttons.forEach(b=>b.disabled=true);setStatus('Preparing secure checkout…');try{await loadPaystack();const init=await post(INIT_URL,{email,amount:amt,product,source:'acerola-core'});if(!init.success||!init.access_code||!init.reference)throw new Error(init.error||'Unable to initialize payment');setStatus('Opening secure Paystack checkout…');const popup=new PaystackPop();popup.resumeTransaction(init.access_code);setStatus('Complete the payment in Paystack…');await wait(init.reference,amt,product,buttons)}catch(e){stop();setStatus(e.name==='AbortError'?'Payment service timed out. Try again.':(e.message||'Unable to start payment.'),'error');buttons.forEach(b=>b.disabled=false)}}
   function addCoreLink(){const drawer=$('#drawer');if(!drawer||$('#acerolaCoreLinks'))return;const box=document.createElement('div');box.id='acerolaCoreLinks';box.className='acerola-core-links';box.innerHTML='<div class="acerola-core-title">ACEROLA CORE</div><button class="acerola-core-btn" id="acSupportOpen">♡ Support / Pro</button>';const foot=drawer.querySelector('.drawer-foot');drawer.insertBefore(box,foot||null);$('#acSupportOpen').onclick=open}
-  async function syncProEntitlement(){try{if(!window.supabase?.createClient)return;const db=window.supabase.createClient(SUPA_URL,'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7');const {data:{session}}=await db.auth.getSession();if(!session)return;const {data,error}=await db.from('acerola_pro_entitlements').select('active').eq('user_id',session.user.id).eq('active',true).maybeSingle();if(!error&&data?.active){localStorage.setItem('acerola-premium-unlocked','1');window.dispatchEvent(new CustomEvent('acerola:pro-ready',{detail:{persistent:true}}))}catch(_){}
+  async function syncProEntitlement(){
+    try {
+      if(!window.supabase?.createClient) return;
+      const db=window.supabase.createClient(SUPA_URL,'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7');
+      const {data:{session}}=await db.auth.getSession();
+      if(!session) return;
+      const {data,error}=await db.from('acerola_pro_entitlements').select('active').eq('user_id',session.user.id).eq('active',true).maybeSingle();
+      if(!error&&data?.active){
+        localStorage.setItem('acerola-premium-unlocked','1');
+        window.dispatchEvent(new CustomEvent('acerola:pro-ready',{detail:{persistent:true}}));
+      }
+    } catch (_) {}
+  }
   mount();addCoreLink();syncProEntitlement();const obs=new MutationObserver(addCoreLink);obs.observe(document.body,{childList:true,subtree:true});window.AcerolaSupport={open,close};
   if(new URLSearchParams(location.search).get('support')==='1')setTimeout(open,250);
 })();
