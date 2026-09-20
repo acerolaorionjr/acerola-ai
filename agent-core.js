@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -84,18 +84,6 @@
     }
     async complete(payload) { return normalizeGatewayResponse(await this.request(payload)); }
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
-  }
-
-  function detectMediaIntent(text) {
-    const source = String(text || '').trim();
-    if (!source) return null;
-    const imageVerb = /\b(create|make|generate|draw|design|render|produce|paint|illustrate)\b/i.test(source);
-    const imageNoun = /\b(image|picture|photo|artwork|illustration|wallpaper|logo|poster|portrait|drawing)\b/i.test(source);
-    const videoVerb = /\b(create|make|generate|render|produce)\b/i.test(source);
-    const videoNoun = /\b(video|short|clip|animation)\b/i.test(source);
-    if (imageVerb && imageNoun) return { kind: 'image', prompt: source };
-    if (videoVerb && videoNoun) return { kind: 'video', prompt: source };
-    return null;
   }
 
   function extractMemoryRequest(text) {
