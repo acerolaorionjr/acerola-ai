@@ -64,12 +64,12 @@
   class ModelGateway {
     constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) { this.endpoint = endpoint; this.apiKey = apiKey; this.accessToken = ''; }
     setAccessToken(token) { this.accessToken = token || ''; }
-    async request(body) {
+    async request(body, signal) {
       const headers = { 'Content-Type': 'application/json', 'apikey': this.apiKey };
       if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
       let response;
       try {
-        response = await fetch(this.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+        response = await fetch(this.endpoint, { method: 'POST', headers, body: JSON.stringify(body), signal });
       } catch (error) {
         throw new Error(`Gateway network error: ${error?.message || 'Unable to reach Acerola backend'}`);
       }
@@ -82,7 +82,7 @@
       }
       return response.json();
     }
-    async complete(payload) { return normalizeGatewayResponse(await this.request(payload)); }
+    async complete(payload, signal) { return normalizeGatewayResponse(await this.request(payload, signal)); }
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
@@ -227,7 +227,7 @@
       let request = { ...payload, agent_mode: true };
       const trace = [];
       for (let step = 0; step < maxSteps; step++) {
-        const output = await this.gateway.complete(request);
+        const output = await this.gateway.complete(request, options.signal);
         const plan = output?.plan && typeof output.plan === 'object'
           ? output.plan
           : (typeof output?.reply === 'string' ? (() => {
