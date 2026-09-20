@@ -6,6 +6,16 @@
   const ACTIVE_KEY='acerola-ai-active-v6';
   const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
   if(!db)return;
+  // Authentication gate: Acerola's main app requires a signed-in account.
+  // Keep the gate here so the login page is the single entry point while
+  // preserving the existing account modal for account management.
+  db.auth.getSession().then(({data:{session}})=>{
+    if(!session && !location.pathname.endsWith('/login.html')){
+      const loginUrl=new URL('login.html',location.href);
+      loginUrl.searchParams.set('returnTo',location.href);
+      location.replace(loginUrl.href);
+    }
+  }).catch(()=>{});
   const $=s=>document.querySelector(s);
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const style=document.createElement('style');style.textContent=`#accountBtn{width:40px;height:40px;border:1px solid #1d2b49;border-radius:12px;background:#0b1428;color:#00eaff;font-size:15px}.account-sheet{position:fixed;z-index:40;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:16px}.account-sheet.open{display:flex}.account-card{width:min(430px,100%);max-height:90vh;overflow:auto;background:#080e1d;border:1px solid #1d2b49;border-radius:20px;padding:20px;box-shadow:0 20px 80px #000}.account-card h2{margin:0 0 4px}.account-muted{color:#8495b1;font-size:11px;margin-bottom:16px}.account-input{width:100%;padding:11px;border:1px solid #1d2b49;border-radius:10px;background:#0b1428;outline:0;margin:5px 0 8px}.account-btn{width:100%;padding:11px;border:1px solid #236078;border-radius:10px;background:#0b2030;color:#00eaff;margin:5px 0;font-weight:700}.account-btn.google{border-color:#603052;color:#ff69b8;background:#190e1b}.account-btn.secondary{background:#0b1428;color:#f3f8ff;border-color:#1d2b49}.account-msg{min-height:18px;color:#8495b1;font-size:10px;margin-top:8px}.account-divider{display:flex;align-items:center;gap:8px;color:#607390;font-size:9px;margin:12px 0}.account-divider:before,.account-divider:after{content:'';height:1px;background:#1d2b49;flex:1}.voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.voice-row{padding:10px;border:1px solid #1d2b49;border-radius:10px;background:#0b1428}.voice-row label{display:block;color:#8495b1;font-size:10px;margin-bottom:5px}.voice-row select{width:100%;background:#080e1d;color:#f3f8ff;border:1px solid #1d2b49;border-radius:8px;padding:8px}.profile{padding:12px;border:1px solid #1d2b49;border-radius:12px;background:#0b1428;margin-bottom:10px}.profile b{display:block}.profile span{color:#8495b1;font-size:10px}.account-close{float:right;width:34px;height:34px;border:1px solid #1d2b49;border-radius:9px;background:#0c162a;color:#fff}`;document.head.appendChild(style);
