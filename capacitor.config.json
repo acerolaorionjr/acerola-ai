@@ -1,0 +1,8 @@
+{
+  "appId": "com.acerola.ai",
+  "appName": "Acerola AI",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https"
+  }
+}
