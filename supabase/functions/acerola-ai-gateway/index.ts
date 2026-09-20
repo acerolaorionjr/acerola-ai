@@ -30,6 +30,17 @@ async function getUser(req: Request) {
   if (!url || !key) return null;
   try { const r = await fetch(`${url}/auth/v1/user`, {headers:{Authorization:auth,apikey:key}}); if (!r.ok) return null; return await r.json(); } catch { return null; }
 }
+
+async function getOwnerContext(user:any){
+  const app = user?.app_metadata && typeof user.app_metadata === "object" ? user.app_metadata : {};
+  const role = String(app.role || (app.owner === true ? "owner" : "user"));
+  return {
+    owner: app.owner === true,
+    role,
+    display_name: String(user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User").slice(0,120)
+  };
+}
+
 function rateLimit(user: any) {
   const key=String(user?.id||"unknown"), limit=user?.is_anonymous?RATE_LIMIT_ANON:RATE_LIMIT_USER, now=Date.now(), b=buckets.get(key);
   if (!b || now-b.started>=RATE_WINDOW_MS) { buckets.set(key,{started:now,count:1}); return {ok:true,remaining:limit-1,retry:0}; }
@@ -99,7 +110,8 @@ Deno.serve(async(req:Request)=>{
   const common={"X-RateLimit-Remaining":String(rl.remaining),"X-Request-Id":id};if(body.memory_action)return memoryAction(user,body,origin,id);
   const openaiKey=Deno.env.get("OPENAI_API_KEY"),geminiKey=Deno.env.get("GEMINI_API_KEY")||Deno.env.get("GOOGLE_API_KEY");if(!openaiKey&&!geminiKey)return json({error:"AI provider is not configured yet",code:"MISSING_AI_PROVIDER_KEYS",request_id:id},503,origin,common);
   const message=String(body.message||"").trim();if(!message)return json({error:"message is required",request_id:id},400,origin,common);if(message.length>MAX_MESSAGE_CHARS)return json({error:`message exceeds ${MAX_MESSAGE_CHARS} characters`,request_id:id},413,origin,common);
-  const context=body.context&&typeof body.context==="object"?JSON.stringify({...body.context, owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}).slice(0,18000):JSON.stringify({owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}),rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
+  const context=body.context&&typeof body.context==="object"?JSON.stringify({...body.context, owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}).slice(0,18000):JSON.stringify({owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name});
+  const rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
   if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey}});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
@@ -123,7 +135,9 @@ Deno.serve(async(req:Request)=>{
     body.agent_mode ? "The user wants an agent response. Follow the JSON contract exactly." : ""
   ].filter(Boolean).join("\\n");
 
-  const userText=`User message:\n${message}\n\nServer memories:\n${memories.map(m=>`- ${m}`).join("\n")||"(none)"}\n\nRecent conversation context:\n${context}\n\nAvailable tools:\n${JSON.stringify(toolCatalog)}\n\nPrevious agent reply:\n${String(body.previous_reply||"")}\n\nTool execution results:\n${JSON.stringify(toolResults)}`,input=files.length?buildInput(userText,files):userText,searchRequested=needsWebSearch(message);
+  const userText=`User message:\n${message}\n\nServer memories:\n${memories.map(m=>`- ${m}`).join("\n")||"(none)"}\n\nRecent conversation context:\n${context}\n\nAvailable tools:\n${JSON.stringify(toolCatalog)}\n\nPrevious agent reply:\n${String(body.previous_reply||"")}\n\nTool execution results:\n${JSON.stringify(toolResults)}`;
+  const input=files.length?buildInput(userText,files):userText;
+  const searchRequested=needsWebSearch(message);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
   try{
