@@ -1,0 +1,7 @@
+# Capacitor web asset exclusions
+android
+.git
+.github
+node_modules
+*.md
+package-lock.json
