@@ -25,6 +25,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Validate JavaScript syntax
+        run: |
+          for f in agent-core.js agent-tools.js engine-runtime.js account-system.js chat-enhancements.js ui-enhancements.js support.js; do
+            node --check "$f"
+          done
       - name: Validate site files
         run: |
           test -f index.html
