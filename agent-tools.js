@@ -119,6 +119,27 @@
 
 
 
+    core.tools.register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png' }) => {
+      const value = text(prompt);
+      if (!value) throw new Error('An image prompt is required.');
+      if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
+      const base = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-image';
+      const response = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
+        body: JSON.stringify({
+          prompt: value.slice(0, 5000),
+          size: ['1024x1024','1024x1536','1536x1024'].includes(size) ? size : '1024x1024',
+          quality: ['low','medium','high','auto'].includes(quality) ? quality : 'auto',
+          output_format: ['png','webp','jpeg'].includes(output_format) ? output_format : 'png'
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Image generation could not start.');
+      if (!data.image) throw new Error('The image service returned no image.');
+      return { ok: true, image: data.image, size: data.size, quality: data.quality, format: data.format };
+    }, 'Generate an AI image from a text prompt and return it for display.');
+
     core.tools.register('media.generate_short', async ({ prompt, aspect_ratio = '9:16', model = 'veo-3.1-fast-generate-preview' }) => {
       const value = text(prompt);
       if (!value) throw new Error('A Short prompt is required.');
