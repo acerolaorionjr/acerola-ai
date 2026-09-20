@@ -37,7 +37,8 @@ function rateLimit(user: any) {
   b.count++; return {ok:true,remaining:limit-b.count,retry:0};
 }
 const ALLOWED_MIMES=new Set(["image/jpeg","image/png","image/webp","image/gif","application/pdf","application/json","text/csv","text/plain","text/markdown","text/html","application/xml","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
-function parseDataUrl(data:string){const m=data.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\r\n]+)$/);if(!m)return null;const mime=m[1].toLowerCase(),b64=m[2].replace(/\s+/g,"");if(!ALLOWED_MIMES.has(mime))return null;const bytes=Math.floor(b64.length*3/4)-(b64.endsWith("==")?2:b64.endsWith("=")?1:0);if(bytes<=0||bytes>MAX_ATTACHMENT_BYTES)return null;return{mime,b64,bytes};}
+function parseDataUrl(data:string){const m=data.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\r
+]+)$/);if(!m)return null;const mime=m[1].toLowerCase(),b64=m[2].replace(/\s+/g,"");if(!ALLOWED_MIMES.has(mime))return null;const bytes=Math.floor(b64.length*3/4)-(b64.endsWith("==")?2:b64.endsWith("=")?1:0);if(bytes<=0||bytes>MAX_ATTACHMENT_BYTES)return null;return{mime,b64,bytes};}
 function buildInput(message:string,files:any[]){const content:any[]=[{type:"input_text",text:message}];for(const f of files){const p=parseDataUrl(String(f.data||""));if(!p)continue;const name=String(f.name||"attachment").replace(/[\u0000-\u001f\u007f]/g," ").slice(0,160),data=`data:${p.mime};base64,${p.b64}`;if(p.mime.startsWith("image/"))content.push({type:"input_image",image_url:data,detail:"auto"});else content.push({type:"input_file",filename:name,file_data:data});}return[{role:"user",content}];}
 async function memoryAction(user:any,body:any,origin:string|null,id:string){
   const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -51,7 +52,8 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
 }
 function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|as of|this week|this month|2026)\b/i.test(text);}
 async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal){const body:any={model,instructions,input,max_output_tokens:2000};if(useSearch)body.tools=[{type:"web_search"}];return await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal});}
-function extractReply(result:any){if(typeof result?.output_text==="string"&&result.output_text.trim())return result.output_text.trim();const text=result?.output?.flatMap((x:any)=>Array.isArray(x.content)?x.content:[])?.filter((x:any)=>x.type==="output_text")?.map((x:any)=>x.text)?.join("\n");return String(text||"No response text returned.").trim();}
+function extractReply(result:any){if(typeof result?.output_text==="string"&&result.output_text.trim())return result.output_text.trim();const text=result?.output?.flatMap((x:any)=>Array.isArray(x.content)?x.content:[])?.filter((x:any)=>x.type==="output_text")?.map((x:any)=>x.text)?.join("
+");return String(text||"No response text returned.").trim();}
 
 Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
@@ -62,7 +64,8 @@ Deno.serve(async(req:Request)=>{
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
   const user=await getUser(req);if(!user?.id)return json({error:"Authentication required",code:"AUTH_REQUIRED",request_id:id},401,origin,{"X-Request-Id":id});
-  const ownerContext = await getOwnerContext(user);\n  const rl=rateLimit(user);if(!rl.ok)return json({error:"Rate limit exceeded",retry_after_seconds:rl.retry,request_id:id},429,origin,{"Retry-After":String(rl.retry),"X-RateLimit-Remaining":"0","X-Request-Id":id});
+  const ownerContext = await getOwnerContext(user);
+  const rl=rateLimit(user);if(!rl.ok)return json({error:"Rate limit exceeded",retry_after_seconds:rl.retry,request_id:id},429,origin,{"Retry-After":String(rl.retry),"X-RateLimit-Remaining":"0","X-Request-Id":id});
   const common={"X-RateLimit-Remaining":String(rl.remaining),"X-Request-Id":id};if(body.memory_action)return memoryAction(user,body,origin,id);
   const apiKey=Deno.env.get("OPENAI_API_KEY");if(!apiKey)return json({error:"AI provider is not configured yet",code:"MISSING_OPENAI_API_KEY",request_id:id},503,origin,common);
   const message=String(body.message||"").trim();if(!message)return json({error:"message is required",request_id:id},400,origin,common);if(message.length>MAX_MESSAGE_CHARS)return json({error:`message exceeds ${MAX_MESSAGE_CHARS} characters`,request_id:id},413,origin,common);
@@ -88,9 +91,27 @@ Deno.serve(async(req:Request)=>{
     "You may take multiple tool steps. After tool results arrive, inspect them, decide whether another allowed tool is needed, and otherwise return final.",
     "Prefer the smallest safe set of actions. Do not perform destructive, financial, account, publishing, or external-write actions without an explicit confirmation step when such a tool exists.",
     body.agent_mode ? "The user wants an agent response. Follow the JSON contract exactly." : ""
-  ].filter(Boolean).join("\\n");
+  ].filter(Boolean).join("\
+");
 
-  const userText=`User message:\n${message}\n\nServer memories:\n${memories.map(m=>`- ${m}`).join("\n")||"(none)"}\n\nRecent conversation context:\n${context}\n\nAvailable tools:\n${JSON.stringify(toolCatalog)}\n\nPrevious agent reply:\n${String(body.previous_reply||"")}\n\nTool execution results:\n${JSON.stringify(toolResults)}`,input=files.length?buildInput(userText,files):userText,searchRequested=needsWebSearch(message);
+  const userText=`User message:
+${message}
+
+Server memories:
+${memories.map(m=>`- ${m}`).join("
+")||"(none)"}
+
+Recent conversation context:
+${context}
+
+Available tools:
+${JSON.stringify(toolCatalog)}
+
+Previous agent reply:
+${String(body.previous_reply||"")}
+
+Tool execution results:
+${JSON.stringify(toolResults)}`,input=files.length?buildInput(userText,files):userText,searchRequested=needsWebSearch(message);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false;
   const attempts=searchRequested?[["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]] as const:[["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]] as const;
   try{for(const [model,useSearch] of attempts){try{const r=await callOpenAI(apiKey,model,input,system,useSearch,controller.signal);if(r.ok){upstream=r;usedModel=model;usedSearch=useSearch;break;}const text=await r.text();lastError={status:r.status,body:text.slice(0,800),model,useSearch};if(r.status===401||r.status===403||r.status===429)break;}catch(e){lastError={status:0,body:e instanceof Error?e.message:"request failed",model,useSearch};}}}finally{clearTimeout(timer);}
