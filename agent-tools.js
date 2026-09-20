@@ -83,6 +83,18 @@
         return { ok: true, shared: true };
       }, 'Open the device share sheet for user-approved sharing.')
 
+      .register('code.inspect_file', async ({ path = 'index.html', start = 1, end = 240 } = {}) => {
+        const value = text(path).replace(/^\\/+/, '');
+        if (!value || value.includes('..') || value.includes('\\0')) throw new Error('Invalid repository path.');
+        if (!/^[A-Za-z0-9_./-]+$/.test(value)) throw new Error('Invalid repository path.');
+        const s = Math.max(1, Number(start) || 1), e = Math.min(1200, Math.max(s, Number(end) || s + 239));
+        const url = 'https://raw.githubusercontent.com/acerolaorionjr/acerola-ai/main/' + value;
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Repository file could not be read (' + response.status + ').');
+        const lines = (await response.text()).split('\\n');
+        return { ok: true, repository: 'acerolaorionjr/acerola-ai', path: value, start: s, end: Math.min(e, lines.length), content: lines.slice(s - 1, e).join('\\n') };
+      }, 'Inspect the current Acerola AI source code from its public GitHub repository. Use this to check code, debug files, verify implementations, and explain what the current code actually does.')
+
       .register('browser.open_url', ({ url }) => {
         const value = text(url);
         if (!/^https?:\/\//g/i.test(value)) throw new Error('Only http and https URLs can be opened.');
