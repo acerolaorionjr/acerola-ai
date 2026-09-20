@@ -1,4 +1,5 @@
 name: Deploy Acerola AI to GitHub Pages
+run-name: Deploy Acerola AI (${{ github.sha }})
 
 on:
   push:
