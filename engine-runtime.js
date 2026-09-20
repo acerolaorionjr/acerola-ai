@@ -108,6 +108,8 @@
 
     async run(message, context = {}, options = {}) {
       const input = String(message || '').trim();
+      const signal = options.signal;
+      if (signal?.aborted) return { ok: false, cancelled: true, error: 'Request cancelled.' };
       if (!input) return { ok: false, error: 'Message is required.' };
       if (!this.ready) await this.initialize();
 
@@ -136,7 +138,7 @@
         for (let attempt = 0; attempt <= retries; attempt++) {
           try {
             this._setStep(task, 1, 'thinking', '', 'Planning the request…');
-            const result = await this.core.runAgent(prepared.payload, { maxSteps });
+            const result = await this.core.runAgent(prepared.payload, { maxSteps, signal });
             const trace = Array.isArray(result?.trace) ? result.trace : [];
             trace.forEach((item, index) => this._setStep(task, index + 1, item?.result?.ok === false ? 'failed' : 'completed', item?.tool || '', item?.tool ? 'Using ' + item.tool : 'Processing…'));
             const invalidTool = result?.trace?.find(item => item?.tool && !this._toolExists(item.tool));
@@ -163,6 +165,7 @@
               }
             };
           } catch (error) {
+            if (error?.name === 'AbortError' || signal?.aborted) return { ok: false, cancelled: true, error: 'Request cancelled.' };
             lastError = error;
             if (attempt >= retries) break;
             prepared.payload = {
