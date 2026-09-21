@@ -140,13 +140,67 @@ Deno.serve(async(req:Request)=>{
   const searchRequested=needsWebSearch(message);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
-  try{
-    if(prefer==="gemini"&&geminiKey){
-      for(const model of ["gemini-3.8-flash"]){try{const r=await callGemini(geminiKey,model,userText,system,files,controller.signal);if(r.ok){upstream=r;usedModel=model;provider="gemini";break;}const text=await r.text();lastError={status:r.status,body:text.slice(0,800),model,provider:"gemini"};if(r.status===401||r.status===403)break;}catch(e){lastError={status:0,body:e instanceof Error?e.message:"request failed",model,provider:"gemini"};}}
+  // Provider fallback policy:
+  // 1) Try the preferred provider first.
+  // 2) If it is rate-limited, quota-exhausted, unavailable, or a model is unavailable,
+  //    continue through that provider's model list instead of stopping on the first error.
+  // 3) If the preferred provider still fails, try the other configured provider.
+  // 4) Only authentication/configuration failures stop attempts for that provider.
+  const providerOrder = prefer==="gemini"
+    ? ["gemini","openai"]
+    : ["openai","gemini"];
+
+  async function tryGemini(){
+    if(!geminiKey) return false;
+    for(const model of ["gemini-3.8-flash","gemini-3.7-flash","gemini-3.6-flash","gemini-3.5-flash"]){
+      try{
+        const r=await callGemini(geminiKey,model,userText,system,files,controller.signal);
+        if(r.ok){
+          upstream=r;usedModel=model;provider="gemini";return true;
+        }
+        const text=await r.text();
+        lastError={status:r.status,body:text.slice(0,800),model,provider:"gemini"};
+        // 401/403 means this key/provider cannot authenticate. Let the other
+        // provider have a chance, but don't waste requests on more Gemini models.
+        if(r.status===401||r.status===403) break;
+        // 429, 408, 5xx, and model/request errors are retryable across the
+        // configured Gemini models, so continue instead of aborting fallback.
+      }catch(e){
+        lastError={status:0,body:e instanceof Error?e.message:"request failed",model,provider:"gemini"};
+      }
     }
-    if(!upstream&&openaiKey){
-      const attempts=searchRequested?[["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]] as const:[["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]] as const;
-      for(const [model,useSearch] of attempts){try{const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal);if(r.ok){upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";break;}const text=await r.text();lastError={status:r.status,body:text.slice(0,800),model,useSearch,provider:"openai"};if(r.status===401||r.status===403||r.status===429)break;}catch(e){lastError={status:0,body:e instanceof Error?e.message:"request failed",model,useSearch,provider:"openai"};}}
+    return false;
+  }
+
+  async function tryOpenAI(){
+    if(!openaiKey) return false;
+    const attempts=searchRequested
+      ? [["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]]
+      : [["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]];
+    for(const [model,useSearch] of attempts){
+      try{
+        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal);
+        if(r.ok){
+          upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";return true;
+        }
+        const text=await r.text();
+        lastError={status:r.status,body:text.slice(0,800),model,useSearch,provider:"openai"};
+        // Authentication/permission errors cannot be repaired by switching models.
+        // Still allow the outer loop to try Gemini if it is configured.
+        if(r.status===401||r.status===403) break;
+        // IMPORTANT: do not break on 429. A single exhausted model must not
+        // prevent the remaining OpenAI models or Gemini from being tried.
+      }catch(e){
+        lastError={status:0,body:e instanceof Error?e.message:"request failed",model,useSearch,provider:"openai"};
+      }
+    }
+    return false;
+  }
+
+  try{
+    for(const selectedProvider of providerOrder){
+      if(selectedProvider==="gemini" && await tryGemini()) break;
+      if(selectedProvider==="openai" && await tryOpenAI()) break;
     }
   }finally{clearTimeout(timer);}
   if(!upstream){console.error("Acerola provider failure",id,lastError);const code=lastError?.status===401||lastError?.status===403?"AI_AUTH_FAILED":lastError?.status===429?"AI_QUOTA_OR_RATE_LIMIT":lastError?.status===0?"AI_NETWORK_FAILED":"AI_UPSTREAM_FAILED";return json({error:"AI provider request failed",code,provider_status:lastError?.status||0,request_id:id},lastError?.status===429?503:502,origin,common);}
