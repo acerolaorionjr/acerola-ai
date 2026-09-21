@@ -27,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Deno
-        uses: denoland/setup-deno@e7b7129b7a92b7500ded88f8f5baa25a7f59e56e
+        uses: denoland/setup-deno@v2.0.5 # Current stable Setup Deno release
         with:
           deno-version: v2.x
       - name: Type-check gateway
