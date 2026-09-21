@@ -1,6 +1,6 @@
 /* Acerola chat UX enhancements. Loaded by index.html when available. */
 (()=>{
-  const HK='acerola-ai-chats-v5', AK='acerola-ai-active-v5', SESSION='acerola-session-v1';
+  const HK='acerola-ai-chats-v6', AK='acerola-ai-active-v6', SESSION='acerola-session-v1';
   try{if(!sessionStorage.getItem(SESSION)){sessionStorage.setItem(SESSION,'1');localStorage.removeItem(AK)}}catch{}
   const style=document.createElement('style');
   style.textContent='.history .chat-item{display:flex;align-items:center;gap:6px}.history .chat-item>button:first-child{flex:1;min-width:0}.history .chat-delete{width:32px!important;height:32px;padding:0!important;display:grid;place-items:center;border:1px solid #39243b!important;color:#ff69b8!important;background:#120b18!important;border-radius:9px!important;margin:0!important}';
