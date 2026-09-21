@@ -175,8 +175,8 @@ Deno.serve(async(req:Request)=>{
   async function tryOpenAI(){
     if(!openaiKey) return false;
     const attempts=searchRequested
-      ? [["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]]
-      : [["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]];
+      ? [["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]] as const
+      : [["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]] as const;
     for(const [model,useSearch] of attempts){
       try{
         const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal);
