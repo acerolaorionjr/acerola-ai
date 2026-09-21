@@ -31,6 +31,10 @@ jobs:
           for f in agent-core.js agent-tools.js engine-runtime.js account-system.js chat-enhancements.js ui-enhancements.js support.js; do
             node --check "$f"
           done
+      - name: Run Agent Core contract tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest requests
+          pytest -m 'not live' -q
       - name: Validate site files
         run: |
           test -f index.html
