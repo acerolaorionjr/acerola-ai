@@ -100,7 +100,7 @@ Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
   if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed",request_id:id},403,origin,{"X-Request-Id":id});
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...baseHeaders(origin),"X-Request-Id":id}});
-  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"40",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
+  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"47",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
   if(req.method!=="POST")return json({error:"Method not allowed",request_id:id},405,origin,{"X-Request-Id":id});
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
