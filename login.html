@@ -79,7 +79,8 @@ body{min-height:100dvh;display:grid;place-items:center;padding:18px}.shell{width
   }
   async function loginWithGoogle(){
     setBusy(true);msg('Opening Google…');
-    const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href}});
+    const redirectTo='https://acerolaorionjr.github.io/acerola-ai/login.html';
+    const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo}});
     if(error){setBusy(false);msg(error.message,'error')}
   }
   login.addEventListener('click',loginWithEmail);
