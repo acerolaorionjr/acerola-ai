@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#03050b;--panel:#080e1b;--line:rgba(125,167,220,.16);--cyan:#20f6ff;--purple:#9b7cff;--text:#f4f8ff;--muted:#8190aa;--good:#7fffe8;--bad:#ff719f}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% -8%,rgba(32,246,255,.13),transparent 34%),radial-gradient(circle at 85% 80%,rgba(155,124,255,.10),transparent 30%),var(--bg);color:var(--text)}
-body{min-height:100dvh;display:grid;place-items:center;padding:18px;overflow:auto}.shell{width:min(440px,100%);position:relative}.card{padding:28px 22px 22px;border:1px solid var(--line);border-radius:26px;background:rgba(8,14,27,.82);backdrop-filter:blur(24px);box-shadow:0 24px 90px rgba(0,0,0,.48);text-align:center}.core{width:94px;height:94px;margin:0 auto 18px;display:grid;place-items:center;position:relative}.core:before,.core:after{content:"";position:absolute;border:1px solid rgba(32,246,255,.25);border-radius:50%;inset:0}.core:after{inset:12px;border-color:rgba(155,124,255,.28);animation:spin 8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.orb{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#fff 0 5%,#62ffff 16%,#148ca1 45%,#07141e 72%);box-shadow:0 0 28px rgba(32,246,255,.5);animation:pulse 2.5s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.08)}}.label{font-size:8px;letter-spacing:1.8px;color:#8ceff5;text-transform:uppercase}.label i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 9px var(--cyan);margin-right:6px}.card h1{font-size:38px;letter-spacing:-2.5px;line-height:1;margin:14px 0 10px}.grad{background:linear-gradient(90deg,#fff,var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:var(--muted);font-size:12px;line-height:1.65;margin:0 auto 22px;max-width:340px}.google,.primary,.secondary{width:100%;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer}.google{border:1px solid rgba(32,246,255,.22);background:#0b1826;color:var(--text)}.primary{border:1px solid rgba(32,246,255,.3);background:#09212b;color:var(--cyan)}.secondary{border:1px solid var(--line);background:#0b111e;color:var(--text)}button:disabled{opacity:.55;cursor:wait}.divider{display:flex;align-items:center;gap:8px;color:#566782;font-size:8px;letter-spacing:1px;margin:14px 0}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}.fields{display:grid;gap:8px}.input{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#070d18;color:var(--text);outline:0}.input:focus{border-color:rgba(32,246,255,.42);box-shadow:0 0 0 3px rgba(32,246,255,.05)}.actions{display:grid;gap:7px;margin-top:9px}.status{min-height:20px;margin-top:12px;color:var(--muted);font-size:10px}.status.error{color:var(--bad)}.status.ok{color:var(--good)}.foot{margin-top:18px;color:#52627a;font-size:8px}.switch{margin-top:12px;color:#70819b;font-size:9px}.switch button{border:0;background:none;color:var(--cyan);padding:0;cursor:pointer;font-weight:700}
+body{min-height:100dvh;display:grid;place-items:center;padding:18px}.shell{width:min(440px,100%)}.card{padding:28px 22px 22px;border:1px solid var(--line);border-radius:26px;background:rgba(8,14,27,.82);backdrop-filter:blur(24px);box-shadow:0 24px 90px rgba(0,0,0,.48);text-align:center}.core{width:94px;height:94px;margin:0 auto 18px;display:grid;place-items:center;position:relative}.core:before,.core:after{content:"";position:absolute;border:1px solid rgba(32,246,255,.25);border-radius:50%;inset:0}.core:after{inset:12px;border-color:rgba(155,124,255,.28);animation:spin 8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.orb{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#fff 0 5%,#62ffff 16%,#148ca1 45%,#07141e 72%);box-shadow:0 0 28px rgba(32,246,255,.5)}.label{font-size:8px;letter-spacing:1.8px;color:#8ceff5;text-transform:uppercase}.label i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 9px var(--cyan);margin-right:6px}.card h1{font-size:38px;letter-spacing:-2.5px;line-height:1;margin:14px 0 10px}.grad{background:linear-gradient(90deg,#fff,var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:var(--muted);font-size:12px;line-height:1.65;margin:0 auto 22px;max-width:340px}.google,.primary,.secondary{width:100%;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer}.google{border:1px solid rgba(32,246,255,.22);background:#0b1826;color:var(--text)}.primary{border:1px solid rgba(32,246,255,.3);background:#09212b;color:var(--cyan)}.secondary{border:1px solid var(--line);background:#0b111e;color:var(--text)}button:disabled{opacity:.55;cursor:wait}.divider{display:flex;align-items:center;gap:8px;color:#566782;font-size:8px;letter-spacing:1px;margin:14px 0}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}.fields{display:grid;gap:8px}.input{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#070d18;color:var(--text);outline:0}.input:focus{border-color:rgba(32,246,255,.42);box-shadow:0 0 0 3px rgba(32,246,255,.05)}.actions{display:grid;gap:7px;margin-top:9px}.status{min-height:20px;margin-top:12px;color:var(--muted);font-size:10px}.status.error{color:var(--bad)}.status.ok{color:var(--good)}.foot{margin-top:18px;color:#52627a;font-size:8px}.switch{margin-top:12px;color:#70819b;font-size:9px}
 </style>
 </head>
 <body>
@@ -15,25 +15,79 @@ body{min-height:100dvh;display:grid;place-items:center;padding:18px;overflow:aut
 <div class="label"><i></i>Agent Core // Authentication</div>
 <h1>Enter <span class="grad">Acerola.</span></h1>
 <p class="sub">Your personal intelligence system. Sign in to keep your chats, memories and account settings connected.</p>
-<button class="google" id="google">Continue with Google</button>
-<div class="divider">OR EMAIL</div>
-<div class="fields"><input class="input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"></div>
-<div class="actions"><button class="primary" id="login">Log in</button><button class="secondary" id="signup">Create account</button></div>
+<button type="button" class="google" id="google">Continue with Google</button>
+<div class="divider">OR EMAIL & PASSWORD</div>
+<div class="fields">
+<input class="input" id="email" type="email" placeholder="Email address" autocomplete="email">
+<input class="input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">
+</div>
+<div class="actions">
+<button type="button" class="primary" id="login">Log in with email</button>
+<button type="button" class="secondary" id="signup">Create account with email</button>
+</div>
 <div class="status" id="status">Checking session…</div>
 <div class="switch">Acerola · Private account access</div>
 <div class="foot">Created by Michael Chukwudi</div>
 </section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-(()=>{const URL='https://djumpimcwzhjujysznox.supabase.co',KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7',sb=window.supabase.createClient(URL,KEY),$=id=>document.getElementById(id),status=$('status'),email=$('email'),pass=$('pass'),login=$('login'),signup=$('signup'),google=$('google');
-const params=new URLSearchParams(location.search),returnTo=params.get('returnTo'),appUrl=returnTo&&returnTo.startsWith(location.origin)?returnTo:new URL('./',location.href).href;
-function msg(t,k=''){status.textContent=t;status.className='status '+k}
-async function profile(user){const displayName=user.user_metadata?.full_name||user.user_metadata?.name||user.email?.split('@')[0]||'Acerola User';const avatar=user.user_metadata?.avatar_url||user.user_metadata?.picture||null;const r=await sb.from('profiles').upsert({id:user.id,display_name:displayName,avatar_url:avatar,preferences:{}},{onConflict:'id'});if(r.error)console.warn(r.error.message)}
-async function enter(session){if(!session)return;await profile(session.user);msg('Signed in. Opening Acerola…','ok');setTimeout(()=>location.replace(appUrl),150)}
-async function start(){const r=await sb.auth.getSession();if(r.error)return msg(r.error.message,'error');if(r.data.session)return enter(r.data.session);msg('Ready.')}
-async function emailAuth(isSignup){const e=email.value.trim(),p=pass.value;if(!e||p.length<8)return msg('Enter a valid email and an 8+ character password.','error');login.disabled=signup.disabled=google.disabled=true;msg(isSignup?'Creating your account…':'Signing you in…');const r=isSignup?await sb.auth.signUp({email:e,password:p,options:{data:{name:e.split('@')[0]}}}):await sb.auth.signInWithPassword({email:e,password:p});login.disabled=signup.disabled=google.disabled=false;if(r.error)return msg(r.error.message,'error');if(isSignup&&!r.data.session)return msg('Account created. Check your email to verify it, then log in.','ok');await enter(r.data.session)}
-google.onclick=async()=>{google.disabled=login.disabled=signup.disabled=true;msg('Opening Google…');const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href}});if(r.error){google.disabled=login.disabled=signup.disabled=false;msg(r.error.message,'error')}}
-login.onclick=()=>emailAuth(false);signup.onclick=()=>emailAuth(true);pass.addEventListener('keydown',e=>{if(e.key==='Enter')emailAuth(false)});
-sb.auth.onAuthStateChange((_event,session)=>{if(session)enter(session)});start();
-})();</script>
+(()=> {
+  const SUPABASE_URL='https://djumpimcwzhjujysznox.supabase.co';
+  const SUPABASE_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
+  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const $=id=>document.getElementById(id);
+  const status=$('status'),email=$('email'),pass=$('pass'),login=$('login'),signup=$('signup'),google=$('google');
+  const params=new URLSearchParams(location.search);
+  const returnTo=params.get('returnTo');
+  const appUrl=returnTo&&returnTo.startsWith(location.origin)?returnTo:new URL('./',location.href).href;
+  function msg(t,k=''){status.textContent=t;status.className='status '+k}
+  async function profile(user){
+    const displayName=user.user_metadata?.full_name||user.user_metadata?.name||user.email?.split('@')[0]||'Acerola User';
+    const avatar=user.user_metadata?.avatar_url||user.user_metadata?.picture||null;
+    const r=await sb.from('profiles').upsert({id:user.id,display_name:displayName,avatar_url:avatar,preferences:{}},{onConflict:'id'});
+    if(r.error) console.warn('Profile sync:',r.error.message);
+  }
+  async function enter(session){
+    if(!session?.user)return;
+    await profile(session.user);
+    msg('Signed in. Opening Acerola…','ok');
+    setTimeout(()=>location.replace(appUrl),150);
+  }
+  async function start(){
+    const {data,error}=await sb.auth.getSession();
+    if(error)return msg(error.message,'error');
+    if(data.session)return enter(data.session);
+    msg('Ready.');
+  }
+  function setBusy(v){login.disabled=signup.disabled=google.disabled=v}
+  async function loginWithEmail(){
+    const e=email.value.trim(),p=pass.value;
+    if(!e||p.length<8)return msg('Enter a valid email and an 8+ character password.','error');
+    setBusy(true);msg('Signing you in with email…');
+    const {data,error}=await sb.auth.signInWithPassword({email:e,password:p});
+    if(error){setBusy(false);return msg(error.message,'error')}
+    await enter(data.session);
+  }
+  async function createEmailAccount(){
+    const e=email.value.trim(),p=pass.value;
+    if(!e||p.length<8)return msg('Enter a valid email and an 8+ character password.','error');
+    setBusy(true);msg('Creating your email account…');
+    const {data,error}=await sb.auth.signUp({email:e,password:p,options:{data:{name:e.split('@')[0]}}});
+    if(error){setBusy(false);return msg(error.message,'error')}
+    if(!data.session){setBusy(false);return msg('Account created. Check your email to verify it, then log in.','ok')}
+    await enter(data.session);
+  }
+  async function loginWithGoogle(){
+    setBusy(true);msg('Opening Google…');
+    const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href}});
+    if(error){setBusy(false);msg(error.message,'error')}
+  }
+  login.addEventListener('click',loginWithEmail);
+  signup.addEventListener('click',createEmailAccount);
+  google.addEventListener('click',loginWithGoogle);
+  pass.addEventListener('keydown',e=>{if(e.key==='Enter')loginWithEmail()});
+  sb.auth.onAuthStateChange((_event,session)=>{if(session)enter(session)});
+  start();
+})();
+</script>
 </body></html>
