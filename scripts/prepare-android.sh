@@ -6,7 +6,7 @@ cat > "$APP/res/drawable/acerola_icon.xml" <<'EOF'
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#050505" android:pathData="M54,0A54,54 0,1 0,54 108A54,54 0,1 0,54 0"/><path android:fillColor="#00E5FF" android:pathData="M54,18L79,82L66,82L61,68L47,68L42,82L29,82L54,18M54,40L50,57L58,57L54,40"/><path android:fillColor="#FF3CA6" android:pathData="M34,88L74,88L70,94L38,94Z"/></vector>
 EOF
 cat > "$APP/res/drawable/acerola_splash.xml" <<'EOF'
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:drawable="@android:color/black"/><item android:gravity="center"><drawable name="acerola_icon"/></item></layer-list>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:drawable="@android:color/black"/><item android:drawable="@drawable/acerola_icon" android:gravity="center"/></layer-list>
 EOF
 MAN="$APP/AndroidManifest.xml"
 python3 - <<'PY'
