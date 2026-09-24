@@ -1,4 +1,5 @@
 name: Build Acerola AI Android APK
+# Android APK CI is intentionally built on GitHub Actions so no PC is required.
 
 on:
   workflow_dispatch:
