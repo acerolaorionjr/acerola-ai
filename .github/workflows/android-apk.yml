@@ -47,6 +47,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Customize Android app
+        run: bash scripts/prepare-android.sh
+
       - name: Sync web app
         run: npx cap sync android
 
