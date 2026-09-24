@@ -18,5 +18,8 @@
     "Keyboard": {
       "resize": "body"
     }
+  },
+  "android": {
+    "minWebViewVersion": 55
   }
 }
