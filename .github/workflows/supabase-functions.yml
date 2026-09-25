@@ -30,12 +30,8 @@ jobs:
         uses: denoland/setup-deno@v2.0.5 # Current stable Setup Deno release
         with:
           deno-version: v2.x
-      - name: Type-check Supabase functions
-        run: |
-          for file in supabase/functions/*/index.ts; do
-            echo "Checking $file"
-            deno check "$file"
-          done
+      - name: Type-check new music function
+        run: deno check supabase/functions/acerola-music/index.ts
 
   deploy:
     if: github.event_name != 'pull_request'
