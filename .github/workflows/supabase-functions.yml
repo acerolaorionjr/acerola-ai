@@ -30,8 +30,12 @@ jobs:
         uses: denoland/setup-deno@v2.0.5 # Current stable Setup Deno release
         with:
           deno-version: v2.x
-      - name: Type-check gateway
-        run: deno check supabase/functions/acerola-ai-gateway/index.ts
+      - name: Type-check Supabase functions
+        run: |
+          for file in supabase/functions/*/index.ts; do
+            echo "Checking $file"
+            deno check "$file"
+          done
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -52,5 +56,9 @@ jobs:
           version: latest
       - name: Deploy database migrations
         run: supabase db push --linked
-      - name: Deploy Acerola AI gateway
-        run: supabase functions deploy acerola-ai-gateway --project-ref "$SUPABASE_PROJECT_ID" --use-api
+      - name: Deploy Acerola functions
+        run: |
+          for function in acerola-ai-gateway acerola-image acerola-media acerola-music paystack-webhook; do
+            echo "Deploying $function"
+            supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID" --use-api
+          done
