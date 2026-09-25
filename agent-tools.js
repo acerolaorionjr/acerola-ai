@@ -181,6 +181,22 @@
       return { ok: true, operation: data.operation || op, done: !!data.done, error: data.error || null };
     }, 'Check the status of an AI video/Short generation job.');
 
+    core.tools.register('media.generate_music', async ({ prompt, model = 'lyria-3.5' }) => {
+      const value = text(prompt);
+      if (!value) throw new Error('A music prompt is required.');
+      if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
+      const base = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-music';
+      const response = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
+        body: JSON.stringify({ prompt: value.slice(0, 6000), model: model === 'lyria-3-clip-preview' ? model : 'lyria-3.5' })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Music generation failed.');
+      if (!data.audio) throw new Error('The music service returned no audio.');
+      return { ok: true, audio: data.audio, lyrics: data.lyrics || '', model: data.model || model };
+    }, 'Generate original music with Acerola using the Lyria music service and return playable audio.');
+
     core.tools.register('system.permissions', () => ({
       clipboard: !!navigator.clipboard,
       speech: 'speechSynthesis' in global,
