@@ -29,7 +29,9 @@ body{min-height:100dvh;display:grid;place-items:center;padding:18px}.shell{width
 <div class="switch">Acerola · Private account access</div>
 <div class="foot">Created by Michael Chukwudi</div>
 </section></main>
-<script>\n(()=>{const sources=["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2","https://unpkg.com/@supabase/supabase-js@2","https://esm.sh/@supabase/supabase-js@2"];let i=0;function load(){if(window.supabase?.createClient)return;if(i>=sources.length){document.getElementById("status").textContent="Connection unavailable. Please try again when your network is stable.";return}const s=document.createElement("script");s.src=sources[i++];s.async=false;s.onload=()=>{if(window.supabase)window.dispatchEvent(new Event("acerola:supabase-ready"));else load()};s.onerror=load;document.head.appendChild(s)}load()})();\n</script>
+<script>
+(()=>{const sources=["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2","https://unpkg.com/@supabase/supabase-js@2","https://esm.sh/@supabase/supabase-js@2"];let i=0;function load(){if(window.supabase?.createClient)return;if(i>=sources.length){document.getElementById("status").textContent="Connection unavailable. Please try again when your network is stable.";return}const s=document.createElement("script");s.src=sources[i++];s.async=false;s.onload=()=>{if(window.supabase)window.dispatchEvent(new Event("acerola:supabase-ready"));else load()};s.onerror=load;document.head.appendChild(s)}load()})();
+</script>
 <script>
 (()=> {
   const SUPABASE_URL='https://djumpimcwzhjujysznox.supabase.co';
