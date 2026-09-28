@@ -44,7 +44,7 @@ jobs:
           rm -rf www
           mkdir -p www
           cp index.html login.html cloud.html sponsor.html www/
-          cp *.js *.svg *.webmanifest robots.txt sitemap.xml sw.js www/
+          cp *.js *.svg *.webmanifest robots.txt sitemap.xml www/
 
       - name: Add Android platform
         run: npx cap add android
