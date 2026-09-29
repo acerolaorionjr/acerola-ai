@@ -168,7 +168,19 @@
 
     async initialize() {
       try {
-        if (!global.supabase?.createClient) return { authenticated: false, reason: 'Supabase client unavailable' };
+        // Supabase is loaded through a resilient CDN bootstrap on the static site.
+        // On slower/mobile networks that bootstrap can finish after this module is parsed,
+        // so never declare Acerola offline just because the client is not ready yet.
+        if (!global.supabase?.createClient) {
+          await new Promise((resolve) => {
+            let done = false;
+            const finish = () => { if (done) return; done = true; global.removeEventListener('acerola:supabase-ready', finish); global.removeEventListener('acerola:supabase-unavailable', finish); resolve(); };
+            global.addEventListener('acerola:supabase-ready', finish, { once: true });
+            global.addEventListener('acerola:supabase-unavailable', finish, { once: true });
+            setTimeout(finish, 12000);
+          });
+        }
+        if (!global.supabase?.createClient) return { authenticated: false, reason: 'Supabase client unavailable after CDN bootstrap' };
         this.auth = global.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
         let { data: { session } } = await this.auth.auth.getSession();
         if (!session) { const result = await this.auth.auth.signInAnonymously(); if (result.error) throw result.error; session = result.data.session; }
