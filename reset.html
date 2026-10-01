@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acerola — Repair</title>
+<style>
+html,body{margin:0;min-height:100%;background:#050816;color:#f4f8ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+body{display:grid;place-items:center;padding:24px;box-sizing:border-box}
+main{text-align:center;max-width:520px}
+h1{font-size:28px;margin:0 0 10px}
+p{color:#91a0b8;line-height:1.6}
+button{margin-top:12px;padding:12px 18px;border-radius:12px;border:1px solid #31506d;background:#0b1529;color:#fff;font:inherit}
+#status{font-size:12px;color:#00eaff;margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+<h1>Repairing Acerola…</h1>
+<p id="status">Removing stale browser data and preparing a fresh session.</p>
+<button id="manual" type="button">Open Acerola</button>
+</main>
+<script>
+(async()=>{
+ const status=document.getElementById('status');
+ const target='./?fresh='+Date.now();
+ document.getElementById('manual').onclick=()=>location.replace(target);
+ try{
+   const regs=await navigator.serviceWorker?.getRegistrations?.()||[];
+   await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
+   if(window.caches){
+     const keys=await caches.keys();
+     await Promise.all(keys.map(k=>caches.delete(k).catch(()=>false)));
+   }
+   status.textContent='Repair complete. Opening a fresh Acerola session…';
+ }catch(e){
+   status.textContent='Browser cleanup was limited. Opening a fresh Acerola session…';
+ }
+ setTimeout(()=>location.replace(target),500);
+})();
+</script>
+</body>
+</html>
