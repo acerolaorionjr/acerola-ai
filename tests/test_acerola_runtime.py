@@ -68,16 +68,14 @@ def test_browser_can_reach_gateway_without_ai_generation(site_server, browser):
           }
           if (!session?.access_token) throw new Error('No anonymous session token');
           const r = await fetch(url + '/functions/v1/acerola-ai-gateway', {
-            method: 'POST',
+            method: 'GET',
             headers: {
-              'Content-Type': 'application/json',
               'apikey': key,
               'Authorization': 'Bearer ' + session.access_token
-            },
-            body: JSON.stringify({ memory_action: 'load' })
+            }
           });
           const body = await r.json().catch(() => ({}));
-          return { status: r.status, ok: body?.ok === true, code: body?.code || null };
+          return { status: r.status, ok: body?.ok === true && body?.status === 'online', code: body?.code || null };
         }"""
     )
     assert result["status"] == 200, result
