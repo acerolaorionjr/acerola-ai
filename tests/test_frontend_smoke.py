@@ -67,7 +67,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
         page.locator("#input").wait_for(state="visible", timeout=5000)
         page.locator("#send").wait_for(state="visible", timeout=5000)
 
-        assert page.locator(".welcome h1").inner_text() == "What will you build?"
+        assert page.locator(".welcome h1").inner_text() == "What can I help you with?"
         assert page.evaluate("typeof window.acerolaSend") == "function"
         assert page.evaluate("typeof window.AcerolaEngine") == "function"
 
