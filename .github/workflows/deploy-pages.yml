@@ -73,9 +73,10 @@ jobs:
               print(f"Checking index.html inline script #{i}")
               subprocess.run(["node", "--check", str(path)], check=True)
           PY
-      - name: Run Agent Core contract tests
+      - name: Run browser smoke tests
         run: |
-          python -m pip install --disable-pip-version-check pytest requests
+          python -m pip install --disable-pip-version-check pytest requests playwright
+          python -m playwright install --with-deps chromium
           pytest -m 'not live' -q
       - name: Validate site files
         run: |
