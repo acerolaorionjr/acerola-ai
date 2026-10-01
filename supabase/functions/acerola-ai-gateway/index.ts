@@ -61,7 +61,7 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }
 function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|as of|this week|this month|2026)\b/i.test(text);}
-async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal){const body:any={model,instructions,input,max_output_tokens:2000};if(useSearch)body.tools=[{type:"web_search"}];return await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal});}
+async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal){const body:any={model,instructions,input,max_output_tokens:2000};if(useSearch){body.tools=[{type:"web_search"}];body.include=["web_search_call.action.sources"];}return await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal});}
 async function callGemini(apiKey:string, model:string, input:string, instructions:string, files:any[], signal:AbortSignal){
   const parts:any[]=[{text:input}];
   for(const f of files){
@@ -95,6 +95,7 @@ function providerPreference(message:string,agentMode:boolean,hasGemini:boolean){
 }
 
 function extractReply(result:any){if(typeof result?.output_text==="string"&&result.output_text.trim())return result.output_text.trim();const text=result?.output?.flatMap((x:any)=>Array.isArray(x.content)?x.content:[])?.filter((x:any)=>x.type==="output_text")?.map((x:any)=>x.text)?.join("\n");return String(text||"No response text returned.").trim();}
+function extractSources(result:any){const out:any[]=[];const add=(url:any,title:any)=>{const u=String(url||"").trim();if(!/^https?:\\/\\//i.test(u)||out.some(x=>x.url===u))return;out.push({url:u,title:String(title||u).trim().slice(0,240)});};for(const item of Array.isArray(result?.output)?result.output:[]){if(item?.type==="web_search_call"){for(const s of Array.isArray(item?.action?.sources)?item.action.sources:[])add(s?.url,s?.title);for(const s of Array.isArray(item?.results)?item.results:[])add(s?.url||s?.source_website_url,s?.title||s?.name);}for(const content of Array.isArray(item?.content)?item.content:[]){for(const a of Array.isArray(content?.annotations)?content.annotations:[]){if(a?.type==="url_citation")add(a?.url_citation?.url,a?.url_citation?.title);}}}return out.slice(0,20);}
 
 Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
@@ -207,6 +208,7 @@ Deno.serve(async(req:Request)=>{
   if(!upstream){console.error("Acerola provider failure",id,lastError);const code=lastError?.status===401||lastError?.status===403?"AI_AUTH_FAILED":lastError?.status===429?"AI_QUOTA_OR_RATE_LIMIT":lastError?.status===0?"AI_NETWORK_FAILED":"AI_UPSTREAM_FAILED";return json({error:"AI provider request failed",code,provider_status:lastError?.status||0,request_id:id},lastError?.status===429?503:502,origin,common);}
   let result:any;try{result=await upstream.json();}catch{return json({error:"AI provider returned invalid data",code:"AI_INVALID_RESPONSE",request_id:id},502,origin,common);}
   const reply=provider==="gemini"?extractGeminiReply(result):extractReply(result);
+  const sources=provider==="openai"&&usedSearch?extractSources(result):[];
   let plan=null;
   if(body.agent_mode){
     try{
@@ -216,5 +218,5 @@ Deno.serve(async(req:Request)=>{
       }
     }catch{/* model returned non-JSON; client will treat it as final text */}
   }
-  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,request_id:id},200,origin,common);
+  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,sources,request_id:id},200,origin,common);
 });
