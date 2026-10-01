@@ -65,7 +65,7 @@ jobs:
       - name: Deploy all Acerola functions
         run: |
           set -e
-          for function in acerola-ai-gateway acerola-image acerola-media acerola-music acerola-live-session paystack-payment paystack-verify paystack-webhook; do
+          for function in acerola-ai-gateway acerola-image acerola-media acerola-live-session paystack-payment paystack-verify paystack-webhook; do
             echo "Deploying $function"
             supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID" --use-api
           done
