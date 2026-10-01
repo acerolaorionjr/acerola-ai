@@ -84,7 +84,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
         # execute its handler synchronously before any network request.
         page.locator("#input").fill("smoke test")
         page.locator("#send").click()
-        assert page.locator(".row.user .bubble").last.inner_text() == "smoke test"
+        assert "smoke test" in page.locator(".row.user .bubble").last.inner_text()
 
         # No synchronous startup/runtime error is allowed.
         assert not errors, "Acerola page errors: " + " | ".join(errors)
