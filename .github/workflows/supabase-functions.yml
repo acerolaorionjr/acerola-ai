@@ -32,11 +32,16 @@ jobs:
           deno-version: v2.x
       - name: Type-check every Acerola Edge Function
         run: |
-          set -e
+          set +e
+          failed=0
           for f in supabase/functions/*/index.ts; do
             echo "Checking $f"
-            deno check "$f"
+            if ! deno check "$f"; then
+              failed=1
+              echo "::error file=$f::Deno type-check failed"
+            fi
           done
+          exit "$failed"
 
   deploy:
     if: github.event_name != 'pull_request'
