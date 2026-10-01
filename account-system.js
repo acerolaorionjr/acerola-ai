@@ -5,7 +5,19 @@
   const CHAT_KEY='acerola-ai-chats-v6';
   const ACTIVE_KEY='acerola-ai-active-v6';
   const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
-  if(!db)return;
+  if(!db){
+    const retry=()=>{
+      if(window.__acerolaAccountSystemRetry)return;
+      window.__acerolaAccountSystemRetry=true;
+      const s=document.createElement('script');
+      s.src='account-system.js?v=2.2.1-20261001-retry&retry='+Date.now();
+      s.async=false;
+      (document.body||document.head).appendChild(s);
+    };
+    window.addEventListener('acerola:supabase-ready',retry,{once:true});
+    setTimeout(()=>{if(window.supabase?.createClient)retry()},12000);
+    return;
+  }
   // Authentication gate: Acerola's main app requires a signed-in account.
   // Keep the gate here so the login page is the single entry point while
   // preserving the existing account modal for account management.
