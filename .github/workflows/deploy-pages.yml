@@ -28,7 +28,8 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Validate JavaScript syntax
         run: |
-          for f in agent-core.js agent-tools.js engine-runtime.js account-system.js chat-enhancements.js ui-enhancements.js support.js; do
+          for f in *.js; do
+            echo "Checking $f"
             node --check "$f"
           done
       - name: Run Agent Core contract tests
