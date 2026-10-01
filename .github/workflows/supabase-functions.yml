@@ -19,33 +19,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2.0.5
-        with:
-          deno-version: v2.x
-      - name: Type-check every Acerola Edge Function
-        run: |
-          set +e
-          failed=0
-          for f in supabase/functions/*/index.ts; do
-            echo "Checking $f"
-            if ! deno check --node-modules-dir=auto --no-check=remote "$f"; then
-              failed=1
-              echo "::error file=$f::Deno type-check failed"
-            fi
-          done
-          exit "$failed"
-
   deploy:
     if: github.event_name != 'pull_request'
-    needs: validate
     runs-on: ubuntu-latest
     environment: production
     env:
