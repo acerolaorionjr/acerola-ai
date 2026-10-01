@@ -56,7 +56,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
         def route(request):
             # The shell must remain functional even when optional external
             # providers/CDNs are unavailable. Local Acerola assets continue.
-            if request.url.startswith(local_site):
+            if request.request.url.startswith(local_site):
                 request.continue_()
             else:
                 request.abort()
