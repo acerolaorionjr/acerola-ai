@@ -27,11 +27,16 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Deno
-        uses: denoland/setup-deno@v2.0.5 # Current stable Setup Deno release
+        uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: v2.x
-      - name: Type-check new music function
-        run: deno check supabase/functions/acerola-music/index.ts
+      - name: Type-check every Acerola Edge Function
+        run: |
+          set -e
+          for f in supabase/functions/*/index.ts; do
+            echo "Checking $f"
+            deno check "$f"
+          done
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -52,9 +57,10 @@ jobs:
           version: latest
       - name: Deploy database migrations
         run: supabase db push --linked
-      - name: Deploy Acerola functions
+      - name: Deploy all Acerola functions
         run: |
-          for function in acerola-ai-gateway acerola-image acerola-media acerola-music paystack-webhook; do
+          set -e
+          for function in acerola-ai-gateway acerola-image acerola-media acerola-music acerola-live-session paystack-payment paystack-verify paystack-webhook; do
             echo "Deploying $function"
             supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID" --use-api
           done
