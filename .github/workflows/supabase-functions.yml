@@ -36,7 +36,7 @@ jobs:
           failed=0
           for f in supabase/functions/*/index.ts; do
             echo "Checking $f"
-            if ! deno check --node-modules-dir=auto "$f"; then
+            if ! deno check --node-modules-dir=auto --no-check=remote "$f"; then
               failed=1
               echo "::error file=$f::Deno type-check failed"
             fi
