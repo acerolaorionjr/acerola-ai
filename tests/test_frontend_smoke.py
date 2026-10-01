@@ -80,6 +80,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
         # Mobile navigation must receive the touch/click and open the drawer.
         page.locator("#menu").click()
         assert page.locator("#drawer").evaluate("(el) => el.classList.contains('open')")
+        page.locator("#drawerClose").click()
 
         # The composer must accept a real message and the send control must
         # execute its handler synchronously before any network request.
