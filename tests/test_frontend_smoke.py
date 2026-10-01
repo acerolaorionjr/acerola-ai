@@ -72,7 +72,9 @@ def test_mobile_shell_and_controls_are_live(local_site):
         assert page.evaluate("typeof window.AcerolaEngine") == "function"
 
         # Capability cards must be interactive.
-        page.locator(".ac-cap").first.click()
+        first_cap = page.locator(".ac-cap").first
+        first_cap.scroll_into_view_if_needed()
+        first_cap.click()
         assert page.locator("#input").input_value().startswith("Research this topic")
 
         # Mobile navigation must receive the touch/click and open the drawer.
