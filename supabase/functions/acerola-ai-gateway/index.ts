@@ -95,7 +95,7 @@ function providerPreference(message:string,agentMode:boolean,hasGemini:boolean){
 }
 
 function extractReply(result:any){if(typeof result?.output_text==="string"&&result.output_text.trim())return result.output_text.trim();const text=result?.output?.flatMap((x:any)=>Array.isArray(x.content)?x.content:[])?.filter((x:any)=>x.type==="output_text")?.map((x:any)=>x.text)?.join("\n");return String(text||"No response text returned.").trim();}
-function extractSources(result:any){const out:any[]=[];const add=(url:any,title:any)=>{const u=String(url||"").trim();if(!/^https?:\\/\\//i.test(u)||out.some(x=>x.url===u))return;out.push({url:u,title:String(title||u).trim().slice(0,240)});};for(const item of Array.isArray(result?.output)?result.output:[]){if(item?.type==="web_search_call"){for(const s of Array.isArray(item?.action?.sources)?item.action.sources:[])add(s?.url,s?.title);for(const s of Array.isArray(item?.results)?item.results:[])add(s?.url||s?.source_website_url,s?.title||s?.name);}for(const content of Array.isArray(item?.content)?item.content:[]){for(const a of Array.isArray(content?.annotations)?content.annotations:[]){if(a?.type==="url_citation")add(a?.url_citation?.url,a?.url_citation?.title);}}}return out.slice(0,20);}
+function extractSources(result:any){const out:any[]=[];const add=(url:any,title:any)=>{const u=String(url||"").trim();if(!/^https?:\/\//i.test(u)||out.some(x=>x.url===u))return;out.push({url:u,title:String(title||u).trim().slice(0,240)});};for(const item of Array.isArray(result?.output)?result.output:[]){if(item?.type==="web_search_call"){for(const s of Array.isArray(item?.action?.sources)?item.action.sources:[])add(s?.url,s?.title);for(const s of Array.isArray(item?.results)?item.results:[])add(s?.url||s?.source_website_url,s?.title||s?.name);}for(const content of Array.isArray(item?.content)?item.content:[]){for(const a of Array.isArray(content?.annotations)?content.annotations:[]){if(a?.type==="url_citation")add(a?.url_citation?.url,a?.url_citation?.title);}}}return out.slice(0,20);}
 
 Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
@@ -177,8 +177,8 @@ Deno.serve(async(req:Request)=>{
   async function tryOpenAI(){
     if(!openaiKey) return false;
     const attempts=searchRequested
-      ? [["gpt-5.6-luna",true],["gpt-5.6-luna",false],["gpt-5.6-terra",true],["gpt-5.6-terra",false],["gpt-5.6-sol",true],["gpt-5.6-sol",false]] as const
-      : [["gpt-5.6-luna",false],["gpt-5.6-terra",false],["gpt-5.6-sol",false]] as const;
+      ? [["gpt-6-luna",true],["gpt-6-luna",false],["gpt-6-sol",true],["gpt-6-sol",false],["gpt-6-astra",true],["gpt-6-astra",false]] as const
+      : [["gpt-6-luna",false],["gpt-6-sol",false],["gpt-6-astra",false]] as const;
     for(const [model,useSearch] of attempts){
       try{
         const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal);
