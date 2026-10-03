@@ -90,11 +90,12 @@
       for (let attempt = 0; attempt < 2; attempt++) {
         if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
         const timeout = typeof AbortController === 'function' ? new AbortController() : null;
+          // Research and multi-step requests can legitimately take longer than a normal chat turn.
         let timer = null;
         let onAbort = null;
         try {
           if (timeout) {
-            timer = setTimeout(() => timeout.abort(), 12000);
+            timer = setTimeout(() => timeout.abort(), 30000);
             if (parent) {
               onAbort = () => timeout.abort();
               if (parent.aborted) timeout.abort();
