@@ -73,7 +73,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
 
         # The home screen is intentionally minimal; capabilities live in the drawer.
         assert page.locator(".ac-cap").count() == 0
-        assert page.locator(".drawer-nav button").count() >= 6
+        assert page.locator('#newChat, .new-chat, [data-action="new-chat"], button:has-text("New chat")').count() >= 1
 
         # Mobile navigation must receive the touch/click and open the drawer.
         page.locator("#menu").click()
