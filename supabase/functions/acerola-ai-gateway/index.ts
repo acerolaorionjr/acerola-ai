@@ -60,8 +60,23 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   if(action==="clear"){const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}`,{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});if(!r.ok)return json({error:"Unable to clear memory",request_id:id},502,origin);return json({ok:true,cleared:(await r.json()).length,request_id:id},200,origin);}
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }
-function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|as of|this week|this month|2026)\b/i.test(text);}
-async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal){const body:any={model,instructions,input,max_output_tokens:2000};if(useSearch){body.tools=[{type:"web_search"}];body.include=["web_search_call.action.sources"];}return await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal});}
+function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|verify|fact[- ]?check|source|sources|citation|citations|compare|as of|this week|this month|2026)\b/i.test(text);}
+async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false){
+  const body:any={model,instructions,input,max_output_tokens:researchMode?6000:4000};
+  if(model!=="gpt-6-luna") body.reasoning={effort:researchMode?"medium":"low"};
+  else body.reasoning={effort:researchMode?"medium":"low"};
+  if(useSearch){
+    body.tools=[{type:"web_search",search_context_size:researchMode?"high":"medium"}];
+    body.tool_choice="required";
+    body.include=["web_search_call.action.sources"];
+  }
+  return fetch("https://api.openai.com/v1/responses",{
+    method:"POST",
+    headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},
+    body:JSON.stringify(body),
+    signal
+  });
+}
 async function callGemini(apiKey:string, model:string, input:string, instructions:string, files:any[], signal:AbortSignal){
   const parts:any[]=[{text:input}];
   for(const f of files){
@@ -139,7 +154,8 @@ Deno.serve(async(req:Request)=>{
 
   const userText=`User message:\n${message}\n\nServer memories:\n${memories.map(m=>`- ${m}`).join("\n")||"(none)"}\n\nRecent conversation context:\n${context}\n\nAvailable tools:\n${JSON.stringify(toolCatalog)}\n\nPrevious agent reply:\n${String(body.previous_reply||"")}\n\nTool execution results:\n${JSON.stringify(toolResults)}`;
   const input=files.length?buildInput(userText,files):userText;
-  const searchRequested=needsWebSearch(message);
+  const researchMode=Boolean(body?.research_mode)||/\bdeep research|research mode|study mode\b/i.test(message);
+  const searchRequested=researchMode||needsWebSearch(message);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
   // Provider fallback policy:
@@ -177,11 +193,11 @@ Deno.serve(async(req:Request)=>{
   async function tryOpenAI(){
     if(!openaiKey) return false;
     const attempts=searchRequested
-      ? [["gpt-6-luna",true],["gpt-6-luna",false],["gpt-6-sol",true],["gpt-6-sol",false],["gpt-6-astra",true],["gpt-6-astra",false]] as const
-      : [["gpt-6-luna",false],["gpt-6-sol",false],["gpt-6-astra",false]] as const;
+      ? [["gpt-6-astra",true],["gpt-6.1-sol",true],["gpt-6-luna",true]] as const
+      : [["gpt-6-luna",false],["gpt-6.1-sol",false],["gpt-6-astra",false]] as const;
     for(const [model,useSearch] of attempts){
       try{
-        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal);
+        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode);
         if(r.ok){
           upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";return true;
         }
