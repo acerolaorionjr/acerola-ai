@@ -84,24 +84,40 @@
     }
     async complete(payload, signal) {
       const parent = signal;
-      const timeout = typeof AbortController === 'function' ? new AbortController() : null;
-      let timer = null;
-      let onAbort = null;
-      try {
-        if (timeout) {
-          timer = setTimeout(() => timeout.abort(), 12000);
-          if (parent) {
-            onAbort = () => timeout.abort();
-            if (parent.aborted) timeout.abort();
-            else parent.addEventListener('abort', onAbort, { once: true });
+      let lastError = null;
+      // A transient fetch failure should not force the user to resend the same question.
+      // Retry once automatically; cancellation always wins.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
+        const timeout = typeof AbortController === 'function' ? new AbortController() : null;
+        let timer = null;
+        let onAbort = null;
+        try {
+          if (timeout) {
+            timer = setTimeout(() => timeout.abort(), 12000);
+            if (parent) {
+              onAbort = () => timeout.abort();
+              if (parent.aborted) timeout.abort();
+              else parent.addEventListener('abort', onAbort, { once: true });
+            }
           }
+          const activeSignal = timeout?.signal || parent;
+          return normalizeGatewayResponse(await this.request(payload, activeSignal));
+        } catch (error) {
+          lastError = error;
+          if (parent?.aborted || error?.name === 'AbortError') throw error;
+          if (attempt === 0) {
+            global.dispatchEvent?.(new CustomEvent('acerola:gateway-retry', { detail: { attempt: 2 } }));
+            await new Promise(resolve => setTimeout(resolve, 300));
+            continue;
+          }
+          throw lastError;
+        } finally {
+          if (timer) clearTimeout(timer);
+          if (parent && onAbort) parent.removeEventListener('abort', onAbort);
         }
-        const activeSignal = timeout?.signal || parent;
-        return normalizeGatewayResponse(await this.request(payload, activeSignal));
-      } finally {
-        if (timer) clearTimeout(timer);
-        if (parent && onAbort) parent.removeEventListener('abort', onAbort);
       }
+      throw lastError || new Error('Gateway request failed');
     }
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
