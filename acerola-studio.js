@@ -7,7 +7,6 @@
 
   const SUPABASE_URL = 'https://djumpimcwzhjujysznox.supabase.co';
   const MUSIC_URL = SUPABASE_URL + '/functions/v1/acerola-music';
-  const MEDIA_URL = SUPABASE_URL + '/functions/v1/acerola-media';
   const IMAGE_URL = SUPABASE_URL + '/functions/v1/acerola-image';
   const GATEWAY_URL = SUPABASE_URL + '/functions/v1/acerola-ai-gateway';
   const GEM_KEY = 'acerola-gems-v1';
@@ -18,7 +17,6 @@
   const save = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
 
   let engine = null;
-  let activeVideo = null;
 
   async function auth() {
     if (!engine) {
@@ -52,7 +50,7 @@
       .as-head{display:flex;align-items:center;gap:10px}.as-head h2{margin:0;flex:1;font-size:20px}.as-close,.as-back{border:1px solid #243148;background:#101522;color:#fff;border-radius:10px;width:38px;height:38px}
       .as-sub{color:#7f8da5;font-size:11px;line-height:1.55;margin:6px 0 16px}.as-tabs{display:flex;gap:7px;overflow:auto;margin-bottom:14px}.as-tab{white-space:nowrap;border:1px solid #202b3e;background:#0d121d;color:#b8c5d8;padding:9px 12px;border-radius:12px}.as-tab.on{color:#00eaff;border-color:#17566b;background:#0b1821}
       .as-pane{display:none}.as-pane.on{display:block}.as-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.as-cardbox{border:1px solid #202b3e;background:#0d121b;border-radius:16px;padding:14px}.as-cardbox h3{font-size:13px;margin:0 0 6px}.as-cardbox p{font-size:10px;color:#7f8da5;line-height:1.55;margin:0 0 10px}
-      .as-input,.as-select{width:100%;box-sizing:border-box;background:#080d16;border:1px solid #243148;color:#f5f8ff;border-radius:11px;padding:10px;outline:none;margin:5px 0 8px}.as-input{min-height:90px;resize:vertical}.as-btn{border:1px solid #1c6074;background:#0b202a;color:#00eaff;border-radius:10px;padding:10px 12px;font-weight:700}.as-btn.secondary{color:#d9e1ed;background:#101522;border-color:#28344a}.as-row{display:flex;gap:7px;flex-wrap:wrap}.as-status{font-size:10px;color:#8190a8;margin-top:8px;white-space:pre-wrap}.as-result{margin-top:12px;border:1px solid #202b3e;border-radius:14px;padding:12px;background:#090e17}.as-result img,.as-result video{width:100%;max-height:420px;object-fit:contain;border-radius:10px;background:#000}.as-result audio{width:100%}.as-list{display:grid;gap:8px}.as-item{border:1px solid #202b3e;border-radius:12px;padding:10px;background:#0c111a}.as-item b{display:block;font-size:11px}.as-item small{display:block;color:#7f8da5;line-height:1.5;margin-top:3px}.as-danger{color:#ff8ba5}
+      .as-input,.as-select{width:100%;box-sizing:border-box;background:#080d16;border:1px solid #243148;color:#f5f8ff;border-radius:11px;padding:10px;outline:none;margin:5px 0 8px}.as-input{min-height:90px;resize:vertical}.as-btn{border:1px solid #1c6074;background:#0b202a;color:#00eaff;border-radius:10px;padding:10px 12px;font-weight:700}.as-btn.secondary{color:#d9e1ed;background:#101522;border-color:#28344a}.as-row{display:flex;gap:7px;flex-wrap:wrap}.as-status{font-size:10px;color:#8190a8;margin-top:8px;white-space:pre-wrap}.as-result{margin-top:12px;border:1px solid #202b3e;border-radius:14px;padding:12px;background:#090e17}.as-result img{width:100%;max-height:420px;object-fit:contain;border-radius:10px;background:#000}.as-result audio{width:100%}.as-list{display:grid;gap:8px}.as-item{border:1px solid #202b3e;border-radius:12px;padding:10px;background:#0c111a}.as-item b{display:block;font-size:11px}.as-item small{display:block;color:#7f8da5;line-height:1.5;margin-top:3px}.as-danger{color:#ff8ba5}
       .as-research-text{font-size:12px;line-height:1.7;color:#dce3ed}
       .as-research-sources{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:grid;gap:7px}
       .as-research-sources>b{font-size:11px;color:#9aa7ba}
@@ -69,7 +67,7 @@
     root.innerHTML = `
       <section class="as-card">
         <div class="as-head"><button class="as-back" id="asBack">←</button><h2>Acerola Studio</h2><button class="as-close" id="asClose">×</button></div>
-        <div class="as-sub">Creative generation, research, custom assistants and multi-step workflows — built into Acerola.</div>
+        <div class="as-sub">Image creation, music, research, custom assistants and multi-step workflows — built into Acerola.</div>
         <div class="as-tabs">
           <button class="as-tab on" data-pane="creative">Creative</button>
           <button class="as-tab" data-pane="research">Deep Research</button>
@@ -78,10 +76,9 @@
         </div>
         <div class="as-pane on" id="as-creative">
           <div class="as-grid">
-            <div class="as-cardbox"><h3>🎬 AI Video</h3><p>Generate a short vertical or widescreen clip with Veo through Acerola's protected media function.</p><textarea class="as-input" id="asVideoPrompt" placeholder="Example: A cinematic cyberpunk city waking up at night..."></textarea><select class="as-select" id="asVideoRatio"><option value="9:16">9:16 vertical</option><option value="16:9">16:9 landscape</option></select><button class="as-btn" id="asVideo">Generate video</button><div class="as-status" id="asVideoStatus"></div></div>
             <div class="as-cardbox"><h3>🎵 AI Music</h3><p>Create an original instrumental or vocal track with Lyria 3.5. The music service keeps the API key off the phone.</p><textarea class="as-input" id="asMusicPrompt" placeholder="Example: energetic Afrobeats-inspired instrumental, warm bass, bright guitars, 90 seconds..."></textarea><button class="as-btn" id="asMusic">Generate music</button><div class="as-status" id="asMusicStatus"></div></div>
             <div class="as-cardbox"><h3>🧑‍🎨 Fictional Avatar</h3><p>Create a fictional character/avatar image. Personal-avatar features can have separate age or product restrictions, so this stays character-focused.</p><textarea class="as-input" id="asAvatarPrompt" placeholder="Example: original futuristic AI companion, silver jacket, neon city, friendly expression..."></textarea><button class="as-btn" id="asAvatar">Create avatar</button><div class="as-status" id="asAvatarStatus"></div></div>
-            <div class="as-cardbox"><h3>🧩 Creative pipeline</h3><p>Turn one idea into a video prompt, music brief, avatar description and posting plan with one agent run.</p><textarea class="as-input" id="asPipelinePrompt" placeholder="Describe the project..."></textarea><button class="as-btn" id="asPipeline">Run creative pipeline</button><div class="as-status" id="asPipelineStatus"></div></div>
+            <div class="as-cardbox"><h3>🧩 Creative pipeline</h3><p>Turn one idea into a structured creative brief, music brief, character description and posting plan with one agent run.</p><textarea class="as-input" id="asPipelinePrompt" placeholder="Describe the project..."></textarea><button class="as-btn" id="asPipeline">Run creative pipeline</button><div class="as-status" id="asPipelineStatus"></div></div>
           </div>
           <div id="asCreativeResult"></div>
         </div>
@@ -113,7 +110,6 @@
       if (tab.dataset.pane === 'gems') renderGems();
     });
 
-    document.getElementById('asVideo').onclick = generateVideo;
     document.getElementById('asMusic').onclick = generateMusic;
     document.getElementById('asAvatar').onclick = generateAvatar;
     document.getElementById('asResearch').onclick = () => research(false);
@@ -137,40 +133,6 @@
       box.appendChild(b);
       drawer.insertBefore(box, drawer.querySelector('.drawer-foot') || null);
     }
-  }
-
-  async function generateVideo() {
-    const prompt = document.getElementById('asVideoPrompt').value.trim();
-    const status = document.getElementById('asVideoStatus');
-    const result = document.getElementById('asCreativeResult');
-    if (!prompt) { status.textContent = 'Describe the video first.'; return; }
-    status.textContent = 'Starting Veo…';
-    try {
-      const ratio = document.getElementById('asVideoRatio').value;
-      const data = await post(MEDIA_URL, {prompt, aspect_ratio: ratio, model:'veo-3.1-fast-generate-preview'});
-      if (!data.operation) throw new Error('Veo did not return an operation.');
-      activeVideo = {operation:data.operation, cancelled:false};
-      status.textContent = 'Rendering… you can keep using Acerola.';
-      let state = null;
-      for (let i=0;i<48;i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        if (activeVideo?.cancelled) throw new Error('Video generation cancelled.');
-        const {token,key} = await auth();
-        const q = await fetch(MEDIA_URL+'?operation='+encodeURIComponent(data.operation), {headers:{apikey:key,Authorization:'Bearer '+token}});
-        state = await q.json().catch(() => ({}));
-        if (state.error) throw new Error(state.error);
-        if (state.done) break;
-        status.textContent = 'Rendering… '+((i+1)*5)+'s';
-      }
-      if (!state?.done) throw new Error('Video generation timed out on the client. The job may still finish upstream.');
-      const {token,key} = await auth();
-      const dl = await fetch(MEDIA_URL+'?operation='+encodeURIComponent(data.operation)+'&download=1', {headers:{apikey:key,Authorization:'Bearer '+token}});
-      if (!dl.ok) throw new Error('Generated video could not be downloaded.');
-      const blob = await dl.blob();
-      const url = URL.createObjectURL(blob);
-      result.innerHTML = '<div class="as-result"><video controls playsinline src="'+url+'"></video><div class="as-status">Video ready.</div></div>';
-      status.textContent = 'Complete.';
-    } catch (e) { status.textContent = 'Video: '+(e.message || e); }
   }
 
   async function generateMusic() {
@@ -279,7 +241,7 @@
     if (!prompt) { status.textContent='Describe the project first.'; return; }
     status.textContent='Planning creative pipeline…';
     try {
-      const data = await gateway('Create a production-ready creative pipeline for this project. Return four sections: VIDEO PROMPT, MUSIC BRIEF, FICTIONAL AVATAR BRIEF, and PRODUCTION CHECKLIST. Keep it practical.\n\nPROJECT:\n'+prompt,{mode:'creative_pipeline'});
+      const data = await gateway('Create a production-ready creative pipeline for this project. Return four sections: CREATIVE DIRECTION, MUSIC BRIEF, FICTIONAL CHARACTER BRIEF, and PRODUCTION CHECKLIST. Keep it practical.\n\nPROJECT:\n'+prompt,{mode:'creative_pipeline'});
       document.getElementById('asCreativeResult').innerHTML='<div class="as-result">'+esc(data.reply||'')+'</div>';
       status.textContent='Pipeline ready.';
     } catch(e) { status.textContent='Pipeline: '+(e.message||e); }
