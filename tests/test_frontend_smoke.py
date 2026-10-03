@@ -71,9 +71,9 @@ def test_mobile_shell_and_controls_are_live(local_site):
         assert page.evaluate("typeof window.acerolaSend") == "function"
         assert page.evaluate("typeof window.AcerolaEngine") == "function"
 
-        # Capability cards are present; the primary composer controls are the
-        # immediately actionable mobile surface and are tested below.
-        assert page.locator(".ac-cap").count() >= 4
+        # The home screen is intentionally minimal; capabilities live in the drawer.
+        assert page.locator(".ac-cap").count() == 0
+        assert page.locator(".drawer-nav button").count() >= 6
 
         # Mobile navigation must receive the touch/click and open the drawer.
         page.locator("#menu").click()
