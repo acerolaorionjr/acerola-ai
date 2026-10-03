@@ -85,6 +85,18 @@ function attachMessageLongPress(){
   target.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-downX)>10||Math.abs(e.clientY-downY)>10)clearTimeout(longTimer)},{passive:true});
  });
 }
+
+function sanitizeRenderedReplies(){
+ document.querySelectorAll('.row.assistant .bubble').forEach(b=>{
+  const text=b.textContent.trim();
+  if(/^[{\\[]/.test(text)&&/"(?:type|message|reply)"\\s*:/.test(text)){
+   let message='';
+   try{const o=JSON.parse(text);message=typeof o.message==='string'?o.message:(typeof o.reply==='string'?o.reply:'')}catch(_){}
+   if(message){b.querySelector('.md')?.remove();const md=document.createElement('div');md.className='md';md.textContent=message;b.insertBefore(md,b.querySelector('.acerola-sources')||null);}
+  }
+  const lists=[...b.querySelectorAll('ol')];let offset=0;lists.forEach((ol,i)=>{if(i){ol.start=offset+1}offset+=ol.querySelectorAll(':scope > li').length});
+ });
+}
 function collapseSources(){
  document.querySelectorAll('.acerola-sources').forEach(s=>{
   if(s.dataset.uxBound)return;s.dataset.uxBound='1';s.classList.add('collapsed');
@@ -104,7 +116,7 @@ function researchLive(detail){
 }
 function finishResearch(){document.querySelector('.acerola-research-live')?.remove()}
 function observe(){
- enhanceHistory();attachMessageLongPress();collapseSources();
+ enhanceHistory();attachMessageLongPress();collapseSources();sanitizeRenderedReplies();
  const inner=$('.inner');if(inner&&!inner.dataset.uxObserver){inner.dataset.uxObserver='1';new MutationObserver(()=>{enhanceHistory();attachMessageLongPress();collapseSources()}).observe(inner,{childList:true,subtree:true})}
 }
 window.addEventListener('acerola:engine-task',e=>{researchLive(e.detail);if(e.detail?.type==='complete'||e.detail?.type==='failed')finishResearch()});
