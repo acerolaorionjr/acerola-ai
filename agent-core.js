@@ -210,12 +210,18 @@
     clearConversation() { this.conversation.clear(); }
     openModule(module) { const allowed = new Set(['chat','research','create','code','analyze','tasks','memory','actions','system','core']); const value = String(module || '').toLowerCase().trim(); if (!allowed.has(value)) throw new Error('Unknown UI module'); global.dispatchEvent(new CustomEvent('acerola:open-module', { detail: { module: value } })); return { module: value, opened: true }; }
     notify(message) { const text = String(message || '').trim(); if (!text || text.length > 300) throw new Error('Invalid notification'); global.dispatchEvent(new CustomEvent('acerola:notify', { detail: { message: text } })); return { notified: true, message: text }; }
-    async executePlannedAction(plan) {
+    async executePlannedAction(plan, request = {}) {
       if (!plan || plan.type !== 'tool_call') return null;
       const name = String(plan.tool || '').trim();
       if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` };
       try {
-        const args = plan.arguments && typeof plan.arguments === 'object' ? plan.arguments : {};
+        const args = plan.arguments && typeof plan.arguments === 'object' ? { ...plan.arguments } : {};
+        if (name === 'media.generate_image' && Array.isArray(request.attachments) && request.attachments.length) {
+          args.images = request.attachments
+            .filter(f => String(f?.mime || '').startsWith('image/') && f?.data)
+            .slice(0, 4)
+            .map(f => ({ name: String(f.name || 'reference'), mime_type: String(f.mime || 'image/jpeg'), data: String(f.data) }));
+        }
         const result = await this.actions.execute(name, args);
         return { ok: true, tool: name, arguments: args, result };
       } catch (error) {
@@ -238,7 +244,7 @@
             })() : null);
 
         if (plan?.type === 'tool_call') {
-          const action = await this.executePlannedAction(plan);
+          const action = await this.executePlannedAction(plan, request);
           trace.push({ step: step + 1, type: 'tool_call', tool: plan.tool, result: action });
 
           // Media tools produce results that the chat UI must render directly.
