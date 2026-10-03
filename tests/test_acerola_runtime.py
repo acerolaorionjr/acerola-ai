@@ -42,11 +42,12 @@ def browser():
 def test_account_button_binds_after_supabase_bootstrap(site_server, browser):
     page = browser.new_page()
     page.goto(site_server + "/index.html?smoke=account", wait_until="domcontentloaded", timeout=30000)
-    page.locator("#accountBtn").scroll_into_view_if_needed()
+    page.locator("#menu").click()
     page.wait_for_function(
         "() => document.querySelector('#accountBtn') && (document.querySelector('#accountBtn').onclick || document.querySelector('.account-sheet'))",
         timeout=20000,
     )
+    page.locator("#accountBtn").scroll_into_view_if_needed()
     page.locator("#accountBtn").click()
     page.locator(".account-sheet.open").wait_for(timeout=5000)
 
