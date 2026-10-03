@@ -53,6 +53,13 @@
       .as-sub{color:#7f8da5;font-size:11px;line-height:1.55;margin:6px 0 16px}.as-tabs{display:flex;gap:7px;overflow:auto;margin-bottom:14px}.as-tab{white-space:nowrap;border:1px solid #202b3e;background:#0d121d;color:#b8c5d8;padding:9px 12px;border-radius:12px}.as-tab.on{color:#00eaff;border-color:#17566b;background:#0b1821}
       .as-pane{display:none}.as-pane.on{display:block}.as-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.as-cardbox{border:1px solid #202b3e;background:#0d121b;border-radius:16px;padding:14px}.as-cardbox h3{font-size:13px;margin:0 0 6px}.as-cardbox p{font-size:10px;color:#7f8da5;line-height:1.55;margin:0 0 10px}
       .as-input,.as-select{width:100%;box-sizing:border-box;background:#080d16;border:1px solid #243148;color:#f5f8ff;border-radius:11px;padding:10px;outline:none;margin:5px 0 8px}.as-input{min-height:90px;resize:vertical}.as-btn{border:1px solid #1c6074;background:#0b202a;color:#00eaff;border-radius:10px;padding:10px 12px;font-weight:700}.as-btn.secondary{color:#d9e1ed;background:#101522;border-color:#28344a}.as-row{display:flex;gap:7px;flex-wrap:wrap}.as-status{font-size:10px;color:#8190a8;margin-top:8px;white-space:pre-wrap}.as-result{margin-top:12px;border:1px solid #202b3e;border-radius:14px;padding:12px;background:#090e17}.as-result img,.as-result video{width:100%;max-height:420px;object-fit:contain;border-radius:10px;background:#000}.as-result audio{width:100%}.as-list{display:grid;gap:8px}.as-item{border:1px solid #202b3e;border-radius:12px;padding:10px;background:#0c111a}.as-item b{display:block;font-size:11px}.as-item small{display:block;color:#7f8da5;line-height:1.5;margin-top:3px}.as-danger{color:#ff8ba5}
+      .as-research-text{font-size:12px;line-height:1.7;color:#dce3ed}
+      .as-research-sources{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:grid;gap:7px}
+      .as-research-sources>b{font-size:11px;color:#9aa7ba}
+      .as-research-sources a{display:flex;align-items:center;gap:9px;text-decoration:none;color:#f4f7fb;background:#101522;border:1px solid #202b3e;border-radius:11px;padding:9px}
+      .as-research-sources a>span{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;background:#17303a;color:#61efff;font-size:9px;font-weight:800}
+      .as-research-sources strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .as-research-sources small{display:block;color:#718096;font-size:9px;margin-top:2px}
       @media(max-width:560px){.as-grid{grid-template-columns:1fr}.as-card{padding:14px;border-radius:20px}}
     `;
     document.head.appendChild(style);
@@ -193,8 +200,13 @@
   }
 
   async function gateway(message, extra = {}) {
-    const data = await post(GATEWAY_URL, {message, context:{studio:true,...extra}, available_tools:[]});
-    return data.reply || '';
+    const data = await post(GATEWAY_URL, {
+      message,
+      context:{studio:true,...extra},
+      available_tools:[],
+      research_mode: extra.mode === 'research'
+    });
+    return data;
   }
 
   async function research(study) {
@@ -208,8 +220,15 @@
       const instruction = study
         ? 'Research this as a student study brief. Use current web sources where useful. Explain key concepts, define terms, separate established facts from uncertainty, and finish with 5 revision questions.'
         : 'Perform a deep research workflow. Use web search for current evidence. Compare multiple reliable sources, identify disagreements or uncertainty, synthesize the evidence, and finish with a source list containing the URLs/titles you actually relied on. Do not invent citations.';
-      const reply = await gateway(instruction+'\n\nTOPIC:\n'+prompt, {mode:'research'});
-      result.textContent = reply;
+      const data = await gateway(instruction+'\n\nTOPIC:\n'+prompt, {mode:'research'});
+      const reply = data.reply || '';
+      const sources = Array.isArray(data.sources) ? data.sources : [];
+      result.innerHTML = '<div class="as-research-text">'+esc(reply).replace(/\n/g,'<br>')+'</div>' +
+        (sources.length ? '<div class="as-research-sources"><b>Sources</b>'+sources.slice(0,12).map((x,i)=>{
+          const u=String(x?.url||''); if(!/^https?:\/\//i.test(u)) return '';
+          let host=''; try{host=new URL(u).hostname.replace(/^www\\./,'')}catch(_){}
+          return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer"><span>'+String(i+1)+'</span><div><strong>'+esc(x?.title||u)+'</strong><small>'+esc(host||u)+'</small></div></a>';
+        }).join('')+'</div>' : '');
       result.style.display = 'block';
       status.textContent = 'Research complete.';
     } catch (e) { status.textContent = 'Research: '+(e.message || e); }
@@ -223,7 +242,7 @@
       const g = gems[Number(b.dataset.runGem)];
       const task = prompt('What should '+g.name+' do?');
       if (!task) return;
-      try { const reply = await gateway(g.instructions+'\n\nUSER TASK:\n'+task,{mode:'gem',gem:g.name}); alert(reply.slice(0,6000)); }
+      try { const data = await gateway(g.instructions+'\n\nUSER TASK:\n'+task,{mode:'gem',gem:g.name}); alert(String(data.reply||'').slice(0,6000)); }
       catch(e) { alert('Assistant failed: '+(e.message||e)); }
     });
     list.querySelectorAll('[data-del-gem]').forEach(b => b.onclick = () => { gems.splice(Number(b.dataset.delGem),1); save(GEM_KEY,gems); renderGems(); });
@@ -260,8 +279,8 @@
     if (!prompt) { status.textContent='Describe the project first.'; return; }
     status.textContent='Planning creative pipeline…';
     try {
-      const reply = await gateway('Create a production-ready creative pipeline for this project. Return four sections: VIDEO PROMPT, MUSIC BRIEF, FICTIONAL AVATAR BRIEF, and PRODUCTION CHECKLIST. Keep it practical.\n\nPROJECT:\n'+prompt,{mode:'creative_pipeline'});
-      document.getElementById('asCreativeResult').innerHTML='<div class="as-result">'+esc(reply)+'</div>';
+      const data = await gateway('Create a production-ready creative pipeline for this project. Return four sections: VIDEO PROMPT, MUSIC BRIEF, FICTIONAL AVATAR BRIEF, and PRODUCTION CHECKLIST. Keep it practical.\n\nPROJECT:\n'+prompt,{mode:'creative_pipeline'});
+      document.getElementById('asCreativeResult').innerHTML='<div class="as-result">'+esc(data.reply||'')+'</div>';
       status.textContent='Pipeline ready.';
     } catch(e) { status.textContent='Pipeline: '+(e.message||e); }
   }
@@ -282,7 +301,8 @@
       let context = prompt, outputs = [];
       for (let i=0;i<steps.length;i++) {
         status.textContent='Agent running step '+(i+1)+'/3…';
-        const reply = await gateway(steps[i]+'\n\nGOAL:\n'+prompt+'\n\nPREVIOUS STEP OUTPUT:\n'+context,{mode:'agent_workflow',step:i+1});
+        const data = await gateway(steps[i]+'\n\nGOAL:\n'+prompt+'\n\nPREVIOUS STEP OUTPUT:\n'+context,{mode:'agent_workflow',step:i+1});
+        const reply = data.reply || '';
         outputs.push(reply);
         context = reply;
       }
