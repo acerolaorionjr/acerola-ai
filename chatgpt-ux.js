@@ -25,7 +25,7 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 `;document.head.appendChild(style);
 
 let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null;
-const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola_chats_v1')||'[]')}catch(_){return[]}};
+const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}};
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
 const unread=()=>window.__acerolaUnread||(window.__acerolaUnread={});
 function notifyReady(detail={}){
@@ -41,7 +41,7 @@ async function enableNotifications(){
   if(Notification.permission==='default'){try{await Notification.requestPermission()}catch(_){}}
 }
 function markSeen(){
-  const id=window.activeId||document.body.dataset.activeChat;
+  const id=localStorage.getItem('acerola-ai-active-v6');
   if(id&&unread()[id]){delete unread()[id];saveUnread()}
   const h=$('#history');h?.querySelectorAll('.chat-item').forEach(b=>b.querySelector('.chat-unread-dot')?.remove());
 }
@@ -62,14 +62,14 @@ function showMenu(row,index,x,y){
  menu.innerHTML=buttons.map(([a,t])=>'<button type="button" data-a="'+a+'">'+t+'</button>').join('');
  document.body.appendChild(menu);
  menu.style.left=Math.min(Math.max(8,x),innerWidth-190)+'px';menu.style.top=Math.min(Math.max(8,y),innerHeight-menu.offsetHeight-8)+'px';
- const c=(()=>{try{return JSON.parse(localStorage.getItem('acerola_chats_v1')||'[]')}catch(_){return[]}})().find(z=>z.id===window.activeId);
+ const c=(()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}})().find(z=>z.id===window.activeId);
  const msg=c?.messages?.[index];const act=a=>{
   if(a==='copy')copyText(msg?.content||'');
   if(a==='edit'){window.acerolaEditMessage?.(index)}
   if(a==='read'){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(String(msg?.content||'')))}}
   if(a==='share'){if(navigator.share)navigator.share({title:'Acerola',text:String(msg?.content||'')}).catch(()=>{});else copyText(msg?.content||'')}
-  if(a==='feedback'){msg.feedback='good';try{localStorage.setItem('acerola_chats_v1',JSON.stringify(JSON.parse(localStorage.getItem('acerola_chats_v1')||'[]')))}catch(_){}}
-  if(a==='bad'){msg.feedback='bad';try{localStorage.setItem('acerola_chats_v1',JSON.stringify(JSON.parse(localStorage.getItem('acerola_chats_v1')||'[]')))}catch(_){}}
+  if(a==='feedback'){msg.feedback='good';try{localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')))}catch(_){}}
+  if(a==='bad'){msg.feedback='bad';try{localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')))}catch(_){}}
   closeMenu()
  };
  menu.querySelectorAll('button').forEach(b=>b.onclick=()=>act(b.dataset.a));
