@@ -77,7 +77,7 @@ jobs:
         run: |
           python - <<'PY'
           import requests
-          url = "https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway"
+          url = "https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway-v2"
           origin = "http://localhost:5173"
           preflight = requests.options(
               url,
