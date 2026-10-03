@@ -6,6 +6,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173"
 ]);
 const MAX_PROMPT = 5000;
+const MAX_REFERENCE_IMAGES = 4;
+const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
 
 function headers(origin: string | null) {
   const h: Record<string,string> = {
@@ -46,9 +48,19 @@ Deno.serve(async(req:Request)=>{
   if(!prompt)return json({error:"prompt is required",code:"PROMPT_REQUIRED"},400,origin);
   if(prompt.length>MAX_PROMPT)return json({error:"prompt is too long",code:"PROMPT_TOO_LONG"},413,origin);
 
-  const size=["1024x1024","1024x1536","1536x1024"].includes(body?.size)?body.size:"1024x1024";
+  const size=["1024x1024","1024x1536","1536x1024","auto"].includes(body?.size)?body.size:"auto";
   const quality=["low","medium","high","auto"].includes(body?.quality)?body.quality:"auto";
   const format=["png","webp","jpeg"].includes(body?.output_format)?body.output_format:"png";
+  const background=["transparent","opaque","auto"].includes(body?.background)?body.background:"auto";
+  const refs=Array.isArray(body?.images)?body.images.slice(0,MAX_REFERENCE_IMAGES):[];
+  const input:any[]=[{type:"input_text",text:prompt}];
+  for(const ref of refs){
+    const data=String(ref?.data||"");
+    if(!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=\r\n]+$/i.test(data))continue;
+    const bytes=Math.floor(data.split(",")[1].replace(/\s+/g,"").length*3/4);
+    if(bytes>MAX_REFERENCE_BYTES)continue;
+    input.push({type:"input_image",image_url:data,detail:"high"});
+  }
 
   try{
     const r=await fetch("https://api.openai.com/v1/responses",{
@@ -56,10 +68,11 @@ Deno.serve(async(req:Request)=>{
       headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},
       body:JSON.stringify({
         model:"gpt-image-2",
-        input:prompt,
+        input,
         tools:[{
           type:"image_generation",
-          action:"generate",
+          action:refs.length?"auto":"generate",
+          background,
           size,
           quality,
           output_format:format
