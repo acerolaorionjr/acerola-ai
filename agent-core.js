@@ -251,7 +251,25 @@
                 image: action.result.image,
                 size: action.result.size || null,
                 quality: action.result.quality || null,
-                format: action.result.format || null
+                format: action.result.format || null,
+                model: action.result.model || null
+              },
+              trace,
+              steps: step + 1,
+              final: true
+            };
+          }
+          if (action?.ok && ['media.generate_audio','media.generate_music'].includes(plan.tool) && action.result?.audio) {
+            return {
+              ok: true,
+              type: 'media_result',
+              media: {
+                kind: 'audio',
+                audio: action.result.audio,
+                format: action.result.format || 'mp3',
+                voice: action.result.voice || null,
+                model: action.result.model || null,
+                lyrics: action.result.lyrics || ''
               },
               trace,
               steps: step + 1,
