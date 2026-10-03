@@ -219,7 +219,7 @@
     recordUser(text) { return this.conversation.add('user', text); }
     recordAssistant(text) { return this.conversation.add('assistant', text); }
     clearConversation() { this.conversation.clear(); }
-    openModule(module) { const allowed = new Set(['chat', 'memory', 'actions', 'system']); const value = String(module || '').toLowerCase().trim(); if (!allowed.has(value)) throw new Error('Unknown UI module'); global.dispatchEvent(new CustomEvent('acerola:open-module', { detail: { module: value } })); return { module: value, opened: true }; }
+    openModule(module) { const allowed = new Set(['chat','research','create','code','analyze','tasks','memory','actions','system','core']); const value = String(module || '').toLowerCase().trim(); if (!allowed.has(value)) throw new Error('Unknown UI module'); global.dispatchEvent(new CustomEvent('acerola:open-module', { detail: { module: value } })); return { module: value, opened: true }; }
     notify(message) { const text = String(message || '').trim(); if (!text || text.length > 300) throw new Error('Invalid notification'); global.dispatchEvent(new CustomEvent('acerola:notify', { detail: { message: text } })); return { notified: true, message: text }; }
     async executePlannedAction(plan) {
       if (!plan || plan.type !== 'tool_call') return null;
