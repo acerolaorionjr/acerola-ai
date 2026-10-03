@@ -6,8 +6,6 @@ verify_jwt = true
 [functions.acerola-image]
 verify_jwt = true
 
-[functions.acerola-media]
-verify_jwt = true
 
 [functions.acerola-music]
 verify_jwt = true
