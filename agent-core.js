@@ -100,6 +100,32 @@
     return null;
   }
 
+  // Conservative automatic memory: retain only clear, low-risk preferences/profile facts.
+  // Never infer or store passwords, tokens, financial details, health, politics,
+  // religion, sexuality, or other sensitive information.
+  function extractAutomaticMemory(text) {
+    const source = String(text || '').trim().replace(/\s+/g, ' ');
+    if (!source || source.length > 500) return null;
+    const patterns = [
+      /^(?:hi[, ]*)?my name is ([A-Za-z][A-Za-z .'-]{1,60})[.!?]?$/i,
+      /^call me ([A-Za-z][A-Za-z .'-]{1,60})[.!?]?$/i,
+      /^i (?:really )?(?:like|love|prefer) (.{2,160})[.!?]?$/i,
+      /^i (?:don't|do not) like (.{2,160})[.!?]?$/i,
+      /^i (?:am|I'm) interested in (.{2,160})[.!?]?$/i,
+      /^i want to (.{2,180})[.!?]?$/i,
+      /^i use (.{2,120})[.!?]?$/i,
+      /^i (?:am )?building (.{2,180})[.!?]?$/i
+    ];
+    for (const pattern of patterns) {
+      const match = source.match(pattern);
+      if (!match) continue;
+      const value = match[1].trim();
+      if (!value || /password|passcode|otp|one[- ]time code|api key|secret|token|credit card|bank account/i.test(value)) return null;
+      return source.replace(/[.!?]+$/, '').slice(0, 200);
+    }
+    return null;
+  }
+
   async function safeRemoteMemoryError(error) {
     return error?.message || 'Persistent memory service is unavailable.';
   }
@@ -216,7 +242,7 @@
       if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` };
       try {
         const args = plan.arguments && typeof plan.arguments === 'object' ? { ...plan.arguments } : {};
-        if ((name === 'media.generate_image' || name === 'media.generate_music') && Array.isArray(request.attachments) && request.attachments.length) {
+        if (name === 'media.generate_image' && Array.isArray(request.attachments) && request.attachments.length) {
           args.images = request.attachments
             .filter(f => String(f?.mime || '').startsWith('image/') && f?.data)
             .slice(0, 4)
@@ -265,7 +291,7 @@
               final: true
             };
           }
-          if (action?.ok && ['media.generate_audio','media.generate_music'].includes(plan.tool) && action.result?.audio) {
+          if (action?.ok && ['media.generate_audio'].includes(plan.tool) && action.result?.audio) {
             return {
               ok: true,
               type: 'media_result',
@@ -323,6 +349,9 @@
         if (saved?.persistent) return { type: 'memory', action: 'add', text: 'Stored in persistent memory.', persistent: true };
         return { type: 'memory', action: 'add', text: saved?.error || 'I could not save that to persistent memory.', persistent: false, local: !!saved?.local };
       }
+      const automaticMemory = extractAutomaticMemory(text);
+      if (automaticMemory && !memoryRequest) void this.remember(automaticMemory);
+
       const forget = text.match(/^forget\s+(.+)/i); if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^clear (?:chat|conversation|conversation history)$/i.test(text)) { this.clearConversation(); return { type: 'action', action: 'conversation.clear', result: 'Conversation context cleared.' }; }
