@@ -216,7 +216,7 @@
       if (!name || !this.tools.has(name)) return { ok: false, error: `Action not allowed: ${name || 'missing tool'}` };
       try {
         const args = plan.arguments && typeof plan.arguments === 'object' ? { ...plan.arguments } : {};
-        if (name === 'media.generate_image' && Array.isArray(request.attachments) && request.attachments.length) {
+        if ((name === 'media.generate_image' || name === 'media.generate_music') && Array.isArray(request.attachments) && request.attachments.length) {
           args.images = request.attachments
             .filter(f => String(f?.mime || '').startsWith('image/') && f?.data)
             .slice(0, 4)
