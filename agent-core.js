@@ -82,7 +82,27 @@
       }
       return response.json();
     }
-    async complete(payload, signal) { return normalizeGatewayResponse(await this.request(payload, signal)); }
+    async complete(payload, signal) {
+      const parent = signal;
+      const timeout = typeof AbortController === 'function' ? new AbortController() : null;
+      let timer = null;
+      let onAbort = null;
+      try {
+        if (timeout) {
+          timer = setTimeout(() => timeout.abort(), 20000);
+          if (parent) {
+            onAbort = () => timeout.abort();
+            if (parent.aborted) timeout.abort();
+            else parent.addEventListener('abort', onAbort, { once: true });
+          }
+        }
+        const activeSignal = timeout?.signal || parent;
+        return normalizeGatewayResponse(await this.request(payload, activeSignal));
+      } finally {
+        if (timer) clearTimeout(timer);
+        if (parent && onAbort) parent.removeEventListener('abort', onAbort);
+      }
+    }
     async memory(action, payload = {}) { return this.request({ memory_action: action, ...payload }); }
   }
 
