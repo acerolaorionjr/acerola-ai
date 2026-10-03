@@ -62,9 +62,9 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
 }
 function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|verify|fact[- ]?check|source|sources|citation|citations|compare|as of|this week|this month|2026)\b/i.test(text);}
 async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false){
-  const body:any={model,instructions,input,max_output_tokens:researchMode?6000:4000};
-  if(model!=="gpt-6-luna") body.reasoning={effort:researchMode?"medium":"low"};
-  else body.reasoning={effort:researchMode?"medium":"low"};
+  const body:any={model,instructions,input,max_output_tokens:researchMode?7000:5000};
+  const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(input||""));
+  body.reasoning={effort:researchMode||complexity?"medium":"low"};
   if(useSearch){
     body.tools=[{type:"web_search",search_context_size:researchMode?"high":"medium"}];
     body.tool_choice="required";
@@ -103,10 +103,10 @@ function extractGeminiReply(result:any){
   return String(text||"No response text returned.").trim();
 }
 function providerPreference(message:string,agentMode:boolean,hasGemini:boolean){
+  // Prefer the strongest configured general-purpose reasoning path for Acerola,
+  // while keeping Gemini as a real fallback when OpenAI is unavailable.
   if(!hasGemini)return "openai";
-  if(needsWebSearch(message))return "openai";
-  if(agentMode)return "openai";
-  return "gemini";
+  return "openai";
 }
 
 function extractReply(result:any){if(typeof result?.output_text==="string"&&result.output_text.trim())return result.output_text.trim();const text=result?.output?.flatMap((x:any)=>Array.isArray(x.content)?x.content:[])?.filter((x:any)=>x.type==="output_text")?.map((x:any)=>x.text)?.join("\n");return String(text||"No response text returned.").trim();}
