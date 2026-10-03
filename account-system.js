@@ -3,6 +3,7 @@
   const SUPABASE_URL='https://djumpimcwzhjujysznox.supabase.co';
   const SUPABASE_KEY='sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
   const CHAT_KEY='acerola-ai-chats-v6';
+  const CLOUD_VOICES=['marin','cedar','alloy','ash','ballad','coral','echo','fable','onyx','nova','sage','shimmer','verse'];
   const ACTIVE_KEY='acerola-ai-active-v6';
   const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
   if(!db){
@@ -34,7 +35,7 @@
   function refreshVoiceOptions(selected=''){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'');};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
   function voiceOptions(selected){
     const vs=voices();
-    if(!vs.length)return '<option value="">System voice (load when available)</option>';
+    if(!vs.length)return CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x||(!selected&&x==='marin')?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
     const lang=p?.language||'en-NG';
     const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
     const list=matches.length?matches:vs;
@@ -89,7 +90,25 @@
       const sel=$('#voice');
       if(sel){refreshVoiceOptions('');}
     };
-    $('#testVoice').onclick=()=>{const vs=voices(),v=vs[Number($('#voice').value)];if(!globalThis.speechSynthesis||!globalThis.SpeechSynthesisUtterance)return;const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)};
+    $('#testVoice').onclick=async()=>{
+      const selected=String($('#voice').value||'');
+      if(selected.startsWith('cloud:')){
+        const {data:{session}}=await db.auth.getSession();
+        if(!session){$('#accMsg').textContent='Sign in to test the cloud voice.';return}
+        $('#accMsg').textContent='Generating voice sample…';
+        try{
+          const r=await fetch(SUPABASE_URL+'/functions/v1/acerola-audio',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':SUPABASE_KEY},body:JSON.stringify({input:'Hello. I am Acerola.',voice:selected.slice(6),response_format:'mp3'})});
+          const d=await r.json();
+          if(!r.ok||!d?.audio)throw new Error(d?.error||'Voice generation failed');
+          const audio=new Audio(d.audio);audio.onended=()=>{const x=$('#accMsg');if(x)x.textContent='Voice sample finished.'};await audio.play();
+          $('#accMsg').textContent='Playing Acerola cloud voice…';
+        }catch(e){$('#accMsg').textContent='Cloud voice unavailable: '+String(e?.message||e)}
+        return;
+      }
+      const vs=voices(),v=vs[Number(selected)];
+      if(!globalThis.speechSynthesis||!globalThis.SpeechSynthesisUtterance){$('#accMsg').textContent='Browser speech is unavailable on this device. Use an Acerola cloud voice instead.';refreshVoiceOptions('cloud:marin');return}
+      const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u);
+    };
     $('#sync').onclick=()=>sync(true);
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
   }
