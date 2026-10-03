@@ -39,9 +39,8 @@
     const lang=p?.language||'en-NG';
     const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
     const list=matches.length?matches:vs;
-    let idx=list.findIndex(v=>String(vs.indexOf(v))===String(selected));
-    if(idx<0)idx=0;
-    return list.map(v=>{const real=vs.indexOf(v);return `<option value="${real}" ${real===Number(selected)||(!selected&&real===vs.indexOf(list[0]))?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`}).join('');
+    const cloud=CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
+    return cloud+list.map((v,i)=>{const real=vs.indexOf(v);return `<option value="${real}" ${real===Number(selected)||(!selected&&!i)?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`}).join('');
   }
   function calcAge(birthDate){if(!birthDate)return '';const d=new Date(birthDate+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const now=new Date();let age=now.getFullYear()-d.getFullYear();const before=(now.getMonth()<d.getMonth())||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate());if(before)age--;return age>=0&&age<130?String(age):''}
   async function render(){
