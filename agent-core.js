@@ -89,7 +89,7 @@
       let onAbort = null;
       try {
         if (timeout) {
-          timer = setTimeout(() => timeout.abort(), 15000);
+          timer = setTimeout(() => timeout.abort(), 12000);
           if (parent) {
             onAbort = () => timeout.abort();
             if (parent.aborted) timeout.abort();
@@ -276,7 +276,7 @@
     }
 
     async runAgent(payload, options = {}) {
-      const maxSteps = Math.min(8, Math.max(1, Number(options.maxSteps) || 6));
+      const maxSteps = Math.min(6, Math.max(1, Number(options.maxSteps) || 4));
       let request = { ...payload, agent_mode: true };
       const trace = [];
       for (let step = 0; step < maxSteps; step++) {
