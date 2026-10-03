@@ -55,6 +55,12 @@ def test_account_button_binds_after_supabase_bootstrap(site_server, browser):
 def test_browser_can_reach_gateway_without_ai_generation(site_server, browser):
     page = browser.new_page()
     page.goto(site_server + "/index.html?smoke=gateway", wait_until="domcontentloaded", timeout=30000)
+    # Supabase is intentionally loaded through a resilient CDN bootstrap on the
+    # static site. Wait for that bootstrap instead of assuming it is synchronous.
+    page.wait_for_function(
+        "() => !!window.supabase?.createClient",
+        timeout=15000,
+    )
     result = page.evaluate(
         """async () => {
           const url = 'https://djumpimcwzhjujysznox.supabase.co';
