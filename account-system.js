@@ -35,7 +35,7 @@
   function calcAge(birthDate){if(!birthDate)return '';const d=new Date(birthDate+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const now=new Date();let age=now.getFullYear()-d.getFullYear();const before=(now.getMonth()<d.getMonth())||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate());if(before)age--;return age>=0&&age<130?String(age):''}
   async function render(){
     const {data:{session}}=await db.auth.getSession();
-    if(!session){title.textContent='Acerola Account';sub.textContent='Sign in to keep your chats and memories across devices.';form();return}
+    if(!session||session.user?.is_anonymous){title.textContent='Acerola Account';sub.textContent='Sign in to keep your chats and memories across devices.';form();return}
     let {data:p}=await db.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
     if(!p){await db.from('profiles').upsert({id:session.user.id,display_name:session.user.user_metadata?.name||session.user.email?.split('@')[0]||'Acerola user',updated_at:new Date().toISOString()},{onConflict:'id'});const q=await db.from('profiles').select('*').eq('id',session.user.id).maybeSingle();p=q.data||{}}
     const age=calcAge(p?.birth_date);
