@@ -151,18 +151,7 @@
           if (!response.ok || !data?.image) throw new Error(data?.error || `Image generation failed (${response.status})`);
           return { image: data.image, size: data.size || size, quality: data.quality || quality, format: data.format || output_format };
         }, 'Generate an actual image from a natural-language description')
-        .register('media.generate_short', async ({ prompt, aspect_ratio = '9:16' } = {}) => {
-          if (!this.gateway.accessToken) throw new Error('Acerola authentication is not ready.');
-          const response = await fetch(`${SUPABASE_URL}/functions/v1/acerola-media`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${this.gateway.accessToken}` },
-            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), aspect_ratio })
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data?.operation) throw new Error(data?.error || `Video generation failed (${response.status})`);
-          return { operation: data.operation, aspect_ratio: data.aspect_ratio || aspect_ratio };
-        }, 'Generate a short video and return its background operation')
-        .register('memory.search_and_recall', ({ query, limit = 8 } = {}) => this.memory.search(query, limit), 'Recall relevant saved memories for a natural-language request')
+    .register('memory.search_and_recall', ({ query, limit = 8 } = {}) => this.memory.search(query, limit), 'Recall relevant saved memories for a natural-language request')
         .register('conversation.recent_context', ({ limit = 12 } = {}) => this.conversation.recent(limit), 'Read recent conversation context before acting');
     }
 
@@ -263,21 +252,6 @@
                 size: action.result.size || null,
                 quality: action.result.quality || null,
                 format: action.result.format || null
-              },
-              trace,
-              steps: step + 1,
-              final: true
-            };
-          }
-
-          if (action?.ok && plan.tool === 'media.generate_short' && action.result?.operation) {
-            return {
-              ok: true,
-              type: 'media_result',
-              media: {
-                kind: 'video',
-                operation: action.result.operation,
-                aspect_ratio: action.result.aspect_ratio || '9:16'
               },
               trace,
               steps: step + 1,
