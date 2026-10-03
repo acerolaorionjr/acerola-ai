@@ -34,15 +34,12 @@
   function voiceOptions(selected){
     const vs=voices();
     if(!vs.length)return '<option value="">Browser voices unavailable</option>';
-    let chosen=String(selected||'');
-    if(!chosen){
-      const preferred=vs.findIndex(v=>/^en-NG$/i.test(v.lang))
-        ?? -1;
-      const idx=preferred>=0?preferred:vs.findIndex(v=>/^en-(GB|US|AU|CA|IE|ZA)$/i.test(v.lang));
-      if(idx>=0)chosen=String(idx);
-      else {const any=vs.findIndex(v=>/^en[-_]/i.test(v.lang));if(any>=0)chosen=String(any);}
-    }
-    return vs.map((v,i)=>`<option value="${i}" ${String(i)===chosen?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('');
+    const lang=p?.language||'en-NG';
+    const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
+    const list=matches.length?matches:vs;
+    let idx=list.findIndex(v=>String(vs.indexOf(v))===String(selected));
+    if(idx<0)idx=0;
+    return list.map(v=>{const real=vs.indexOf(v);return `<option value="${real}" ${real===Number(selected)||(!selected&&real===vs.indexOf(list[0]))?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`}).join('');
   }
   function calcAge(birthDate){if(!birthDate)return '';const d=new Date(birthDate+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const now=new Date();let age=now.getFullYear()-d.getFullYear();const before=(now.getMonth()<d.getMonth())||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate());if(before)age--;return age>=0&&age<130?String(age):''}
   async function render(){
@@ -62,7 +59,17 @@
         <label class="account-label">Birthday<input class="account-input" id="birthDate" type="date" value="${esc(p?.birth_date||'')}" max="${new Date().toISOString().slice(0,10)}"></label>
         <label class="account-label">Country<input class="account-input" id="country" value="${esc(p?.country||'')}" maxlength="80" placeholder="Country"></label>
       </div>
-      <label class="account-label">Language<select class="account-input" id="language"><option value="en" ${p?.language==='en'?'selected':''}>English</option><option value="en-NG" ${p?.language==='en-NG'?'selected':''}>Nigerian English</option></select></label>
+      <label class="account-label">Language<select class="account-input" id="language">
+<option value="en" ${p?.language==='en'?'selected':''}>English</option>
+<option value="en-NG" ${p?.language==='en-NG'?'selected':''}>Nigerian English</option>
+<option value="en-GB" ${p?.language==='en-GB'?'selected':''}>British English</option>
+<option value="en-US" ${p?.language==='en-US'?'selected':''}>US English</option>
+<option value="fr" ${p?.language==='fr'?'selected':''}>French</option>
+<option value="es" ${p?.language==='es'?'selected':''}>Spanish</option>
+<option value="de" ${p?.language==='de'?'selected':''}>German</option>
+<option value="pt" ${p?.language==='pt'?'selected':''}>Portuguese</option>
+<option value="yo" ${p?.language==='yo'?'selected':''}>Yorùbá</option>
+</select></label>
       <label class="account-label">About me<textarea class="account-input account-textarea" id="aboutMe" maxlength="1000" placeholder="Tell Acerola about yourself, your interests, goals, or how you like to work.">${esc(p?.about_me||'')}</textarea></label>
       <div class="account-section-title">VOICE</div>
       <div class="voice-grid"><div class="voice-row"><label>Voice profile</label><select id="voice">${voiceOptions(p?.voice_id||'')}</select></div><div class="voice-row"><label>Speech</label><button class="account-btn secondary" id="testVoice">Test voice</button></div></div>
@@ -77,6 +84,10 @@
     $('#saveProfile').onclick=save;
     speechSynthesis?.addEventListener?.('voiceschanged',()=>{const v=$('#voice');if(v)v.innerHTML=voiceOptions(p?.voice_id||'')},{once:true});
     $('#voice').onchange=()=>localStorage.setItem('acerola-voice-id',$('#voice').value);
+    $('#language').onchange=()=>{
+      const sel=$('#voice');
+      if(sel){sel.innerHTML=voiceOptions('');}
+    };
     $('#testVoice').onclick=()=>{const vs=voices(),v=vs[Number($('#voice').value)];const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)};
     $('#sync').onclick=()=>sync(true);
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
