@@ -30,10 +30,11 @@
     $('#google').onclick=async()=>{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)$('#accMsg').textContent=r.error.message};
     $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
   async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});r=u;if(!u.error){const p=await db.auth.updateUser({password});r=p}}else r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
-  function voices(){return speechSynthesis?.getVoices?.()||[]}
+  function voices(){try{return globalThis.speechSynthesis?.getVoices?.()||[]}catch(_){return []}}
+  function refreshVoiceOptions(selected=''){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'');};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
   function voiceOptions(selected){
     const vs=voices();
-    if(!vs.length)return '<option value="">Browser voices unavailable</option>';
+    if(!vs.length)return '<option value="">System voice (load when available)</option>';
     const lang=p?.language||'en-NG';
     const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
     const list=matches.length?matches:vs;
@@ -82,13 +83,13 @@
       const r=await db.from('profiles').upsert(payload,{onConflict:'id'});const x=$('#accMsg');if(r.error){x.textContent='Could not save profile: '+r.error.message;return}localStorage.setItem('acerola-voice-id',payload.voice_id);x.textContent='Profile saved. Acerola will use it for personalization.';setTimeout(render,450)
     };
     $('#saveProfile').onclick=save;
-    speechSynthesis?.addEventListener?.('voiceschanged',()=>{const v=$('#voice');if(v)v.innerHTML=voiceOptions(p?.voice_id||'')},{once:true});
+    speechSynthesis?.addEventListener?.('voiceschanged',()=>refreshVoiceOptions(p?.voice_id||''));refreshVoiceOptions(p?.voice_id||'');
     $('#voice').onchange=()=>localStorage.setItem('acerola-voice-id',$('#voice').value);
     $('#language').onchange=()=>{
       const sel=$('#voice');
-      if(sel){sel.innerHTML=voiceOptions('');}
+      if(sel){refreshVoiceOptions('');}
     };
-    $('#testVoice').onclick=()=>{const vs=voices(),v=vs[Number($('#voice').value)];const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)};
+    $('#testVoice').onclick=()=>{const vs=voices(),v=vs[Number($('#voice').value)];if(!globalThis.speechSynthesis||!globalThis.SpeechSynthesisUtterance)return;const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)};
     $('#sync').onclick=()=>sync(true);
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
   }
