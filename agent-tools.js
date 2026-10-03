@@ -154,7 +154,7 @@
       return { ok: true, image: data.image, size: data.size, quality: data.quality, format: data.format };
     }, 'Generate an AI image from a text prompt and return it for display.');
 
-    core.tools.register('media.generate_music', async ({ prompt, model = 'lyria-3.5' }) => {
+    core.tools.register('media.generate_music', async ({ prompt, model = 'lyria-3.5', images = [] }) => {
       const value = text(prompt);
       if (!value) throw new Error('A music prompt is required.');
       if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
@@ -162,7 +162,11 @@
       const response = await fetch(base, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
-        body: JSON.stringify({ prompt: value.slice(0, 6000), model: model === 'lyria-3-clip-preview' ? model : 'lyria-3.5' })
+        body: JSON.stringify({
+          prompt: value.slice(0, 6000),
+          model: model === 'lyria-3-clip-preview' ? model : 'lyria-3.5',
+          images: Array.isArray(images) ? images.slice(0,10).map(x => ({mime_type:String(x?.mime_type||'image/jpeg'),data:String(x?.data||'')})) : []
+        })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Music generation failed.');
