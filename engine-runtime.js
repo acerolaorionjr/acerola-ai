@@ -179,13 +179,20 @@
           }
         }
 
-        const errorMessage = lastError?.message || 'Agent execution failed';
+        const rawError = lastError?.message || 'Agent execution failed';
+        const errorMessage = /gateway network error|failed to fetch|network|abort|timeout|timed out/i.test(rawError)
+          ? 'Acerola is having trouble connecting right now. Please try again.'
+          : /AI_QUOTA_OR_RATE_LIMIT|rate limit|429/i.test(rawError)
+            ? 'Acerola is temporarily busy. Please try again shortly.'
+            : /AUTH_REQUIRED|401|403/i.test(rawError)
+              ? 'Your Acerola session needs to reconnect. Please refresh the page and try again.'
+              : 'Acerola could not complete that request. Please try again.';
         task.status = 'failure'; task.finishedAt = Date.now(); this._recordTask(task); this._emitTaskEvent('failed', task);
         this._recordRun({ status: 'failure', message: input, error: errorMessage });
         return {
           ok: false,
           reply: `Acerola Engine could not complete that request after recovery attempts. ${errorMessage}`,
-          error: errorMessage,
+          error: rawError,
           engine: { version: this.version, recovered: false, taskId: task.id, taskStatus: task.status }
         };
       } finally {
