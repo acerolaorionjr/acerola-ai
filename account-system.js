@@ -31,7 +31,19 @@
     $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
   async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});r=u;if(!u.error){const p=await db.auth.updateUser({password});r=p}}else r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
   function voices(){return speechSynthesis?.getVoices?.()||[]}
-  function voiceOptions(selected){const vs=voices();return vs.map((v,i)=>`<option value="${i}" ${String(i)===String(selected)?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')||'<option value="">Browser voices unavailable</option>'}
+  function voiceOptions(selected){
+    const vs=voices();
+    if(!vs.length)return '<option value="">Browser voices unavailable</option>';
+    let chosen=String(selected||'');
+    if(!chosen){
+      const preferred=vs.findIndex(v=>/^en-NG$/i.test(v.lang))
+        ?? -1;
+      const idx=preferred>=0?preferred:vs.findIndex(v=>/^en-(GB|US|AU|CA|IE|ZA)$/i.test(v.lang));
+      if(idx>=0)chosen=String(idx);
+      else {const any=vs.findIndex(v=>/^en[-_]/i.test(v.lang));if(any>=0)chosen=String(any);}
+    }
+    return vs.map((v,i)=>`<option value="${i}" ${String(i)===chosen?'selected':''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('');
+  }
   function calcAge(birthDate){if(!birthDate)return '';const d=new Date(birthDate+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const now=new Date();let age=now.getFullYear()-d.getFullYear();const before=(now.getMonth()<d.getMonth())||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate());if(before)age--;return age>=0&&age<130?String(age):''}
   async function render(){
     const {data:{session}}=await db.auth.getSession();
