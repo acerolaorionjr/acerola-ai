@@ -112,6 +112,23 @@ window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chat
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
+function startNewChatOnFreshOpen(){
+  try{
+    const key='acerola-fresh-open-v1';
+    if(sessionStorage.getItem(key)==='1')return;
+    sessionStorage.setItem(key,'1');
+    setTimeout(()=>{
+      const b=document.querySelector('#new');
+      if(b){b.click();return}
+      window.dispatchEvent(new CustomEvent('acerola:new-chat-request'));
+    },900);
+  }catch(_){}
+}
+window.addEventListener('acerola:gateway-retry',()=>{
+  const p=document.querySelector('.engine-progress #engine-progress-text');
+  if(p)p.textContent='Connection interrupted — retrying automatically…';
+});
 setTimeout(()=>{observe();markSeen()},800);
+startNewChatOnFreshOpen();
 setInterval(observe,1200);
 })();
