@@ -131,7 +131,7 @@
 
 
 
-    core.tools.register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png' }) => {
+    core.tools.register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png', background = 'auto', images = [] }) => {
       const value = text(prompt);
       if (!value) throw new Error('An image prompt is required.');
       if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
@@ -141,9 +141,11 @@
         headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
         body: JSON.stringify({
           prompt: value.slice(0, 5000),
-          size: ['1024x1024','1024x1536','1536x1024'].includes(size) ? size : '1024x1024',
+          size: ['1024x1024','1024x1536','1536x1024','auto'].includes(size) ? size : 'auto',
           quality: ['low','medium','high','auto'].includes(quality) ? quality : 'auto',
-          output_format: ['png','webp','jpeg'].includes(output_format) ? output_format : 'png'
+          output_format: ['png','webp','jpeg'].includes(output_format) ? output_format : 'png',
+          background: ['transparent','opaque','auto'].includes(background) ? background : 'auto',
+          images: Array.isArray(images) ? images.slice(0,4).map(x => ({name:String(x?.name||'reference'),mime_type:String(x?.mime_type||'image/jpeg'),data:String(x?.data||'')})) : []
         })
       });
       const data = await response.json().catch(() => ({}));
