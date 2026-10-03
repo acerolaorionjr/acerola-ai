@@ -28,8 +28,8 @@
     constructor(key = HISTORY_KEY, limit = 12) { this.key = key; this.limit = limit; this.items = this._load(); }
     _load() { try { const value = global.localStorage?.getItem(this.key); const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
     _save() { try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); } catch (_) {} }
-    add(role, content, meta = {}) { const r = role === 'assistant' ? 'assistant' : 'user'; const text = String(content || '').trim(); if (!text) return false; const sources = Array.isArray(meta?.sources) ? meta.sources.slice(0, 10).map(s => ({ url: String(s?.url || ''), title: String(s?.title || '') })).filter(s => /^https?:\\/\\//i.test(s.url)) : []; const last = this.items[this.items.length - 1]; if (last?.role === r && last?.content === text) { if (sources.length) { last.sources = sources; this._save(); } return true; } this.items.push({ role: r, content: text, sources, at: Date.now() }); if (this.items.length > this.limit) this.items = this.items.slice(-this.limit); this._save(); return true; }
-    recent(limit = this.limit) { return this.items.slice(-Math.max(0, Number(limit) || this.limit)).map(({ role, content, sources }) => ({ role, content, sources: Array.isArray(sources) ? sources.slice(0, 10) : [] })); }
+    add(role, content, meta = {}) { const r = role === 'assistant' ? 'assistant' : 'user'; const text = String(content || '').trim(); if (!text) return false; const sources = Array.isArray(meta?.sources) ? meta.sources.slice(0, 10).map(s => ({ url: String(s?.url || ''), title: String(s?.title || '') })).filter(s => /^https?:\\/\\//i.test(s.url)) : []; const last = this.items[this.items.length - 1]; if (last?.role === r && last?.content === text) { if (sources.length) { last.sources = sources; this._save(); } return true; } this.items.push({ role: r, content: text, sources: sources.map((s, i) => ({ ...s, number: i + 1 })), at: Date.now() }); if (this.items.length > this.limit) this.items = this.items.slice(-this.limit); this._save(); return true; }
+    recent(limit = this.limit) { return this.items.slice(-Math.max(0, Number(limit) || this.limit)).map(({ role, content, sources }) => ({ role, content, sources: Array.isArray(sources) ? sources.slice(0, 10).map((s, i) => ({ ...s, number: i + 1 })) : [] })); }
     clear() { this.items = []; this._save(); }
     count() { return this.items.length; }
   }
@@ -342,6 +342,12 @@
       // that needs model inference or an external lookup.
       if (/\b(who(?:'s| is) (?:your )?(?:owner|creator|maker|developer)|who (?:created|built|made) you|who made acerola|who created acerola|who built acerola)\b/i.test(text)) {
         return { type: 'identity', text: 'Michael Chukwudi created and built Acerola.' };
+      }
+      // Age-appropriate safety guard: do not turn explicit sexual/hookup requests into
+      // adult-service searches, dating links, or arrangements. Educational relationship
+      // questions can still reach the normal assistant path.
+      if (/\b(?:hook\s*up|hookup|find\s+(?:me\s+)?someone\s+(?:to|for)\s+(?:hook\s*up|sex)|get\s+me\s+(?:someone|a\s+(?:girl|guy|person))\s+(?:to|for)\s+(?:hook\s*up|sex)|(?:i\s+)?(?:wanna|want\s+to)\s+(?:fuck|have\s+sex)|(?:fuck|suck)\s+me)\b/i.test(text)) {
+        return { type: 'final', text: 'I can’t help arrange sexual encounters or find adult dating services. I can help with friendships, age-appropriate relationship questions, boundaries, consent, or social situations.' };
       }
       const memoryRequest = extractMemoryRequest(text);
       if (memoryRequest) {
