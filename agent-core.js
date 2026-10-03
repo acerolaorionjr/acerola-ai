@@ -288,6 +288,11 @@
     async process(input, context = {}) {
       const text = String(input || '').trim(); if (!text) return { type: 'empty', text: '' };
       this.recordUser(text);
+      // Acerola's creator identity is a configured product fact, not something
+      // that needs model inference or an external lookup.
+      if (/\\b(who(?:'s| is) (?:your )?(?:owner|creator|maker|developer)|who (?:created|built|made) you|who made acerola|who created acerola|who built acerola)\\b/i.test(text)) {
+        return { type: 'identity', text: 'Michael Chukwudi created and built Acerola.' };
+      }
       const memoryRequest = extractMemoryRequest(text);
       if (memoryRequest) {
         const saved = await this.remember(memoryRequest);
