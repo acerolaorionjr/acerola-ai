@@ -168,6 +168,29 @@
       return { ok: true, audio: data.audio, lyrics: data.lyrics || '', model: data.model || model };
     }, 'Generate original music with Acerola using the Lyria music service and return playable audio.');
 
+    core.tools.register('media.generate_audio', async ({ input, voice = 'marin', instructions = '', speed = 1, response_format = 'mp3' }) => {
+      const value = text(input);
+      if (!value) throw new Error('Audio text is required.');
+      if (!core.gateway?.accessToken) throw new Error('Acerola authentication is not ready.');
+      const allowedVoices = ['alloy','ash','ballad','coral','echo','fable','onyx','nova','sage','shimmer','verse','marin','cedar'];
+      const allowedFormats = ['mp3','opus','aac','flac','wav','pcm'];
+      const base = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-audio';
+      const response = await fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: core.gateway.apiKey, Authorization: 'Bearer ' + core.gateway.accessToken },
+        body: JSON.stringify({
+          input: value.slice(0, 4096),
+          voice: allowedVoices.includes(voice) ? voice : 'marin',
+          instructions: text(instructions).slice(0, 1000),
+          speed: Math.min(4, Math.max(.25, Number(speed) || 1)),
+          response_format: allowedFormats.includes(response_format) ? response_format : 'mp3'
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.audio) throw new Error(data.error || 'Audio generation failed.');
+      return { ok: true, audio: data.audio, voice: data.voice, model: data.model, format: data.format };
+    }, 'Generate natural spoken audio with selectable voice, style instructions, speed, and output format.');
+
     core.tools.register('system.permissions', () => ({
       clipboard: !!navigator.clipboard,
       speech: 'speechSynthesis' in global,
