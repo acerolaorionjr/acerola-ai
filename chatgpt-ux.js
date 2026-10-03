@@ -110,7 +110,7 @@ function observe(){
 window.addEventListener('acerola:engine-task',e=>{researchLive(e.detail);if(e.detail?.type==='complete'||e.detail?.type==='failed')finishResearch()});
 window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&d.chatId!==window.activeId){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
-document.addEventListener('click',e=>{if(e.target.closest('#send'))enableNotifications()},{capture:true});
+document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
 setTimeout(()=>{observe();markSeen()},800);
 setInterval(observe,1200);
