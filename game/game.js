@@ -14,7 +14,7 @@ const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],rece
 const SAVE='acerola-game-core-v4';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
 function updateBehavior(){behavior.mode=profileMode();behavior.adaptation=behavior.mode==='SUPPORT'?-1:behavior.mode==='PRESSURE'?1:0}
-function recordDeath(reason){behavior.deaths++;behavior.attempts++;behavior.deathXs.push(Math.round(player.x));behavior.recentDeaths.push({x:Math.round(player.x),reason,level:run.level+1});if(behavior.recentDeaths.length>12)behavior.recentDeaths.shift();updateBehavior()}
+function recordDeath(reason){behavior.deaths++;behavior.attempts++;behavior.deathXs.push(Math.round(player.x));behavior.levelDeathXs.push(Math.round(player.x));behavior.recentDeaths.push({x:Math.round(player.x),reason,level:run.level+1});if(behavior.recentDeaths.length>12)behavior.recentDeaths.shift();updateBehavior()}
 function adaptationLabel(){return behavior.mode==='SUPPORT'?'SUPPORT MODE':behavior.mode==='PRESSURE'?'PRESSURE MODE':behavior.mode==='FOCUS'?'FOCUS MODE':'CORE BALANCED'}
 
 const levels=[
