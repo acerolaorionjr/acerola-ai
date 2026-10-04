@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#050816">
+<title>Acerola // Game Core</title>
+<meta name="description" content="Acerola Game Core — an AI-connected precision platformer.">
+<style>
+:root{--bg:#03050b;--panel:#08101d;--line:#20324e;--cyan:#20f6ff;--pink:#ff4eae;--text:#f4f8ff;--muted:#8292aa;--good:#68f6a0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;min-height:100%;background:#03050b;color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+body{display:grid;place-items:center}
+#game-shell{position:relative;width:100%;height:100dvh;max-width:980px;overflow:hidden;background:#050816}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;inset:0;pointer-events:none}
+.topbar{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(#03050bdd,transparent);pointer-events:auto}
+.brand{font-weight:800;letter-spacing:.5px}.brand small{display:block;color:var(--muted);font-size:8px;letter-spacing:1.5px}
+.pill{margin-left:auto;border:1px solid #183c43;background:#06161a;color:var(--good);border-radius:999px;padding:5px 9px;font-size:9px;letter-spacing:1px}
+.iconbtn{width:40px;height:40px;border:1px solid #1a2a42;border-radius:12px;background:#08101de8;color:#fff}
+.level{position:absolute;top:74px;left:14px;color:#8fa0b8;font-size:10px;letter-spacing:1.8px;text-transform:uppercase}
+.level b{color:#fff;font-size:12px}
+.ai-card{position:absolute;right:12px;top:74px;width:min(290px,calc(100% - 24px));padding:11px 12px;border:1px solid rgba(32,246,255,.16);border-radius:15px;background:#07101bdd;backdrop-filter:blur(14px);opacity:0;transform:translateY(-8px);transition:.2s;pointer-events:auto}
+.ai-card.show{opacity:1;transform:none}.ai-head{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:var(--cyan)}.ai-head span{margin-left:auto;color:#6f819b;font-size:8px}.ai-text{margin-top:6px;color:#dce7f6;font-size:11px;line-height:1.45}.ai-actions{display:flex;gap:6px;margin-top:8px}.ai-actions button{flex:1;border:1px solid #20334d;border-radius:9px;background:#0a1728;color:#dce7f6;padding:7px;font-size:9px}
+.status{position:absolute;left:50%;top:18%;transform:translate(-50%,-50%);text-align:center;opacity:0;transition:.25s;text-shadow:0 2px 15px #000}.status.show{opacity:1}.status b{display:block;font-size:22px}.status span{color:#9aabc0;font-size:10px}
+.controls{position:absolute;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:end;pointer-events:none;background:linear-gradient(transparent,rgba(3,5,11,.8))}
+.pad{display:flex;gap:9px;pointer-events:auto}.ctrl{width:58px;height:58px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:#0a1322d9;color:#fff;font-size:21px;backdrop-filter:blur(8px);box-shadow:0 7px 22px #0006}.ctrl:active{transform:scale(.94);border-color:#20f6ff}.jump{width:72px;color:var(--cyan);border-color:#1d6971}
+.tip{color:#65758c;font-size:9px;text-align:right;max-width:180px;pointer-events:none}.tip b{color:#9aabc0}
+.menu{position:absolute;inset:0;background:#02040be8;display:none;align-items:center;justify-content:center;padding:20px;z-index:10;pointer-events:auto}
+.menu.show{display:flex}.panel{width:min(420px,100%);border:1px solid #20324e;border-radius:22px;background:#07101d;padding:20px;box-shadow:0 20px 70px #000b}.panel h1{margin:0;font-size:25px}.panel p{color:var(--muted);font-size:11px}.menu-buttons{display:grid;gap:9px;margin-top:15px}.menu-buttons button{padding:12px;border:1px solid #20324e;border-radius:12px;background:#0a1627;color:#fff;text-align:left}.menu-buttons button b{display:block}.menu-buttons button small{color:var(--muted)}
+@media(min-width:700px){.controls{padding-left:24px;padding-right:24px}.ctrl{width:64px;height:64px}.ai-card{right:24px}}
+</style>
+</head>
+<body>
+<main id="game-shell">
+<canvas id="game" aria-label="Acerola Game Core"></canvas>
+<div class="hud">
+<header class="topbar">
+<button class="iconbtn" id="home" aria-label="Back to Acerola">←</button>
+<div class="brand">ACEROLA <small>GAME CORE // ONLINE</small></div>
+<div class="pill" id="ai-state">AI CONNECTING</div>
+<button class="iconbtn" id="menuBtn" aria-label="Game menu">•••</button>
+</header>
+<div class="level">SECTOR <b id="levelLabel">01</b> · <span id="deaths">0</span> FAILS</div>
+<section class="ai-card" id="aiCard">
+<div class="ai-head">◉ ACEROLA <span id="aiMode">OBSERVING</span></div>
+<div class="ai-text" id="aiText">I'm watching the run. I won't spoil the level unless you ask.</div>
+<div class="ai-actions"><button id="hintBtn">ASK FOR HINT</button><button id="chatBtn">TALK TO AI</button></div>
+</section>
+<div class="status" id="status"><b id="statusTitle">LEVEL 01</b><span id="statusSub">Reach the gate.</span></div>
+<div class="controls">
+<div class="pad"><button class="ctrl" id="left">←</button><button class="ctrl" id="right">→</button></div>
+<div class="tip"><b>WASD / ARROWS</b><br>Jump with SPACE · mobile controls below</div>
+<button class="ctrl jump" id="jump">↑ JUMP</button>
+</div>
+<div class="menu" id="menu">
+<div class="panel">
+<h1>Acerola // Game Core</h1>
+<p>Precision platforming with an AI that observes the way you play. This first build deliberately stays small: fast retries, readable traps, and real AI feedback.</p>
+<div class="menu-buttons">
+<button id="resume"><b>Resume</b><small>Back to the run</small></button>
+<button id="restart"><b>Restart sector</b><small>Reset this level</small></button>
+<button id="resetRun"><b>Reset run</b><small>Return to sector 01</small></button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./game.js"></script>
+</body>
+</html>
