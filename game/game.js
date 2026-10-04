@@ -220,7 +220,8 @@ function completeLevel(){
  if(deathLock)return;deathLock=true;burst(player.x+10,player.y+10,32);
  const elapsed=(performance.now()-levelStartedAt)/1000;
  if(bestTimes[run.level]===null||elapsed<bestTimes[run.level])bestTimes[run.level]=elapsed;
- sfx('goal');\n if(run.level<levels.length-1){
+ sfx('goal');
+ if(run.level<levels.length-1){
   levelsCompleted=Math.max(levelsCompleted,run.level+1);save();aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths,time_seconds:Number(elapsed.toFixed(2)),best_seconds:Number(bestTimes[run.level].toFixed(2))});
   if(run.level>=continueLevel)continueLevel=run.level+1;
   unlockedLevel=Math.max(unlockedLevel,run.level+1);
