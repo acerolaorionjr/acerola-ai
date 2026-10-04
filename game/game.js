@@ -6,6 +6,7 @@ let W=0,H=0,DPR=1,paused=false,last=0,raf=0,deathLock=false;
 const input={left:false,right:false,jump:false};
 let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
+let bestTimes=[null,null,null],levelStartedAt=performance.now();
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
 let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[0,0,0];
@@ -40,11 +41,11 @@ function loadSave(){
   unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(s.unlockedLevel??continueLevel)||0));
   unlockedLevel=Math.max(unlockedLevel,continueLevel);
   run.level=continueLevel;
-  run.deaths=Math.max(0,Number(s.deaths)||0);shardMask=Array.isArray(s.shardMask)?s.shardMask.slice(0,levels.length).map(v=>Number(v)||0):shardMask;while(shardMask.length<levels.length)shardMask.push(0);levelsCompleted=Math.max(0,Number(s.levelsCompleted)||0);shards=Math.max(0,Number(s.shards)||0);
+  run.deaths=Math.max(0,Number(s.deaths)||0);shardMask=Array.isArray(s.shardMask)?s.shardMask.slice(0,levels.length).map(v=>Number(v)||0):shardMask;while(shardMask.length<levels.length)shardMask.push(0);levelsCompleted=Math.max(0,Number(s.levelsCompleted)||0);shards=Math.max(0,Number(s.shards)||0);bestTimes=Array.isArray(s.bestTimes)?s.bestTimes.slice(0,levels.length).map(v=>Number.isFinite(Number(v))?Number(v):null):bestTimes;while(bestTimes.length<levels.length)bestTimes.push(null);
  }catch(_){}
 }
 function save(){
- try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths,levelsCompleted,shards,shardMask}))}catch(_){}
+ try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths,levelsCompleted,shards,shardMask,bestTimes}))}catch(_){}
  saveCloud();
 }
 async function saveCloud(){
@@ -92,6 +93,8 @@ function updateAccountUI(){
  if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=3?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
  if($('accountAction'))$('accountAction').textContent=signed?'Sign out':'Sign in with Google';
 } 
+function formatTime(v){return v==null?'—':Number(v).toFixed(1)+'s'}
+function updateRunClock(){setText('timer',((performance.now()-levelStartedAt)/1000).toFixed(1)+'s');setText('bestTime',formatTime(bestTimes[run.level]))}
 function setText(id,t){$(id).textContent=t}
 function flash(title,sub,duration=900){setText('statusTitle',title);setText('statusSub',sub);$('status').classList.add('show');clearTimeout(flash.t);flash.t=setTimeout(()=>$('status').classList.remove('show'),duration)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
@@ -100,12 +103,13 @@ function current(){return levels[run.level]}
 
 function resetLevel(resetCounter=false){
  const l=current();
+ if(resetCounter)levelStartedAt=performance.now();
  const spawnX=levelState?.checkpointX??l.spawn.x;
  player.x=spawnX;player.y=l.spawn.y;player.vx=0;player.vy=0;player.onGround=false;player.coyote=0;player.landed=false;jumpBuffer=0;deathLock=false;
  camera.x=0;
  if(resetCounter){run.levelDeaths=0;levelRunDeaths=0}
  levelState={moving:l.moving.map(m=>({x:m[0],y:m[1],w:m[2],h:m[3],min:m[4],max:m[5],dir:m[6]})),start:performance.now(),checkpointX:resetCounter?l.spawn.x:(levelState?.checkpointX??l.spawn.x),checkpointShown:false};
- setText('levelLabel',String(run.level+1).padStart(2,'0'));setText('deaths',run.deaths);behavior.progress=spawnX/l.world;updateBehavior();
+ setText('levelLabel',String(run.level+1).padStart(2,'0'));setText('deaths',run.deaths);updateRunClock();behavior.progress=spawnX/l.world;updateBehavior();
  flash('SECTOR '+String(run.level+1).padStart(2,'0'),l.name,700);
  aiEvent('level_started',{level:run.level+1,name:l.name,checkpoint:levelState.checkpointX});
 }
@@ -202,8 +206,10 @@ function die(reason){
 }
 function completeLevel(){
  if(deathLock)return;deathLock=true;burst(player.x+10,player.y+10,32);
+ const elapsed=(performance.now()-levelStartedAt)/1000;
+ if(bestTimes[run.level]===null||elapsed<bestTimes[run.level])bestTimes[run.level]=elapsed;
  if(run.level<levels.length-1){
-  levelsCompleted=Math.max(levelsCompleted,run.level+1);save();aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});
+  levelsCompleted=Math.max(levelsCompleted,run.level+1);save();aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths,time_seconds:Number(elapsed.toFixed(2)),best_seconds:Number(bestTimes[run.level].toFixed(2))});
   if(run.level>=continueLevel)continueLevel=run.level+1;
   unlockedLevel=Math.max(unlockedLevel,run.level+1);
   if(replaying){
@@ -240,7 +246,7 @@ function drawAdaptationBeacon(){if(behavior.mode==='NORMAL')return;const x=playe
 function drawGoal(){const g=current().goal;ctx.save();ctx.translate(g.x,g.y);ctx.fillStyle='rgba(32,246,255,.13)';ctx.fillRect(-12,-70,44,95);ctx.strokeStyle='#20f6ff';ctx.lineWidth=2;ctx.strokeRect(0,-50,22,50);ctx.fillStyle='#20f6ff';ctx.fillRect(3,-47,16,44);ctx.fillStyle='#06131b';ctx.fillRect(15,-27,3,3);ctx.restore()}
 function drawPlayer(){ctx.save();ctx.translate(player.x,player.y);const moving=Math.abs(player.vx)>20&&!player.onGround;const stretch=moving?Math.min(.12,Math.abs(player.vx)/2200):0;const land=player.landed?Math.min(.12,Math.abs(player.vy)/1800):0;ctx.translate(11,30);ctx.scale(1+land,1-stretch);ctx.translate(-11,-30);const glow=ctx.createRadialGradient(11,16,2,11,16,35);glow.addColorStop(0,'rgba(32,246,255,.25)');glow.addColorStop(1,'transparent');ctx.fillStyle=glow;ctx.fillRect(-24,-20,70,55);ctx.fillStyle='#f4f8ff';ctx.fillRect(3,0,16,24);ctx.fillStyle='#20f6ff';ctx.fillRect(5,4,12,7);ctx.fillStyle='#09131e';ctx.fillRect(7,6,3,3);ctx.fillRect(13,6,3,3);ctx.fillStyle='#ff4eae';ctx.fillRect(3,24,6,5);ctx.fillRect(14,24,6,5);ctx.restore();player.landed=false}
 
-function loop(t){const dt=Math.min(.033,Math.max(.001,(t-last)/1000||.016));last=t;if(!paused){movePlatforms(dt);physics(dt);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=250*dt}}draw();raf=requestAnimationFrame(loop)}
+function loop(t){updateRunClock();const dt=Math.min(.033,Math.max(.001,(t-last)/1000||.016));last=t;if(!paused){movePlatforms(dt);physics(dt);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=250*dt}}draw();raf=requestAnimationFrame(loop)}
 
 function aiEvent(type,data){if(!ai)return;ai.events.push({type,data,at:Date.now()});if(type==='player_died'&&data.levelDeaths===2)requestInsight('The player has failed twice on the current level. Give one concise, non-spoiler observation based on the event data.');if(type==='player_died'&&data.levelDeaths===3)requestInsight('Analyze the player pattern from the supplied game context. Give one concise observation and one non-spoiler strategy. Do not invent facts.');if(type==='checkpoint_reached')requestInsight('The player reached a checkpoint. Give one short observation about progress, without revealing upcoming traps.');if(type==='level_completed')requestInsight('The player just completed a level. Give a short encouraging observation and mention the next challenge without spoiling it.');if(type==='run_completed')requestInsight('The player completed the first playable build. Give a short celebratory message.')}
 async function initAI(){
