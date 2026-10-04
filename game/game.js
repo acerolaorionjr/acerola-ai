@@ -10,7 +10,7 @@ let bestTimes=Array(levels.length).fill(null),levelStartedAt=performance.now();
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
 let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[0,0,0];
-const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
+const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],levelDeathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
 const SAVE='acerola-game-core-v4';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
 function updateBehavior(){behavior.mode=profileMode();behavior.adaptation=behavior.mode==='SUPPORT'?-1:behavior.mode==='PRESSURE'?1:0}
@@ -119,7 +119,7 @@ function resetLevel(resetCounter=false){
  const spawnX=levelState?.checkpointX??l.spawn.x;
  player.x=spawnX;player.y=l.spawn.y;player.vx=0;player.vy=0;player.onGround=false;player.coyote=0;player.landed=false;jumpBuffer=0;deathLock=false;
  camera.x=0;
- if(resetCounter){run.levelDeaths=0;levelRunDeaths=0}
+ if(resetCounter){run.levelDeaths=0;levelRunDeaths=0;behavior.airTime=0;behavior.progress=0;behavior.levelDeathXs=[]}
  levelState={moving:l.moving.map(m=>({x:m[0],y:m[1],w:m[2],h:m[3],min:m[4],max:m[5],dir:m[6]})),start:performance.now(),checkpointX:resetCounter?l.spawn.x:(levelState?.checkpointX??l.spawn.x),checkpointShown:false};
  setText('levelLabel',String(run.level+1).padStart(2,'0'));setText('deaths',run.deaths);updateRunClock();behavior.progress=spawnX/l.world;updateBehavior();
  flash('SECTOR '+String(run.level+1).padStart(2,'0'),l.name,700);
@@ -291,9 +291,9 @@ async function initAI(){
 }
 async function askAcerola(prompt){
  if(aiBusy)return;aiBusy=true;$('aiMode').textContent='THINKING';$('aiCard').classList.add('show');
- if(!ai?.token){setText('aiText','The AI connection is unavailable. Keep playing — local game systems are still active.');$('aiMode').textContent='LOCAL';aiBusy=false;return}
+ if(!ai?.token){setText('aiText','Acerola is offline, but the local companion is still observing this run.');$('aiMode').textContent='LOCAL';aiBusy=false;return}
  try{
-  const l=current();const context={game:'Acerola Game Core',level:run.level+1,level_name:l.name,deaths:run.deaths,level_deaths:run.levelDeaths,behavior_mode:behavior.mode,adaptation:behavior.adaptation,progress:Math.round(behavior.progress*100),death_positions:behavior.deathXs.slice(-8),checkpoint:Math.round(levelState?.checkpointX??l.spawn.x),player_x:Math.round(player.x),goal_x:l.goal.x,recent_events:ai.events.slice(-8)};
+  const l=current();const context={game:'Acerola Game Core',level:run.level+1,level_name:l.name,deaths:run.deaths,level_deaths:run.levelDeaths,behavior_mode:behavior.mode,adaptation:behavior.adaptation,progress:Math.round(behavior.progress*100),death_positions:behavior.levelDeathXs.slice(-8),checkpoint:Math.round(levelState?.checkpointX??l.spawn.x),player_x:Math.round(player.x),goal_x:l.goal.x,recent_events:ai.events.slice(-8)};
   const body={message:String(prompt),conversation:[{role:'user',content:JSON.stringify(context)}],game_context:context};
   const res=await fetch('https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway',{method:'POST',headers:{'Content-Type':'application/json','apikey':'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7','Authorization':'Bearer '+ai.token},body:JSON.stringify(body)});
   const data=await res.json();if(!res.ok)throw Error(data?.error||'Gateway unavailable');setText('aiText',String(data.reply||'Acerola received the game event.'));$('aiMode').textContent='GAME CORE';
