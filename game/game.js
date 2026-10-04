@@ -8,7 +8,7 @@ let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
-let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false;
+let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0;
 const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
 const SAVE='acerola-game-core-v3';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
@@ -40,11 +40,11 @@ function loadSave(){
   unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(s.unlockedLevel??continueLevel)||0));
   unlockedLevel=Math.max(unlockedLevel,continueLevel);
   run.level=continueLevel;
-  run.deaths=Math.max(0,Number(s.deaths)||0);
+  run.deaths=Math.max(0,Number(s.deaths)||0);levelsCompleted=Math.max(0,Number(s.levelsCompleted)||0);shards=Math.max(0,Number(s.shards)||0);
  }catch(_){}
 }
 function save(){
- try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths}))}catch(_){}
+ try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths,levelsCompleted,shards}))}catch(_){}
  saveCloud();
 }
 async function saveCloud(){
@@ -54,7 +54,7 @@ async function saveCloud(){
    user_id:authUser.id,
    current_level:continueLevel,
    unlocked_level:unlockedLevel,
-   total_deaths:run.deaths,
+   total_deaths:run.deaths,levels_completed:levelsCompleted,shards,
    level_deaths:run.levelDeaths,
    updated_at:new Date().toISOString()
   },{onConflict:'user_id'});
@@ -63,14 +63,14 @@ async function saveCloud(){
 async function loadCloud(){
  if(!supabaseClient||!authUser||authUser.is_anonymous)return;
  try{
-  const {data,error}=await supabaseClient.from('game_saves').select('current_level,unlocked_level,total_deaths,level_deaths').eq('user_id',authUser.id).maybeSingle();
+  const {data,error}=await supabaseClient.from('game_saves').select('current_level,unlocked_level,total_deaths,level_deaths,levels_completed,shards').eq('user_id',authUser.id).maybeSingle();
   if(error)throw error;
   if(data){
    continueLevel=Math.max(0,Math.min(levels.length-1,Number(data.current_level)||0),continueLevel);
    unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(data.unlocked_level)||0),unlockedLevel,continueLevel);
    run.deaths=Math.max(run.deaths,Number(data.total_deaths)||0);
    run.level=continueLevel;
-   run.levelDeaths=Number(data.level_deaths)||0;
+   run.levelDeaths=Number(data.level_deaths)||0;levelsCompleted=Math.max(levelsCompleted,Number(data.levels_completed)||0);shards=Math.max(shards,Number(data.shards)||0);
   }
   await saveCloud();
   updateAccountUI();
@@ -78,9 +78,19 @@ async function loadCloud(){
 }
 function updateAccountUI(){
  const signed=!!authUser&&!authUser.is_anonymous;
- $('accountTitle').textContent=signed?(authUser.email||'Signed in'):'Sign in';
- $('accountSub').textContent=signed?'Progress sync is on':'Sync your progress across devices';
- $('accountBtn').title=signed?'Signed in':'Sign in';
+ const name=signed?(authUser.user_metadata?.full_name||authUser.user_metadata?.name||'Acerola Player'):'Guest Runner';
+ $('accountTitle').textContent=signed?'View account':'Sign in';
+ $('accountSub').textContent=signed?'Progress sync is on':'Play locally or sign in to sync';
+ $('accountBtn').title=signed?'View account':'Sign in';
+ if($('accountName'))$('accountName').textContent=name;
+ if($('accountEmail'))$('accountEmail').textContent=signed?(authUser.email||'Cloud save active'):'Local progress only';
+ if($('accountStats'))$('accountStats').innerHTML=[
+  ['SECTORS',String(unlockedLevel+1)+' / '+levels.length],
+  ['FAILS',String(run.deaths)],
+  ['SHARDS',String(shards)]
+ ].map(x=>'<div style="padding:8px;border:1px solid #20324e;border-radius:10px;background:#0a1627"><b style="display:block;font-size:14px">'+x[1]+'</b><small style="color:#8292aa">'+x[0]+'</small></div>').join('');
+ if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=3?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
+ if($('accountAction'))$('accountAction').textContent=signed?'Sign out':'Sign in with Google';
 } 
 function setText(id,t){$(id).textContent=t}
 function flash(title,sub,duration=900){setText('statusTitle',title);setText('statusSub',sub);$('status').classList.add('show');clearTimeout(flash.t);flash.t=setTimeout(()=>$('status').classList.remove('show'),duration)}
@@ -134,17 +144,18 @@ function selectReplay(i){
  flash('SECTOR '+String(i+1).padStart(2,'0'),replaying?'REPLAY MODE':'CONTINUE',900);
 }
 function showAccount(){
+ paused=true;$('menu').classList.add('show');
+ $('replayList').style.display='none';$('accountPanel').style.display='block';updateAccountUI();
+}
+$('accountAction').onclick=()=>{
  const signed=!!authUser&&!authUser.is_anonymous;
- if(signed){
-  if(confirm('Sign out of Acerola Game Core?')) supabaseClient.auth.signOut().then(()=>location.reload());
-  return;
- }
+ if(signed){supabaseClient.auth.signOut().then(()=>{authUser=null;updateAccountUI()});return}
  if(!supabaseClient){alert('Account service is not ready yet.');return}
  supabaseClient.auth.signInWithOAuth({
   provider:'google',
   options:{redirectTo:location.origin+location.pathname}
  }).then(({error})=>{if(error)alert('Sign-in could not start: '+error.message)});
-}
+};
 
 function movePlatforms(dt){const speed=behavior.mode==='SUPPORT'?38:behavior.mode==='PRESSURE'?68:55;for(const m of levelState.moving){m.x+=m.dir*speed*dt;if(m.x>m.max||m.x<m.min){m.x=clamp(m.x,m.min,m.max);m.dir*=-1}}}
 function platforms(){const l=current();return l.platforms.map(p=>({x:p[0],y:p[1],w:p[2],h:p[3]})).concat(levelState.moving)}
@@ -191,7 +202,7 @@ function die(reason){
 function completeLevel(){
  if(deathLock)return;deathLock=true;burst(player.x+10,player.y+10,32);
  if(run.level<levels.length-1){
-  aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});
+  levelsCompleted=Math.max(levelsCompleted,run.level+1);save();aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});
   if(run.level>=continueLevel)continueLevel=run.level+1;
   unlockedLevel=Math.max(unlockedLevel,run.level+1);
   if(replaying){
