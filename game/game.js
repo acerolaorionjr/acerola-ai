@@ -240,7 +240,8 @@ function completeLevel(){
   aiEvent('run_completed',{deaths:run.deaths});
  }
 }
-function sfx(type){try{if(!window.AudioContext&&!window.webkitAudioContext)return;const AC=window.AudioContext||window.webkitAudioContext;sfx.ctx??=new AC();const o=sfx.ctx.createOscillator(),g=sfx.ctx.createGain();const now=sfx.ctx.currentTime;const f=type==='jump'?420:type==='death'?110:type==='shard'?760:type==='goal'?620:260;o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(type==='death'?70:f*1.35,now+.11);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.035,now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+.13);o.connect(g);g.connect(sfx.ctx.destination);o.start(now);o.stop(now+.14)}catch(_){}}\nfunction burst(x,y,n){for(let i=0;i<n;i++){const a=Math.random()*TAU,s=40+Math.random()*180;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.4+Math.random()*.5,max:.9,r:1+Math.random()*2})}}
+function sfx(type){try{if(!window.AudioContext&&!window.webkitAudioContext)return;const AC=window.AudioContext||window.webkitAudioContext;sfx.ctx??=new AC();const o=sfx.ctx.createOscillator(),g=sfx.ctx.createGain();const now=sfx.ctx.currentTime;const f=type==='jump'?420:type==='death'?110:type==='shard'?760:type==='goal'?620:260;o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(type==='death'?70:f*1.35,now+.11);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.035,now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+.13);o.connect(g);g.connect(sfx.ctx.destination);o.start(now);o.stop(now+.14)}catch(_){}}
+function burst(x,y,n){for(let i=0;i<n;i++){const a=Math.random()*TAU,s=40+Math.random()*180;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.4+Math.random()*.5,max:.9,r:1+Math.random()*2})}}
 
 function draw(){
  ctx.clearRect(0,0,W,H);
