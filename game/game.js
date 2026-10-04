@@ -6,7 +6,7 @@ let W=0,H=0,DPR=1,paused=false,last=0,raf=0,deathLock=false;
 const input={left:false,right:false,jump:false};
 let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
-let bestTimes=[null,null,null],levelStartedAt=performance.now();
+let bestTimes=Array(levels.length).fill(null),levelStartedAt=performance.now();
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
 let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[0,0,0];
@@ -102,7 +102,7 @@ function updateAccountUI(){
   ['FAILS',String(run.deaths)],
   ['SHARDS',String(shards)+' / 18']
  ].map(x=>'<div style="padding:8px;border:1px solid #20324e;border-radius:10px;background:#0a1627"><b style="display:block;font-size:14px">'+x[1]+'</b><small style="color:#8292aa">'+x[0]+'</small></div>').join('');
- if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=6?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
+ if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=3?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=6?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=6?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
  if($('accountAction'))$('accountAction').textContent=signed?'Sign out':'Sign in with Google';
 } 
 function formatTime(v){return v==null?'—':Number(v).toFixed(1)+'s'}
@@ -185,7 +185,7 @@ function physics(dt){
  player.vx=clamp(player.vx,-max,max);
  if(player.onGround)player.coyote=.1;else player.coyote=Math.max(0,player.coyote-dt);
  if(input.jump)jumpBuffer=.12;else jumpBuffer=Math.max(0,jumpBuffer-dt);
- if(jumpBuffer>0&&!player.jumpLock&&player.coyote>0){jumpBuffer=0;player.vy=jump;player.onGround=false;player.jumpLock=true;burst(player.x+11,player.y+30,8)}
+ if(jumpBuffer>0&&!player.jumpLock&&player.coyote>0){jumpBuffer=0;player.vy=jump;player.onGround=false;player.jumpLock=true;burst(player.x+11,player.y+30,8);sfx('jump')}
  if(!input.jump){player.jumpLock=false;if(player.vy<0)player.vy+=gravity*.55*dt}
  player.vy+=gravity*dt;
  const oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;
@@ -206,13 +206,13 @@ function physics(dt){
   aiEvent('checkpoint_reached',{x:Math.round(levelState.checkpointX),deaths:run.levelDeaths});
  }
  if(player.y>H+200)die('THE VOID');
- const ls=current().shards||[];for(let i=0;i<ls.length;i++){if(shardMask[run.level]&(1<<i))continue;const sx=ls[i][0],sy=ls[i][1];const dx=player.x+player.w/2-sx,dy=player.y+player.h/2-sy;if(dx*dx+dy*dy<34*34){shardMask[run.level]|=(1<<i);shards++;save();burst(sx,sy,12);flash('SIGNAL SHARD','Acerola remembered it.',650);aiEvent('shard_collected',{level:run.level+1,index:i,total:shards})}}
+ const ls=current().shards||[];for(let i=0;i<ls.length;i++){if(shardMask[run.level]&(1<<i))continue;const sx=ls[i][0],sy=ls[i][1];const dx=player.x+player.w/2-sx,dy=player.y+player.h/2-sy;if(dx*dx+dy*dy<34*34){shardMask[run.level]|=(1<<i);shards++;save();burst(sx,sy,12);sfx('shard');flash('SIGNAL SHARD','Acerola remembered it.',650);aiEvent('shard_collected',{level:run.level+1,index:i,total:shards})}}
  for(const h of hazards()){const r={x:h.x,y:h.y-8,w:h.w,h:h.h+8};if(rectHit(player,r)){die('TRAP');break}}
  if(player.x+player.w>current().goal.x&&player.y+player.h>current().goal.y-20)completeLevel();
 }
 function die(reason){
  if(deathLock)return;deathLock=true;run.deaths++;run.levelDeaths++;levelRunDeaths++;recordDeath(reason);save();
- burst(player.x+11,player.y+15,22);flash('RUN TERMINATED',reason,650);
+ burst(player.x+11,player.y+15,22);sfx('death');flash('RUN TERMINATED',reason,650);
  aiEvent('player_died',{reason,deaths:run.deaths,levelDeaths:run.levelDeaths,x:Math.round(player.x),mode:behavior.mode});
  setTimeout(()=>resetLevel(false),240);
 }
@@ -220,7 +220,7 @@ function completeLevel(){
  if(deathLock)return;deathLock=true;burst(player.x+10,player.y+10,32);
  const elapsed=(performance.now()-levelStartedAt)/1000;
  if(bestTimes[run.level]===null||elapsed<bestTimes[run.level])bestTimes[run.level]=elapsed;
- if(run.level<levels.length-1){
+ sfx('goal');\n if(run.level<levels.length-1){
   levelsCompleted=Math.max(levelsCompleted,run.level+1);save();aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths,time_seconds:Number(elapsed.toFixed(2)),best_seconds:Number(bestTimes[run.level].toFixed(2))});
   if(run.level>=continueLevel)continueLevel=run.level+1;
   unlockedLevel=Math.max(unlockedLevel,run.level+1);
@@ -239,7 +239,7 @@ function completeLevel(){
   aiEvent('run_completed',{deaths:run.deaths});
  }
 }
-function burst(x,y,n){for(let i=0;i<n;i++){const a=Math.random()*TAU,s=40+Math.random()*180;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.4+Math.random()*.5,max:.9,r:1+Math.random()*2})}}
+function sfx(type){try{if(!window.AudioContext&&!window.webkitAudioContext)return;const AC=window.AudioContext||window.webkitAudioContext;sfx.ctx??=new AC();const o=sfx.ctx.createOscillator(),g=sfx.ctx.createGain();const now=sfx.ctx.currentTime;const f=type==='jump'?420:type==='death'?110:type==='shard'?760:type==='goal'?620:260;o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(type==='death'?70:f*1.35,now+.11);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.035,now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+.13);o.connect(g);g.connect(sfx.ctx.destination);o.start(now);o.stop(now+.14)}catch(_){}}\nfunction burst(x,y,n){for(let i=0;i<n;i++){const a=Math.random()*TAU,s=40+Math.random()*180;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.4+Math.random()*.5,max:.9,r:1+Math.random()*2})}}
 
 function draw(){
  ctx.clearRect(0,0,W,H);
