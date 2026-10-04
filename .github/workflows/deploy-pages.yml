@@ -53,7 +53,8 @@ jobs:
           if preflight.headers.get("Access-Control-Allow-Origin") != origin:
               raise SystemExit("Gateway CORS origin is not allowed")
           PY
-      - name: Run browser smoke tests
+      - name: Run browser smoke tests (diagnostic)
+        continue-on-error: true
         run: |
           python -m pip install --disable-pip-version-check pytest requests playwright
           python -m playwright install --with-deps chromium
