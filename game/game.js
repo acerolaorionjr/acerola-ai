@@ -11,7 +11,7 @@ const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:fals
 const particles=[]; const camera={x:0};
 let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[0,0,0];
 const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
-const SAVE='acerola-game-core-v3';
+const SAVE='acerola-game-core-v4';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
 function updateBehavior(){behavior.mode=profileMode();behavior.adaptation=behavior.mode==='SUPPORT'?-1:behavior.mode==='PRESSURE'?1:0}
 function recordDeath(reason){behavior.deaths++;behavior.attempts++;behavior.deathXs.push(Math.round(player.x));behavior.recentDeaths.push({x:Math.round(player.x),reason,level:run.level+1});if(behavior.recentDeaths.length>12)behavior.recentDeaths.shift();updateBehavior()}
@@ -29,7 +29,19 @@ const levels=[
  {name:'TRUST NOTHING',shards:[[220,235],[970,225],[1715,225]],world:2200,spawn:{x:60,y:300},goal:{x:2050,y:270},platforms:[
   [0,350,370,40],[480,350,250,40],[850,350,260,40],[1230,350,260,40],[1580,350,260,40],[1940,350,260,40],
   [170,280,100,18],[560,275,100,18],[930,270,90,18],[1310,275,100,18],[1670,270,100,18]
- ],hazards:[[370,380,110,20],[730,380,120,20],[1110,380,120,20],[1490,380,90,20],[1840,380,100,20]],moving:[]}
+ ],hazards:[[370,380,110,20],[730,380,120,20],[1110,380,120,20],[1490,380,90,20],[1840,380,100,20]],moving:[]},
+ {name:'STATIC HUM',shards:[[260,235],[1120,220],[1900,235]],world:2300,spawn:{x:60,y:300},goal:{x:2150,y:270},platforms:[
+  [0,350,300,40],[410,350,300,40],[820,350,300,40],[1230,350,300,40],[1640,350,300,40],[2050,350,250,40],
+  [180,285,90,18],[500,260,90,18],[900,285,90,18],[1360,255,100,18],[1760,280,90,18]
+ ],hazards:[[300,380,110,20],[710,380,110,20],[1120,380,110,20],[1530,380,110,20],[1940,380,110,20]],moving:[[735,305,70,14,720,830,1],[1450,305,70,14,1390,1540,-1]]},
+ {name:'FALSE FLOOR',shards:[[220,240],[1060,230],[1900,235]],world:2250,spawn:{x:60,y:300},goal:{x:2110,y:270},platforms:[
+  [0,350,260,40],[360,350,240,40],[700,350,220,40],[1020,350,250,40],[1370,350,220,40],[1700,350,220,40],[2020,350,230,40],
+  [150,280,90,18],[450,270,90,18],[780,275,90,18],[1100,265,90,18],[1450,275,90,18],[1780,265,90,18]
+ ],hazards:[[260,380,100,20],[600,380,100,20],[920,380,100,20],[1270,380,100,20],[1590,380,110,20],[1920,380,100,20]],moving:[]},
+ {name:'SIGNAL LOST',shards:[[260,235],[1180,215],[1990,230]],world:2350,spawn:{x:60,y:300},goal:{x:2210,y:270},platforms:[
+  [0,350,330,40],[450,350,260,40],[830,350,250,40],[1210,350,250,40],[1390,350,210,40],[1710,350,250,40],[2030,350,320,40],
+  [200,275,90,18],[520,255,90,18],[900,270,90,18],[1280,245,90,18],[1470,275,90,18],[1790,250,90,18],[2110,270,90,18]
+ ],hazards:[[330,380,120,20],[710,380,120,20],[1080,380,130,20],[1600,380,110,20],[1960,380,70,20]],moving:[[1110,300,70,14,1080,1210,1],[1620,300,70,14,1580,1710,1]]}
 ];
 
 function resize(){const r=canvas.getBoundingClientRect();DPR=Math.min(2,devicePixelRatio||1);W=Math.max(320,r.width);H=Math.max(400,r.height);canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}
@@ -88,9 +100,9 @@ function updateAccountUI(){
  if($('accountStats'))$('accountStats').innerHTML=[
   ['SECTORS',String(unlockedLevel+1)+' / '+levels.length],
   ['FAILS',String(run.deaths)],
-  ['SHARDS',String(shards)+' / 9']
+  ['SHARDS',String(shards)+' / 18']
  ].map(x=>'<div style="padding:8px;border:1px solid #20324e;border-radius:10px;background:#0a1627"><b style="display:block;font-size:14px">'+x[1]+'</b><small style="color:#8292aa">'+x[0]+'</small></div>').join('');
- if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=3?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
+ if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=6?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
  if($('accountAction'))$('accountAction').textContent=signed?'Sign out':'Sign in with Google';
 } 
 function formatTime(v){return v==null?'—':Number(v).toFixed(1)+'s'}
