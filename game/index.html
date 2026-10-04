@@ -29,6 +29,20 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .menu{position:absolute;inset:0;background:#02040be8;display:none;align-items:center;justify-content:center;padding:20px;z-index:10;pointer-events:auto}
 .menu.show{display:flex}.panel{width:min(420px,100%);border:1px solid #20324e;border-radius:22px;background:#07101d;padding:20px;box-shadow:0 20px 70px #000b}.panel h1{margin:0;font-size:25px}.panel p{color:var(--muted);font-size:11px}.menu-buttons{display:grid;gap:9px;margin-top:15px}.menu-buttons button{padding:12px;border:1px solid #20324e;border-radius:12px;background:#0a1627;color:#fff;text-align:left}.menu-buttons button b{display:block}.menu-buttons button small{color:var(--muted)}
 @media(max-width:520px){.tip{display:none}.controls{padding-left:18px;padding-right:18px}.ctrl{width:76px;height:76px}.jump{width:104px;height:104px}} @media(min-width:700px){.controls{padding-left:28px;padding-right:28px}.ctrl{width:84px;height:84px}.jump{width:112px;height:112px}.ai-card{right:24px}}
+/* PREMIUM GAME PRESENTATION */
+#game-shell{max-width:none;background:#02030a}
+.topbar{height:72px;padding:12px 14px;background:linear-gradient(180deg,rgba(2,4,12,.94),rgba(2,4,12,.2),transparent);z-index:4}
+.brand{font-size:15px;text-shadow:0 0 18px rgba(32,246,255,.22)}
+.iconbtn{background:rgba(7,12,24,.72);border-color:rgba(120,170,220,.18);box-shadow:0 8px 30px rgba(0,0,0,.28)}
+.level{top:78px;z-index:4;background:rgba(3,7,16,.45);border:1px solid rgba(120,170,220,.14);padding:7px 10px;border-radius:999px;backdrop-filter:blur(12px)}
+.ai-card{z-index:5;box-shadow:0 16px 50px rgba(0,0,0,.38),0 0 30px rgba(32,246,255,.07)}
+.controls{z-index:4;min-height:172px;padding-bottom:calc(22px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(2,4,12,.4) 20%,rgba(2,4,12,.94) 76%,#02030a)}
+.ctrl{border-radius:28px;background:linear-gradient(145deg,rgba(28,43,65,.92),rgba(5,11,22,.92));border-color:rgba(160,210,255,.24);box-shadow:0 14px 36px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.1),0 0 22px rgba(32,246,255,.05)}
+.jump{background:radial-gradient(circle at 35% 28%,rgba(32,246,255,.18),rgba(5,12,24,.94) 65%);box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 1px rgba(255,255,255,.12),0 0 28px rgba(32,246,255,.11)}
+.status{z-index:4;top:24%;text-shadow:0 0 28px rgba(32,246,255,.3),0 2px 18px #000}.status b{font-size:26px;letter-spacing:2px}
+.menu{z-index:20;background:rgba(1,3,9,.82);backdrop-filter:blur(18px)}
+.panel{background:linear-gradient(160deg,rgba(10,19,35,.97),rgba(4,9,18,.98));border-color:rgba(32,246,255,.2);box-shadow:0 30px 100px #000c,0 0 50px rgba(32,246,255,.05)}
+@media(max-width:520px){.controls{min-height:164px}.tip{display:none}.ctrl{width:78px;height:78px}.jump{width:108px;height:108px}}
 </style>
 </head>
 <body>
@@ -37,7 +51,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div class="hud">
 <header class="topbar">
 <button class="iconbtn" id="home" aria-label="Back to Acerola">←</button>
-<div class="brand">ACEROLA <small>GAME CORE // ONLINE</small></div>
+<div class="brand">ACEROLA <small>GAME CORE // NEON SIGNAL</small></div>
 <div class="pill" id="ai-state">AI CONNECTING</div>
 <button class="iconbtn" id="accountBtn" aria-label="Account">◎</button>
 <button class="iconbtn" id="menuBtn" aria-label="Game menu">•••</button>
@@ -51,7 +65,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div class="status" id="status"><b id="statusTitle">LEVEL 01</b><span id="statusSub">Reach the gate.</span></div>
 <div class="controls" aria-label="Game controls">
 <div class="pad"><button class="ctrl" id="left" type="button" aria-label="Move left">◀</button><button class="ctrl" id="right" type="button" aria-label="Move right">▶</button></div>
-<div class="tip"><b>TOUCH CONTROLS</b><br>Hold a direction · tap jump</div>
+<div class="tip"><b>EXPLORE THE SIGNAL</b><br>Hold to move · tap to jump</div>
 <button class="ctrl jump" id="jump" type="button" aria-label="Jump">JUMP</button>
 </div>
 <div class="menu" id="menu">
