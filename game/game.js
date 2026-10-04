@@ -8,7 +8,7 @@ let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
-let levelState=null,ai=null,aiBusy=false;
+let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false;
 const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
 const SAVE='acerola-game-core-v3';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
@@ -33,8 +33,55 @@ const levels=[
 
 function resize(){const r=canvas.getBoundingClientRect();DPR=Math.min(2,devicePixelRatio||1);W=Math.max(320,r.width);H=Math.max(400,r.height);canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}
 addEventListener('resize',resize);resize();
-function loadSave(){try{const s=JSON.parse(localStorage.getItem(SAVE)||'{}');run.level=Math.max(0,Math.min(levels.length-1,Number(s.level)||0));run.deaths=Number(s.deaths)||0}catch(_){}} 
-function save(){try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,deaths:run.deaths}))}catch(_){}} 
+function loadSave(){
+ try{
+  const s=JSON.parse(localStorage.getItem(SAVE)||'{}');
+  continueLevel=Math.max(0,Math.min(levels.length-1,Number(s.continueLevel??s.level)||0));
+  unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(s.unlockedLevel??continueLevel)||0));
+  unlockedLevel=Math.max(unlockedLevel,continueLevel);
+  run.level=continueLevel;
+  run.deaths=Math.max(0,Number(s.deaths)||0);
+ }catch(_){}
+}
+function save(){
+ try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths}))}catch(_){}
+ saveCloud();
+}
+async function saveCloud(){
+ if(!supabaseClient||!authUser||authUser.is_anonymous)return;
+ try{
+  await supabaseClient.from('game_saves').upsert({
+   user_id:authUser.id,
+   current_level:continueLevel,
+   unlocked_level:unlockedLevel,
+   total_deaths:run.deaths,
+   level_deaths:run.levelDeaths,
+   updated_at:new Date().toISOString()
+  },{onConflict:'user_id'});
+ }catch(_){}
+}
+async function loadCloud(){
+ if(!supabaseClient||!authUser||authUser.is_anonymous)return;
+ try{
+  const {data,error}=await supabaseClient.from('game_saves').select('current_level,unlocked_level,total_deaths,level_deaths').eq('user_id',authUser.id).maybeSingle();
+  if(error)throw error;
+  if(data){
+   continueLevel=Math.max(0,Math.min(levels.length-1,Number(data.current_level)||0),continueLevel);
+   unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(data.unlocked_level)||0),unlockedLevel,continueLevel);
+   run.deaths=Math.max(run.deaths,Number(data.total_deaths)||0);
+   run.level=continueLevel;
+   run.levelDeaths=Number(data.level_deaths)||0;
+  }
+  await saveCloud();
+  updateAccountUI();
+ }catch(_){}
+}
+function updateAccountUI(){
+ const signed=!!authUser&&!authUser.is_anonymous;
+ $('accountTitle').textContent=signed?(authUser.email||'Signed in'):'Sign in';
+ $('accountSub').textContent=signed?'Progress sync is on':'Sync your progress across devices';
+ $('accountBtn').title=signed?'Signed in':'Sign in';
+} 
 function setText(id,t){$(id).textContent=t}
 function flash(title,sub,duration=900){setText('statusTitle',title);setText('statusSub',sub);$('status').classList.add('show');clearTimeout(flash.t);flash.t=setTimeout(()=>$('status').classList.remove('show'),duration)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
@@ -57,14 +104,53 @@ function setInput(k,v){input[k]=v}
 addEventListener('keydown',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA')input.left=true;if(e.code==='ArrowRight'||e.code==='KeyD')input.right=true;if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW')input.jump=true;if(e.code==='Escape')toggleMenu()});
 addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA')input.left=false;if(e.code==='ArrowRight'||e.code==='KeyD')input.right=false;if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW')input.jump=false});
 $('home').onclick=()=>location.href='../';
-$('menuBtn').onclick=toggleMenu;$('resume').onclick=toggleMenu;$('restart').onclick=()=>{toggleMenu();levelState=null;resetLevel(true)};$('resetRun').onclick=()=>{run.level=0;run.deaths=0;save();toggleMenu();levelState=null;resetLevel(true)};
+$('menuBtn').onclick=toggleMenu;
+$('accountBtn').onclick=()=>{paused=true;$('menu').classList.add('show');showAccount()};
+$('accountMenu').onclick=showAccount;
+$('resume').onclick=toggleMenu;
+$('restart').onclick=()=>{toggleMenu();replaying=false;levelState=null;resetLevel(true)};
+$('resetRun').onclick=()=>{run.level=0;continueLevel=0;unlockedLevel=0;run.deaths=0;replaying=false;save();toggleMenu();levelState=null;resetLevel(true)};
+$('replayBtn').onclick=showReplayList;
 function toggleMenu(){paused=!paused;$('menu').classList.toggle('show',paused)}
+function showReplayList(){
+ const box=$('replayList');box.style.display=box.style.display==='none'?'block':'none';
+ if(box.style.display==='none')return;
+ box.innerHTML='';
+ for(let i=0;i<=unlockedLevel;i++){
+  const b=document.createElement('button');
+  b.style.cssText='display:block;width:100%;margin-top:6px;padding:10px;border:1px solid #20324e;border-radius:10px;background:#0a1627;color:#fff;text-align:left';
+  b.innerHTML='<b>Sector '+String(i+1).padStart(2,'0')+'</b><small style="display:block;color:#8292aa">'+levels[i].name+(i===continueLevel?' · CONTINUE POINT':' · UNLOCKED')+'</small>';
+  b.onclick=()=>selectReplay(i);
+  box.appendChild(b);
+ }
+}
+function selectReplay(i){
+ run.level=i;
+ replaying=i<continueLevel;
+ levelState=null;
+ $('replayList').style.display='none';
+ toggleMenu();
+ resetLevel(true);
+ flash('SECTOR '+String(i+1).padStart(2,'0'),replaying?'REPLAY MODE':'CONTINUE',900);
+}
+function showAccount(){
+ const signed=!!authUser&&!authUser.is_anonymous;
+ if(signed){
+  if(confirm('Sign out of Acerola Game Core?')) supabaseClient.auth.signOut().then(()=>location.reload());
+  return;
+ }
+ if(!supabaseClient){alert('Account service is not ready yet.');return}
+ supabaseClient.auth.signInWithOAuth({
+  provider:'google',
+  options:{redirectTo:location.origin+location.pathname}
+ }).then(({error})=>{if(error)alert('Sign-in could not start: '+error.message)});
+}
 
 function movePlatforms(dt){const speed=behavior.mode==='SUPPORT'?38:behavior.mode==='PRESSURE'?68:55;for(const m of levelState.moving){m.x+=m.dir*speed*dt;if(m.x>m.max||m.x<m.min){m.x=clamp(m.x,m.min,m.max);m.dir*=-1}}}
 function platforms(){const l=current();return l.platforms.map(p=>({x:p[0],y:p[1],w:p[2],h:p[3]})).concat(levelState.moving)}
-function hazards(){const mode=behavior.mode;const shrink=mode==='SUPPORT'?10:mode==='PRESSURE'?-5:0;return current().hazards.map(h=>({x:h[0],y:h[1],w:Math.max(18,h[2]-shrink),h:h[3]}))}
+function hazards(){const mode=behavior.mode;const adjust=mode==='SUPPORT'?-10:mode==='PRESSURE'?5:0;return current().hazards.map(h=>({x:h[0],y:h[1],w:Math.max(18,h[2]+adjust),h:h[3]}))}
 function physics(dt){
- behavior.airTime+=dt;if(player.x>behavior.progress)behavior.progress=player.x/current().world;updateBehavior();
+ behavior.airTime+=dt;const normalizedProgress=player.x/current().world;if(normalizedProgress>behavior.progress)behavior.progress=normalizedProgress;updateBehavior();
  const accel=1050,friction=900,max=245,gravity=1120,jump=-430;
  let dir=(input.right?1:0)-(input.left?1:0);
  player.vx+=dir*accel*dt;
@@ -105,10 +191,21 @@ function die(reason){
 function completeLevel(){
  if(deathLock)return;deathLock=true;burst(player.x+10,player.y+10,32);
  if(run.level<levels.length-1){
-  aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});run.level++;save();
-  setTimeout(()=>{levelState=null;resetLevel(true)},420);
+  aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});
+  if(run.level>=continueLevel)continueLevel=run.level+1;
+  unlockedLevel=Math.max(unlockedLevel,run.level+1);
+  if(replaying){
+   run.level=continueLevel;
+   replaying=false;
+   save();
+   setTimeout(()=>{levelState=null;resetLevel(true);paused=true;$('menu').classList.add('show');flash('REPLAY COMPLETE','Continue point preserved.',1200)},420);
+  }else{
+   run.level++;
+   save();
+   setTimeout(()=>{levelState=null;resetLevel(true)},420);
+  }
  }else{
-  flash('CORE COMPLETE','You reached the end of the first build.',2500);
+  continueLevel=Math.max(continueLevel,run.level);unlockedLevel=Math.max(unlockedLevel,run.level);save();flash('CORE COMPLETE','You reached the end of the first build.',2500);
   aiEvent('run_completed',{deaths:run.deaths});
  }
 }
@@ -138,10 +235,26 @@ async function initAI(){
  try{
   const client=window.supabase?.createClient('https://djumpimcwzhjujysznox.supabase.co','sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7');
   if(!client)throw Error('Supabase client unavailable');
-  let {data:{session}}=await client.auth.getSession();if(!session){const r=await client.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session}
+  supabaseClient=client;
+  client.auth.onAuthStateChange(async (event,session)=>{ if(session?.user){authUser=session.user;updateAccountUI();if(!authUser.is_anonymous)await loadCloud()}else{authUser=null;updateAccountUI()} });
+  let {data:{session}}=await client.auth.getSession();
+  if(session?.user){
+   authUser=session.user;
+  }else{
+   const r=await client.auth.signInAnonymously();
+   if(r.error)throw r.error;
+   session=r.data.session;authUser=session?.user||null;
+  }
+  authReady=true;updateAccountUI();
+  if(authUser&&!authUser.is_anonymous)await loadCloud();
   if(!session?.access_token)throw Error('No AI session');
-  ai={client,token:session.access_token,events:[]};$('ai-state').textContent='AI ONLINE';$('aiCard').classList.add('show');setTimeout(()=>$('aiCard').classList.remove('show'),3500);
- }catch(e){$('ai-state').textContent='AI LOCAL';ai={events:[]};setTimeout(()=>setText('aiText','Acerola is running locally. AI commentary will return when the connection is available.'),200)}
+  ai={client,token:session.access_token,events:[]};
+  $('ai-state').textContent=authUser&&!authUser.is_anonymous?'AI ONLINE · SAVED':'AI ONLINE';
+  $('aiCard').classList.add('show');setTimeout(()=>$('aiCard').classList.remove('show'),3500);
+ }catch(e){
+  $('ai-state').textContent='AI LOCAL';ai={events:[]};updateAccountUI();
+  setTimeout(()=>setText('aiText','Acerola is running locally. AI commentary will return when the connection is available.'),200)
+ }
 }
 async function askAcerola(prompt){
  if(aiBusy)return;aiBusy=true;$('aiMode').textContent='THINKING';$('aiCard').classList.add('show');
