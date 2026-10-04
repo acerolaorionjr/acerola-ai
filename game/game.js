@@ -6,6 +6,7 @@ let W=0,H=0,DPR=1,paused=false,last=0,raf=0,deathLock=false;
 const input={left:false,right:false,jump:false};
 let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
+let levelStartedAt=performance.now();
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
 let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[],bestTimes=[];
@@ -87,7 +88,7 @@ function showReplayList(){const box=$('replayList');box.style.display=box.style.
 function selectReplay(i){run.level=i;replaying=i<continueLevel;levelState=null;$('replayList').style.display='none';toggleMenu();resetLevel(true);flash('SECTOR '+String(i+1).padStart(2,'0'),replaying?'REPLAY MODE':'CONTINUE',900)}
 function showAccount(){paused=true;$('menu').classList.add('show');$('replayList').style.display='none';$('accountPanel').style.display='block';updateAccountUI()}
 $('accountClose').onclick=()=>{$('accountPanel').style.display='none';$('menu').classList.remove('show');paused=false};
-$('accountAction').onclick=async()=>{const signed=!!authUser&&!authUser.is_anonymous;if(signed){await supabaseClient?.auth.signOut();authUser=null;updateAccountUI();return}if(!supabaseClient){alert('Account service is not ready yet.');return}if(authUser?.is_anonymous){await saveCloud();const {error}=await supabaseClient.auth.linkIdentity({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert('Account linking could not start: '+error.message);return}const {error}=await supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert('Sign-in could not start: '+error.message)};
+$('accountAction').onclick=async()=>{const signed=!!authUser&&!authUser.is_anonymous;if(signed){await supabaseClient?.auth.signOut();authUser=null;updateAccountUI();return}if(!supabaseClient){alert('Account service is not ready yet.');return}if(authUser?.is_anonymous){const {error}=await supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert('Sign-in could not start: '+error.message);return}const {error}=await supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert('Sign-in could not start: '+error.message)};
 
 function movePlatforms(dt){const speed=behavior.mode==='SUPPORT'?38:behavior.mode==='PRESSURE'?68:55;for(const m of levelState.moving){m.x+=m.dir*speed*dt;if(m.x>m.max||m.x<m.min){m.x=clamp(m.x,m.min,m.max);m.dir*=-1}}}
 function platforms(){const l=current();return l.platforms.map(p=>({x:p[0],y:p[1],w:p[2],h:p[3]})).concat(levelState.moving)}
