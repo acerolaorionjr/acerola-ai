@@ -8,7 +8,7 @@ let jumpBuffer=0,levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false,landed:false};
 const particles=[]; const camera={x:0};
-let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0;
+let levelState=null,ai=null,aiBusy=false,supabaseClient=null,authUser=null,authReady=false,unlockedLevel=0,continueLevel=0,replaying=false,levelsCompleted=0,shards=0,shardMask=[0,0,0];
 const behavior={attempts:0,deaths:0,jumps:0,airTime:0,progress:0,deathXs:[],recentDeaths:[],mode:'NORMAL',adaptation:0};
 const SAVE='acerola-game-core-v3';
 function profileMode(){const d=run.levelDeaths, recent=behavior.recentDeaths.length; if(d>=5)return 'SUPPORT'; if(d>=3)return 'FOCUS'; if(behavior.progress>0.72&&d<=1)return 'PRESSURE'; return 'NORMAL'}
@@ -17,15 +17,15 @@ function recordDeath(reason){behavior.deaths++;behavior.attempts++;behavior.deat
 function adaptationLabel(){return behavior.mode==='SUPPORT'?'SUPPORT MODE':behavior.mode==='PRESSURE'?'PRESSURE MODE':behavior.mode==='FOCUS'?'FOCUS MODE':'CORE BALANCED'}
 
 const levels=[
- {name:'FIRST CONTACT',world:1900,spawn:{x:70,y:300},goal:{x:1770,y:270},platforms:[
+ {name:'FIRST CONTACT',shards:[[300,255],[760,240],[1580,240]],world:1900,spawn:{x:70,y:300},goal:{x:1770,y:270},platforms:[
   [0,350,440,40],[520,350,420,40],[1010,350,300,40],[1400,350,500,40],
   [250,300,80,18],[650,285,90,18],[1120,285,90,18],[1510,285,110,18]
  ],hazards:[[440,380,80,20],[940,380,70,20],[1310,380,90,20]],moving:[]},
- {name:'THE FLOOR REMEMBERS',world:2050,spawn:{x:60,y:300},goal:{x:1910,y:270},platforms:[
+ {name:'THE FLOOR REMEMBERS',shards:[[260,240],[945,225],[1785,225]],world:2050,spawn:{x:60,y:300},goal:{x:1910,y:270},platforms:[
   [0,350,330,40],[430,350,280,40],[810,350,300,40],[1210,350,300,40],[1610,350,440,40],
   [210,285,90,18],[520,270,90,18],[900,270,90,18],[1320,275,90,18],[1740,270,100,18]
  ],hazards:[[330,380,100,20],[710,380,100,20],[1110,380,100,20],[1510,380,100,20]],moving:[[735,290,70,14,760,180,1]]},
- {name:'TRUST NOTHING',world:2200,spawn:{x:60,y:300},goal:{x:2050,y:270},platforms:[
+ {name:'TRUST NOTHING',shards:[[220,235],[970,225],[1715,225]],world:2200,spawn:{x:60,y:300},goal:{x:2050,y:270},platforms:[
   [0,350,370,40],[480,350,250,40],[850,350,260,40],[1230,350,260,40],[1580,350,260,40],[1940,350,260,40],
   [170,280,100,18],[560,275,100,18],[930,270,90,18],[1310,275,100,18],[1670,270,100,18]
  ],hazards:[[370,380,110,20],[730,380,120,20],[1110,380,120,20],[1490,380,90,20],[1840,380,100,20]],moving:[]}
@@ -40,11 +40,11 @@ function loadSave(){
   unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(s.unlockedLevel??continueLevel)||0));
   unlockedLevel=Math.max(unlockedLevel,continueLevel);
   run.level=continueLevel;
-  run.deaths=Math.max(0,Number(s.deaths)||0);levelsCompleted=Math.max(0,Number(s.levelsCompleted)||0);shards=Math.max(0,Number(s.shards)||0);
+  run.deaths=Math.max(0,Number(s.deaths)||0);shardMask=Array.isArray(s.shardMask)?s.shardMask.slice(0,levels.length).map(v=>Number(v)||0):shardMask;while(shardMask.length<levels.length)shardMask.push(0);levelsCompleted=Math.max(0,Number(s.levelsCompleted)||0);shards=Math.max(0,Number(s.shards)||0);
  }catch(_){}
 }
 function save(){
- try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths,levelsCompleted,shards}))}catch(_){}
+ try{localStorage.setItem(SAVE,JSON.stringify({level:run.level,continueLevel,unlockedLevel,deaths:run.deaths,levelsCompleted,shards,shardMask}))}catch(_){}
  saveCloud();
 }
 async function saveCloud(){
@@ -54,7 +54,7 @@ async function saveCloud(){
    user_id:authUser.id,
    current_level:continueLevel,
    unlocked_level:unlockedLevel,
-   total_deaths:run.deaths,levels_completed:levelsCompleted,shards,
+   total_deaths:run.deaths,levels_completed:levelsCompleted,shards,shard_mask:shardMask,
    level_deaths:run.levelDeaths,
    updated_at:new Date().toISOString()
   },{onConflict:'user_id'});
@@ -70,7 +70,7 @@ async function loadCloud(){
    unlockedLevel=Math.max(0,Math.min(levels.length-1,Number(data.unlocked_level)||0),unlockedLevel,continueLevel);
    run.deaths=Math.max(run.deaths,Number(data.total_deaths)||0);
    run.level=continueLevel;
-   run.levelDeaths=Number(data.level_deaths)||0;levelsCompleted=Math.max(levelsCompleted,Number(data.levels_completed)||0);shards=Math.max(shards,Number(data.shards)||0);
+   run.levelDeaths=Number(data.level_deaths)||0;levelsCompleted=Math.max(levelsCompleted,Number(data.levels_completed)||0);shards=Math.max(shards,Number(data.shards)||0);if(Array.isArray(data.shard_mask)){shardMask=data.shard_mask.slice(0,levels.length).map(v=>Number(v)||0);while(shardMask.length<levels.length)shardMask.push(0)}
   }
   await saveCloud();
   updateAccountUI();
@@ -87,7 +87,7 @@ function updateAccountUI(){
  if($('accountStats'))$('accountStats').innerHTML=[
   ['SECTORS',String(unlockedLevel+1)+' / '+levels.length],
   ['FAILS',String(run.deaths)],
-  ['SHARDS',String(shards)]
+  ['SHARDS',String(shards)+' / 9']
  ].map(x=>'<div style="padding:8px;border:1px solid #20324e;border-radius:10px;background:#0a1627"><b style="display:block;font-size:14px">'+x[1]+'</b><small style="color:#8292aa">'+x[0]+'</small></div>').join('');
  if($('accountAchievements'))$('accountAchievements').innerHTML='ACHIEVEMENTS<br><span style="color:#8292aa">'+(levelsCompleted>=1?'✓ First Contact  ':'○ First Contact  ')+(levelsCompleted>=2?'✓ Deep Signal  ':'○ Deep Signal  ')+(levelsCompleted>=3?'✓ Core Complete  ':'○ Core Complete  ')+(shards>=3?'✓ Signal Hunter':'○ Signal Hunter')+'</span>';
  if($('accountAction'))$('accountAction').textContent=signed?'Sign out':'Sign in with Google';
@@ -190,6 +190,7 @@ function physics(dt){
   aiEvent('checkpoint_reached',{x:Math.round(levelState.checkpointX),deaths:run.levelDeaths});
  }
  if(player.y>H+200)die('THE VOID');
+ const ls=current().shards||[];for(let i=0;i<ls.length;i++){if(shardMask[run.level]&(1<<i))continue;const sx=ls[i][0],sy=ls[i][1];const dx=player.x+player.w/2-sx,dy=player.y+player.h/2-sy;if(dx*dx+dy*dy<34*34){shardMask[run.level]|=(1<<i);shards++;save();burst(sx,sy,12);flash('SIGNAL SHARD','Acerola remembered it.',650);aiEvent('shard_collected',{level:run.level+1,index:i,total:shards})}}
  for(const h of hazards()){const r={x:h.x,y:h.y-8,w:h.w,h:h.h+8};if(rectHit(player,r)){die('TRAP');break}}
  if(player.x+player.w>current().goal.x&&player.y+player.h>current().goal.y-20)completeLevel();
 }
@@ -226,13 +227,14 @@ function draw(){
  ctx.clearRect(0,0,W,H);
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#050a18');sky.addColorStop(1,'#03050b');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
  camera.x+=(clamp(player.x-W*.35,0,Math.max(0,current().world-W))-camera.x)*.12;
- ctx.save();ctx.translate(-camera.x,0);drawGrid(camera.x,W,H);drawStars();drawPlatforms();drawHazards();drawCheckpoint();drawGoal();drawPlayer();drawAdaptationBeacon();ctx.restore();
+ ctx.save();ctx.translate(-camera.x,0);drawGrid(camera.x,W,H);drawStars();drawPlatforms();drawShards();drawHazards();drawCheckpoint();drawGoal();drawPlayer();drawAdaptationBeacon();ctx.restore();
  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=1/60;if(p.life<=0){particles.splice(i,1);continue}ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=i%2?'#20f6ff':'#ff4eae';ctx.fillRect(p.x-camera.x,p.y,p.r*2,p.r*2)}ctx.globalAlpha=1;
 }
 function drawGrid(cx,w,h){ctx.strokeStyle='rgba(100,150,210,.055)';ctx.lineWidth=1;const step=44;for(let x=Math.floor(cx/step)*step;x<cx+w+step;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}for(let y=40;y<h;y+=step){ctx.beginPath();ctx.moveTo(cx,y);ctx.lineTo(cx+w,y);ctx.stroke()}}
 function drawStars(){for(let i=0;i<45;i++){const x=(i*173)%current().world,y=45+(i*79)%220;ctx.fillStyle=i%4===0?'#20f6ff':'rgba(180,210,255,.25)';ctx.fillRect(x,y,1.5,1.5)}}
 function drawPlatforms(){for(const p of platforms()){const grd=ctx.createLinearGradient(0,p.y,0,p.y+p.h);grd.addColorStop(0,'#162943');grd.addColorStop(1,'#08101d');ctx.fillStyle=grd;ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle='#20f6ff';ctx.fillRect(p.x,p.y,p.w,2);ctx.fillStyle='rgba(32,246,255,.08)';ctx.fillRect(p.x+8,p.y+7,p.w-16,3)}}
 function drawHazards(){for(const h of hazards()){ctx.fillStyle='#ff3f77';for(let x=h.x;x<h.x+h.w;x+=16){ctx.beginPath();ctx.moveTo(x,h.y);ctx.lineTo(x+8,h.y-14);ctx.lineTo(x+16,h.y);ctx.fill()}ctx.fillStyle='rgba(255,63,119,.2)';ctx.fillRect(h.x,h.y-2,h.w,5)}}
+function drawShards(){const ls=current().shards||[];for(let i=0;i<ls.length;i++){if(shardMask[run.level]&(1<<i))continue;const [x,y]=ls[i];ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()/900);ctx.fillStyle='rgba(32,246,255,.12)';ctx.beginPath();ctx.arc(0,0,14,0,TAU);ctx.fill();ctx.fillStyle='#20f6ff';ctx.beginPath();ctx.moveTo(0,-9);ctx.lineTo(7,0);ctx.lineTo(0,9);ctx.lineTo(-7,0);ctx.closePath();ctx.fill();ctx.restore()}}
 function drawCheckpoint(){if(!levelState||levelState.checkpointX<=current().spawn.x)return;const x=levelState.checkpointX;ctx.fillStyle='rgba(104,246,160,.12)';ctx.fillRect(x-12,250,24,100);ctx.fillStyle='#68f6a0';ctx.fillRect(x-2,270,4,80);ctx.fillRect(x-2,270,18,3)}
 function drawAdaptationBeacon(){if(behavior.mode==='NORMAL')return;const x=player.x+player.w/2;ctx.fillStyle=behavior.mode==='SUPPORT'?'rgba(104,246,160,.16)':'rgba(255,78,174,.13)';ctx.beginPath();ctx.arc(x,70,18,0,TAU);ctx.fill();ctx.fillStyle=behavior.mode==='SUPPORT'?'#68f6a0':'#ff4eae';ctx.font='700 8px system-ui';ctx.textAlign='center';ctx.fillText(adaptationLabel(),x,54)}
 function drawGoal(){const g=current().goal;ctx.save();ctx.translate(g.x,g.y);ctx.fillStyle='rgba(32,246,255,.13)';ctx.fillRect(-12,-70,44,95);ctx.strokeStyle='#20f6ff';ctx.lineWidth=2;ctx.strokeRect(0,-50,22,50);ctx.fillStyle='#20f6ff';ctx.fillRect(3,-47,16,44);ctx.fillStyle='#06131b';ctx.fillRect(15,-27,3,3);ctx.restore()}
