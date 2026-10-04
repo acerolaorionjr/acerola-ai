@@ -63,7 +63,7 @@ async function saveCloud(){
 async function loadCloud(){
  if(!supabaseClient||!authUser||authUser.is_anonymous)return;
  try{
-  const {data,error}=await supabaseClient.from('game_saves').select('current_level,unlocked_level,total_deaths,level_deaths,levels_completed,shards').eq('user_id',authUser.id).maybeSingle();
+  const {data,error}=await supabaseClient.from('game_saves').select('current_level,unlocked_level,total_deaths,level_deaths,levels_completed,shards,shard_mask').eq('user_id',authUser.id).maybeSingle();
   if(error)throw error;
   if(data){
    continueLevel=Math.max(0,Math.min(levels.length-1,Number(data.current_level)||0),continueLevel);
