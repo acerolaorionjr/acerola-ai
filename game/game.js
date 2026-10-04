@@ -4,6 +4,8 @@ const $=id=>document.getElementById(id);
 const TAU=Math.PI*2;
 let W=0,H=0,DPR=1,paused=false,last=0,raf=0;
 const input={left:false,right:false,jump:false};
+let jumpBuffer=0;
+let levelRunDeaths=0;
 const run={level:0,deaths:0,start:performance.now(),levelDeaths:0};
 const player={x:70,y:0,w:22,h:30,vx:0,vy:0,onGround:false,coyote:0,jumpLock:false};
 const particles=[]; const camera={x:0};
@@ -36,7 +38,7 @@ function rectHit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function worldRect(x,y,w,h){return{x,y,w,h}}
 function current(){return levels[run.level]}
 
-function resetLevel(){const l=current();player.x=l.spawn.x;player.y=l.spawn.y;player.vx=0;player.vy=0;player.onGround=false;player.coyote=0;camera.x=0;run.levelDeaths=0;levelState={moving:l.moving.map(m=>({x:m[0],y:m[1],w:m[2],h:m[3],min:m[4],max:m[5],dir:m[6]})),start:performance.now()};setText('levelLabel',String(run.level+1).padStart(2,'0'));setText('deaths',run.deaths);flash('SECTOR '+String(run.level+1).padStart(2,'0'),l.name,700);aiEvent('level_started',{level:run.level+1,name:l.name})}
+function resetLevel(resetCounter=false){const l=current();player.x=l.spawn.x;player.y=l.spawn.y;player.vx=0;player.vy=0;player.onGround=false;player.coyote=0;jumpBuffer=0;camera.x=0;if(resetCounter){run.levelDeaths=0;levelRunDeaths=0;}levelState={moving:l.moving.map(m=>({x:m[0],y:m[1],w:m[2],h:m[3],min:m[4],max:m[5],dir:m[6]})),start:performance.now()};setText('levelLabel',String(run.level+1).padStart(2,'0'));setText('deaths',run.deaths);flash('SECTOR '+String(run.level+1).padStart(2,'0'),l.name,700);aiEvent('level_started',{level:run.level+1,name:l.name})}
 
 function setInput(k,v){input[k]=v}
 [['left','left'],['right','right'],['jump','jump']].forEach(([id,k])=>{const b=$(id);['pointerdown','touchstart'].forEach(ev=>b.addEventListener(ev,e=>{e.preventDefault();setInput(k,true)},{passive:false}));['pointerup','pointercancel','pointerleave','touchend'].forEach(ev=>b.addEventListener(ev,e=>{e.preventDefault();setInput(k,false)},{passive:false}))});
@@ -56,8 +58,9 @@ function physics(dt){
  if(!dir)player.vx-=Math.sign(player.vx)*Math.min(Math.abs(player.vx),friction*dt);
  player.vx=clamp(player.vx,-max,max);
  if(player.onGround)player.coyote=.1;else player.coyote=Math.max(0,player.coyote-dt);
- if(input.jump&&!player.jumpLock&&player.coyote>0){player.vy=jump;player.onGround=false;player.coyote=0;player.jumpLock=true;burst(player.x+11,player.y+30,8)}
- if(!input.jump)player.jumpLock=false;
+ if(input.jump)jumpBuffer=.12;else jumpBuffer=Math.max(0,jumpBuffer-dt);
+ if(jumpBuffer>0&&!player.jumpLock&&player.coyote>0){jumpBuffer=0;player.vy=jump;player.onGround=false;player.coyote=0;player.jumpLock=true;burst(player.x+11,player.y+30,8)}
+ if(!input.jump){player.jumpLock=false;if(player.vy<0)player.vy+=gravity*0.55*dt;}
  player.vy+=gravity*dt;
  let oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;
  player.x=clamp(player.x,0,current().world-player.w);
@@ -70,8 +73,8 @@ function physics(dt){
  for(const h of hazards()){const r={x:h.x,y:h.y-8,w:h.w,h:h.h+8};if(rectHit(player,r))die('TRAP')}
  if(player.x+player.w>current().goal.x&&player.y+player.h>current().goal.y-20){completeLevel()}
 }
-function die(reason){if(aiBusy)return;run.deaths++;run.levelDeaths++;save();burst(player.x+11,player.y+15,22);flash('RUN TERMINATED',reason,650);aiEvent('player_died',{reason,deaths:run.deaths,levelDeaths:run.levelDeaths,x:Math.round(player.x)});setTimeout(resetLevel,240)}
-function completeLevel(){if(aiBusy)return;burst(player.x+10,player.y+10,32);if(run.level<levels.length-1){aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});run.level++;save();setTimeout(resetLevel,420)}else{flash('CORE COMPLETE','You reached the end of the first build.',2500);aiEvent('run_completed',{deaths:run.deaths});}}
+function die(reason){run.deaths++;run.levelDeaths++;levelRunDeaths++;save();burst(player.x+11,player.y+15,22);flash('RUN TERMINATED',reason,650);aiEvent('player_died',{reason,deaths:run.deaths,levelDeaths:run.levelDeaths,x:Math.round(player.x)});setTimeout(()=>resetLevel(false),240)}
+function completeLevel(){if(aiBusy)return;burst(player.x+10,player.y+10,32);if(run.level<levels.length-1){aiEvent('level_completed',{level:run.level+1,deaths:run.levelDeaths});run.level++;save();setTimeout(()=>resetLevel(true),420)}else{flash('CORE COMPLETE','You reached the end of the first build.',2500);aiEvent('run_completed',{deaths:run.deaths});}}
 function burst(x,y,n){for(let i=0;i<n;i++){const a=Math.random()*TAU,s=40+Math.random()*180;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.4+Math.random()*.5,max:.9,r:1+Math.random()*2})}}
 
 function draw(){
@@ -93,7 +96,7 @@ function drawPlayer(){ctx.save();ctx.translate(player.x,player.y);const glow=ctx
 
 function loop(t){const dt=Math.min(.033,Math.max(.001,(t-last)/1000||.016));last=t;if(!paused){movePlatforms(dt);physics(dt);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=250*dt} }draw();raf=requestAnimationFrame(loop)}
 
-function aiEvent(type,data){if(!ai)return;ai.events.push({type,data,at:Date.now()});aiTimer++;if(type==='player_died'&&data.levelDeaths>=2)requestInsight('The player has failed twice on the current level. Give one concise, non-spoiler observation based on the event data.');if(type==='level_completed')requestInsight('The player just completed a level. Give a short encouraging observation and mention the next challenge without spoiling it.');if(type==='run_completed')requestInsight('The player completed the first playable build. Give a short celebratory message.')}
+function aiEvent(type,data){if(!ai)return;ai.events.push({type,data,at:Date.now()});aiTimer++;if(type==='player_died'&&data.levelDeaths===2)requestInsight('The player has failed twice on the current level. Give one concise, non-spoiler observation based on the event data.');if(type==='level_completed')requestInsight('The player just completed a level. Give a short encouraging observation and mention the next challenge without spoiling it.');if(type==='run_completed')requestInsight('The player completed the first playable build. Give a short celebratory message.')}
 async function initAI(){
  $('ai-state').textContent='AI CONNECTING';
  try{
@@ -120,5 +123,5 @@ async function askAcerola(prompt){
 function requestInsight(p){if(!aiBusy)askAcerola(p)}
 $('hintBtn').onclick=()=>askAcerola('Give me a single subtle hint for this level. Do not reveal the trap location or exact solution.');
 $('chatBtn').onclick=()=>askAcerola('Act as my in-game Acerola companion. Based on the current run, say something useful and concise.');
-loadSave();resetLevel();initAI();requestAnimationFrame(loop);
+loadSave();resetLevel(true);initAI();requestAnimationFrame(loop);
 })();
