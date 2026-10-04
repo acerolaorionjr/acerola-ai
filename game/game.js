@@ -113,7 +113,7 @@ function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#050a18');sky.addColorStop(1,'#03050b');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
  camera.x+=(clamp(player.x-W*.35,0,Math.max(0,current().world-W))-camera.x)*.12;
  ctx.save();ctx.translate(-camera.x,0);drawGrid(camera.x,W,H);drawStars();drawPlatforms();drawHazards();drawCheckpoint();drawGoal();drawPlayer();ctx.restore();
- for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=1/60;p.x+=p.vx/60;p.y+=p.vy/60;p.vy+=250/60;if(p.life<=0){particles.splice(i,1);continue}ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=i%2?'#20f6ff':'#ff4eae';ctx.fillRect(p.x-camera.x,p.y,p.r*2,p.r*2)}ctx.globalAlpha=1;
+ for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=1/60;if(p.life<=0){particles.splice(i,1);continue}ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=i%2?'#20f6ff':'#ff4eae';ctx.fillRect(p.x-camera.x,p.y,p.r*2,p.r*2)}ctx.globalAlpha=1;
 }
 function drawGrid(cx,w,h){ctx.strokeStyle='rgba(100,150,210,.055)';ctx.lineWidth=1;const step=44;for(let x=Math.floor(cx/step)*step;x<cx+w+step;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}for(let y=40;y<h;y+=step){ctx.beginPath();ctx.moveTo(cx,y);ctx.lineTo(cx+w,y);ctx.stroke()}}
 function drawStars(){for(let i=0;i<45;i++){const x=(i*173)%current().world,y=45+(i*79)%220;ctx.fillStyle=i%4===0?'#20f6ff':'rgba(180,210,255,.25)';ctx.fillRect(x,y,1.5,1.5)}}
