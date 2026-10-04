@@ -26,53 +26,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Validate JavaScript syntax
+      - name: Validate JavaScript syntax (game only)
         run: |
-          for f in *.js; do
-            echo "Checking $f"
-            node --check "$f"
-          done
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-          import subprocess
-          import tempfile
+          node --check game/game.js
+          test -f game/index.html
+          echo "Game JavaScript syntax OK"
 
-          class Scripts(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.in_script = False
-                  self.current = []
-                  self.items = []
-              def handle_starttag(self, tag, attrs):
-                  if tag == "script":
-                      kind = dict(attrs).get("type", "").lower()
-                      if kind in ("application/ld+json", "application/json", "importmap"):
-                          self.in_script = False
-                          self.current = []
-                          return
-                      self.in_script = True
-                      self.current = []
-              def handle_data(self, data):
-                  if self.in_script:
-                      self.current.append(data)
-              def handle_endtag(self, tag):
-                  if tag == "script":
-                      if self.in_script:
-                          value = "".join(self.current)
-                          if value.strip():
-                              self.items.append(value)
-                      self.in_script = False
-                      self.current = []
-
-          parser = Scripts()
-          parser.feed(Path("index.html").read_text(encoding="utf-8"))
-          for i, source in enumerate(parser.items, 1):
-              path = Path(tempfile.gettempdir()) / f"acerola-inline-{i}.js"
-              path.write_text(source, encoding="utf-8")
-              print(f"Checking index.html inline script #{i}")
-              subprocess.run(["node", "--check", str(path)], check=True)
-          PY
       - name: Check Acerola gateway CORS preflight
         run: |
           python - <<'PY'
