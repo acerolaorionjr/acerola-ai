@@ -1,0 +1,12 @@
+{
+  "name":"Ibadan Life",
+  "short_name":"Ibadan Life",
+  "description":"A mobile-first 3D life game set in Ibadan.",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "orientation":"portrait",
+  "background_color":"#08101a",
+  "theme_color":"#08101a",
+  "categories":["games","entertainment"]
+}
