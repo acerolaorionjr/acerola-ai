@@ -37,9 +37,17 @@ const STARTS={
  nepo:{label:'Nepo Baby',money:500000,debt:0,allowance:50000,home:'Luxury apartment',car:'SUV',support:'₦50,000',job:'Family Business Trainee',circumstance:'Connections unlock opportunities, but reputation matters.',spawn:[20,17],color:0x7e4e9a},
  wealthy:{label:'Wealthy',money:2000000,debt:0,allowance:100000,home:'Luxury home',car:'Premium SUV',support:'₦100,000',job:'Investor / Business Owner',circumstance:'Large resources and property access create a major head start.',spawn:[26,-2],color:0xe7b83b}
 };
+const JOBS=[
+ {id:'gig',name:'Delivery Rider',pay:3500,energy:10,req:0,desc:'Short delivery shifts around Ibadan.'},
+ {id:'retail',name:'Shop Assistant',pay:5000,energy:14,req:1,desc:'Work a market or mall retail shift.'},
+ {id:'office',name:'Office Assistant',pay:8500,energy:16,req:2,desc:'Entry-level office work.'},
+ {id:'developer',name:'Junior Developer',pay:15000,energy:18,req:3,desc:'Tech work unlocked by higher reputation.'},
+ {id:'family',name:'Family Business',pay:22000,energy:14,req:2,desc:'Available early to connected starts.'}
+];
+let bankDebt=0,bankSavings=0,currentJob=null,lastPayDay=-1;
 let activeStart=null,money=25000,progress=35,rep=2,hunger=78,energy=72,fun=64,social=58,hygiene=84,health=92,gameMinutes=8*60;const keys={w:false,a:false,s:false,d:false};let camAngle=.62,camDistance=23,dragging=false,lastX=0;
 const $=id=>document.getElementById(id);function moneyText(n){return '₦'+Math.max(0,Math.round(n)).toLocaleString('en-NG')}
-function applyStart(key){const s=STARTS[key];if(!s)return;activeStart=key;money=s.money;progress=key==='lapo'?10:key==='wealthy'?70:key==='nepo'?55:key==='comfortable'?45:35;rep=key==='lapo'?1:key==='wealthy'?4:key==='nepo'?3:2;player.position.set(s.spawn[0],0,s.spawn[1]);makeStarterVisual(s);$('jobTitle').textContent=s.job;$('place').textContent=s.home+' · Ibadan';$('task').textContent=s.circumstance;localStorage.setItem('ibadanLifeStart',key);renderUI();$('startScreen').classList.remove('show');$('startScreen').style.display='none';toast('🌆 '+s.label+' life started');}
+function applyStart(key){const s=STARTS[key];if(!s)return;activeStart=key;money=s.money;bankDebt=s.debt;bankSavings=0;currentJob=null;progress=key==='lapo'?10:key==='wealthy'?70:key==='nepo'?55:key==='comfortable'?45:35;rep=key==='lapo'?1:key==='wealthy'?4:key==='nepo'?3:2;player.position.set(s.spawn[0],0,s.spawn[1]);makeStarterVisual(s);$('jobTitle').textContent=s.job;$('place').textContent=s.home+' · Ibadan';$('task').textContent=s.circumstance;localStorage.setItem('ibadanLifeStart',key);renderUI();$('startScreen').classList.remove('show');$('startScreen').style.display='none';toast('🌆 '+s.label+' life started');}
 function showStart(){const saved=localStorage.getItem('ibadanLifeStart');if(saved&&STARTS[saved]){selectStart(saved);return}document.getElementById('startScreen').classList.add('show')}
 function selectStart(key){document.querySelectorAll('.startOption').forEach(b=>b.classList.toggle('selected',b.dataset.start===key));const s=STARTS[key];if(!s)return;selectedStart=key;$('startSummary').textContent=s.label+' · '+s.circumstance+' Home: '+s.home+' · Vehicle: '+s.car; $('startGame').disabled=false}
 let selectedStart=null;
@@ -54,7 +62,7 @@ const phone=$('phoneOverlay'), appPanel=$('appPanel');
 const appCopy={
  jobs:['Jobs','Browse careers, gigs and applications. Build skills to unlock better-paying work.',['Find work','View skills']],
  messages:['Messages','Talk to friends, employers, customers and NPCs.',['Open messages']],
- bank:['Bank','Balance: '+moneyText(money)+' · Debt: '+moneyText(activeStart?STARTS[activeStart].debt:0)+' · Family support: '+(activeStart?STARTS[activeStart].support:'—'),['View balance','Bills','Repay debt']],
+ bank:['Bank','Balance: '+moneyText(money)+' · Debt: '+moneyText(bankDebt)+' · Savings: '+moneyText(bankSavings),['View balance','Deposit ₦5,000','Repay ₦5,000']],
  ride:['Ride','Choose walking, bus, keke, okada, cab or your own vehicle. Cost and travel time change by route.',['Find a ride']],
  shop:['Boutique','Buy clothes, accessories and useful items for your character.',['Open shop']],
  food:['Food','Order local meals and groceries to manage hunger.',['Order food']],
@@ -68,8 +76,23 @@ const appCopy={
 function openApp(name){
  const d=appCopy[name]; if(!d)return;
  appPanel.innerHTML='<h3>'+d[0]+'</h3><p>'+d[1]+'</p><div class="appAction">'+d[2].map((x,i)=>'<button class="'+(i?'alt':'')+'" data-app-action="'+name+'">'+x+'</button>').join('')+'</div>';
- appPanel.querySelectorAll('[data-app-action]').forEach(b=>b.addEventListener('click',()=>toast(d[0]+' opened')));
+ appPanel.querySelectorAll('[data-app-action]').forEach(b=>b.addEventListener('click',()=>handleAppAction(name,b.textContent)));
 }
+function lifeModal(title,desc,choices){$('lifeTitle').textContent=title;$('lifeDesc').textContent=desc;$('lifeChoices').innerHTML=choices.map((c,i)=>'<button class="choice" data-choice="'+i+'"><strong>'+c.title+'</strong><small>'+c.desc+'</small></button>').join('');$('lifeModal').classList.add('show');$('lifeModal').setAttribute('aria-hidden','false');$('lifeChoices').querySelectorAll('.choice').forEach((b,i)=>b.addEventListener('click',()=>{c=choices[i];c.run();closeLife()}))}
+function closeLife(){$('lifeModal').classList.remove('show');$('lifeModal').setAttribute('aria-hidden','true')}
+$('closeLife').addEventListener('click',closeLife);
+function handleAppAction(name,label){
+ if(name==='jobs'){lifeModal('💼 Jobs','Choose work you can currently qualify for.',JOBS.map(j=>({title:j.name+' · '+moneyText(j.pay),desc:j.desc+' Reputation required: '+j.req,run:()=>{if(rep<j.req){toast('🔒 Build reputation to unlock this job');return}currentJob=j;money+=j.pay;energy=Math.max(0,energy-j.energy);progress=Math.min(100,progress+6);rep=Math.min(5,rep+.08);toast('💼 '+j.name+' complete · +'+moneyText(j.pay));renderUI()}})))}
+ else if(name==='bank'){if(label.includes('Deposit')){const n=Math.min(5000,money);money-=n;bankSavings+=n;toast('🏦 Saved '+moneyText(n))}else if(label.includes('Repay')){const n=Math.min(5000,bankDebt,money);money-=n;bankDebt-=n;toast(n?'🏦 Debt repayment · '+moneyText(n):'🏦 Nothing to repay')}else{toast('🏦 Balance '+moneyText(money)+' · Debt '+moneyText(bankDebt)+' · Savings '+moneyText(bankSavings))}renderUI()}
+ else if(name==='ride'){toast('🚕 Ride planning will use your map routes next')}
+ else if(name==='travel'){toast('🚌 Travel hub ready · inter-state routes coming next')}
+ else if(name==='business'){toast('🏢 Business management unlocked for the next economy layer')}
+ else if(name==='advertise'){toast('📢 Campaigns will use business budget when businesses go live')}
+ else if(name==='invest'){toast('📈 Investment market is being connected to the bank')}
+ else {toast(dLabel(name)+' opened')}
+}
+function dLabel(n){return appCopy[n]?appCopy[n][0]:n}
+
 document.querySelectorAll('[data-app]').forEach(b=>b.addEventListener('click',()=>openApp(b.dataset.app)));
 $('closePhone').addEventListener('click',()=>{phone.classList.remove('show');phone.setAttribute('aria-hidden','true')});
 function openPhone(){phone.classList.add('show');phone.setAttribute('aria-hidden','false')}
