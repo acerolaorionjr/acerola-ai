@@ -3,85 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#eef4f7">
-<title>Acerola Life // Ibadan</title>
-<meta name="description" content="Acerola Life — a mobile 3D life simulation set in a stylized Ibadan-inspired city.">
+<meta name="theme-color" content="#08101a">
+<title>Acerola Life 3D</title>
 <style>
-:root{--ink:#15202a;--muted:#687681;--panel:rgba(255,255,255,.92);--line:rgba(20,38,52,.12);--accent:#13a86b;--accent2:#f4b942;--danger:#d9534f}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#dfe9e8;color:var(--ink);font:14px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
-body{touch-action:none}
-#game-shell{position:relative;width:100%;height:100%;overflow:hidden;background:#dce8e6}
-#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-.hud{position:absolute;inset:0;pointer-events:none}
-.topbar{position:absolute;top:0;left:0;right:0;padding:12px 14px 7px;display:flex;align-items:center;gap:8px;z-index:5;pointer-events:auto}
-.brand{min-width:0;flex:1;background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:24px;padding:9px 13px;box-shadow:0 6px 20px rgba(25,50,60,.12);backdrop-filter:blur(10px)}
-.brand b{font-size:14px}.brand small{display:block;color:var(--muted);font-size:8px;letter-spacing:1.2px;text-transform:uppercase}
-.money{background:#fff;border:1px solid var(--line);border-radius:22px;padding:10px 10px 10px 13px;font-weight:800;white-space:nowrap;box-shadow:0 6px 20px rgba(25,50,60,.1)}
-.money button{border:0;background:var(--accent);color:#fff;width:28px;height:28px;border-radius:50%;font-size:20px;line-height:1;margin-left:6px}
-.iconbtn{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;background:rgba(255,255,255,.9);color:var(--ink);font-size:17px;box-shadow:0 6px 20px rgba(25,50,60,.1)}
-.stats{position:absolute;top:76px;left:14px;display:flex;gap:6px;z-index:4;pointer-events:auto}
-.pill{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.86);border:1px solid var(--line);font-size:11px;box-shadow:0 5px 15px rgba(25,50,60,.08)}
-.pill.online:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#2eb872;margin-right:5px}
-.job-card{position:absolute;top:112px;left:14px;width:min(355px,calc(100% - 28px));background:rgba(255,255,255,.91);border:1px solid var(--line);border-radius:20px;padding:13px;box-shadow:0 18px 45px rgba(25,50,60,.18);backdrop-filter:blur(12px);pointer-events:auto;transform:translateY(-8px);opacity:0;transition:.18s}
-.job-card.show{opacity:1;transform:none}.job-head{display:flex;gap:10px;align-items:center}.job-icon{width:42px;height:42px;border-radius:14px;background:#edf7f1;display:grid;place-items:center;font-size:22px}.job-head b{display:block}.job-head small{color:var(--muted)}
-.job-line{margin-top:10px;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.job-line strong{color:var(--ink);font-size:13px}
-.bar{height:8px;background:#e4e9e9;border-radius:99px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--accent);border-radius:99px;width:55%}
-.actions{display:flex;gap:7px;margin-top:10px}.actions button,.modal button{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px;font-weight:700;color:var(--ink)}
-.actions .primary,.modal .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.status{position:absolute;top:20%;left:50%;transform:translate(-50%,-50%);text-align:center;background:rgba(255,255,255,.88);padding:10px 15px;border-radius:999px;box-shadow:0 10px 30px rgba(25,50,60,.14);opacity:0;transition:.2s;z-index:5;white-space:nowrap}.status.show{opacity:1}.status b{font-size:14px}.status span{display:block;color:var(--muted);font-size:10px}
-.needs{position:absolute;right:14px;top:112px;width:min(190px,42%);padding:10px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 15px 35px rgba(25,50,60,.12);pointer-events:none}
-.need{display:grid;grid-template-columns:20px 1fr 32px;gap:6px;align-items:center;margin:5px 0;font-size:10px}.need div{height:7px;background:#e6ebeb;border-radius:99px;overflow:hidden}.need i{display:block;height:100%;background:var(--accent);width:70%}.need em{font-style:normal;color:var(--muted);text-align:right}
-.controls{position:absolute;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:end;pointer-events:none;z-index:6;background:linear-gradient(transparent,rgba(255,255,255,.14) 45%,rgba(238,244,243,.9))}
-.pad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px);gap:5px;pointer-events:auto}.ctrl{width:54px;height:54px;border:1px solid rgba(20,38,52,.15);border-radius:18px;background:rgba(255,255,255,.88);color:var(--ink);font-weight:800;font-size:18px;box-shadow:0 7px 18px rgba(25,50,60,.14);touch-action:none}.up{grid-column:2}.down{grid-column:2}.left{grid-column:1;grid-row:2}.right{grid-column:3;grid-row:2}.ctrl:active,.ctrl.pressed{transform:scale(.94);background:#edf8f2;border-color:rgba(19,168,107,.4)}
-.bottom-nav{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(560px,calc(100% - 150px));display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;padding:6px;box-shadow:0 10px 30px rgba(25,50,60,.15);pointer-events:auto}.navbtn{border:0;background:transparent;border-radius:18px;padding:9px 5px;color:#687681;font-weight:700}.navbtn.active{background:#15202a;color:#fff}.navbtn span{display:block;font-size:18px}.navbtn small{font-size:9px}
-.modal{position:absolute;inset:0;background:rgba(20,32,40,.35);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:18px;z-index:20;pointer-events:auto}.modal.show{display:flex}.sheet{width:min(470px,100%);max-height:82%;overflow:auto;background:#fff;border-radius:24px;padding:18px;box-shadow:0 30px 80px rgba(10,20,25,.3)}.sheet h2{margin:0 0 4px}.sheet p{margin:4px 0;color:var(--muted);font-size:12px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:13px}.card{padding:12px;border:1px solid var(--line);border-radius:15px;background:#f7f9f9}.card b{display:block}.card small{color:var(--muted)}.close{margin-top:12px;width:100%}
-.toast{position:absolute;left:50%;bottom:130px;transform:translateX(-50%) translateY(10px);background:#15202a;color:#fff;padding:9px 13px;border-radius:999px;font-size:11px;opacity:0;transition:.18s;z-index:30;pointer-events:none;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%)}
-@media(max-width:620px){.brand small{display:none}.money{font-size:11px}.needs{width:145px}.bottom-nav{width:calc(100% - 145px);bottom:8px}.pad{grid-template-columns:48px 48px 48px;grid-template-rows:48px 48px}.ctrl{width:48px;height:48px}.job-card{top:110px}.needs{top:110px}}
-@media(max-width:430px){.needs{display:none}.bottom-nav{width:calc(100% - 135px)}.stats{top:70px}.topbar{padding-left:9px;padding-right:9px}.brand{padding:8px 10px}.iconbtn{width:38px;height:38px}.money{padding:8px}.pad{grid-template-columns:45px 45px 45px;grid-template-rows:45px 45px}.ctrl{width:45px;height:45px}.bottom-nav{bottom:5px}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#08101a;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#fff}body{touch-action:none}#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}.hud{position:fixed;inset:0;pointer-events:none}.top{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:center;gap:8px;z-index:4}.pill{background:rgba(9,18,29,.82);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(12px);box-shadow:0 8px 28px rgba(0,0,0,.25);border-radius:18px;padding:9px 12px;white-space:nowrap}.brand{font-weight:800;letter-spacing:.3px}.money{margin-left:auto;font-weight:800}.plus{pointer-events:auto;border:0;border-radius:50%;width:38px;height:38px;font-size:24px;line-height:38px;background:#19c37d;color:#05130d;font-weight:900}.online{font-size:12px;color:#8ff0c2}.panel{position:absolute;left:14px;top:92px;width:min(370px,calc(100vw - 28px));padding:15px;border-radius:22px;background:rgba(11,20,31,.78);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(15px);box-shadow:0 18px 45px rgba(0,0,0,.25);pointer-events:auto}.panel h2{font-size:18px;margin:0 0 2px}.muted{color:#aeb9c5;font-size:13px}.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}.bar{height:8px;border-radius:8px;background:rgba(255,255,255,.14);overflow:hidden;flex:1}.bar i{display:block;height:100%;border-radius:8px;background:#20d28a}.task{margin-top:10px;color:#dfe7ef}.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.actions button,.bottom button{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);color:#fff;border-radius:14px;min-height:42px;padding:9px 12px;font-weight:700}.actions button:active,.bottom button:active{transform:scale(.97)}.leave{width:100%;background:#fff!important;color:#08101a!important;border:0!important}.status{position:absolute;left:14px;bottom:92px;display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 28px)}.need{padding:7px 9px;border-radius:12px;background:rgba(8,16,26,.78);border:1px solid rgba(255,255,255,.1);font-size:11px;backdrop-filter:blur(10px)}.bottom{position:absolute;left:14px;right:14px;bottom:max(12px,env(safe-area-inset-bottom));height:66px;border-radius:22px;background:rgba(248,251,253,.96);display:grid;grid-template-columns:repeat(4,1fr);padding:6px;gap:5px;pointer-events:auto;box-shadow:0 12px 35px rgba(0,0,0,.25)}.bottom button{border:0;background:transparent;color:#506070;min-height:52px}.bottom button.active{background:#0d1724;color:#fff}.bottom small{display:block;font-size:11px;margin-top:3px}.controls{position:absolute;right:14px;bottom:180px;display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:6px;pointer-events:auto}.controls button{border:1px solid rgba(255,255,255,.14);background:rgba(8,16,26,.68);color:#fff;border-radius:16px;font-size:18px;backdrop-filter:blur(10px)}.controls .up{grid-column:2}.controls .left{grid-column:1;grid-row:2}.controls .down{grid-column:2;grid-row:2}.controls .right{grid-column:3;grid-row:2}.hint{position:absolute;right:14px;top:92px;width:min(260px,42vw);padding:12px;border-radius:17px;background:rgba(8,16,26,.72);border:1px solid rgba(255,255,255,.1);font-size:12px;color:#d8e1e9;backdrop-filter:blur(12px)}#toast{position:absolute;left:50%;top:78%;transform:translate(-50%,-50%);background:rgba(8,16,26,.9);border:1px solid rgba(255,255,255,.14);padding:10px 15px;border-radius:14px;opacity:0;transition:opacity .2s;white-space:nowrap}@media(max-width:600px){.hint{display:none}.panel{top:82px}.controls{bottom:180px;right:10px;transform:scale(.88);transform-origin:bottom right}.top .online{display:none}.brand{font-size:13px}.money{font-size:13px}.pill{padding:8px 10px}.panel{width:min(340px,calc(100vw - 28px));transform:scale(.94);transform-origin:top left}.status{bottom:88px}.bottom{height:62px}}
 </style>
 </head>
 <body>
-<main id="game-shell">
-<canvas id="game" aria-label="Acerola Life 3D game world"></canvas>
+<div id="game"></div>
 <div class="hud">
-<header class="topbar">
-<button class="iconbtn" id="homeBtn" aria-label="Back to Acerola">⌂</button>
-<div class="brand"><b>ACEROLA LIFE</b><small>IBADAN // 3D LIFE SIMULATION</small></div>
-<div class="money">₦<span id="money">25000</span><button id="moneyPlus" aria-label="Open bank">+</button></div>
-<button class="iconbtn" id="menuBtn" aria-label="Menu">•••</button>
-</header>
-<div class="stats"><span class="pill">☀️ <span id="clock">8:00 AM</span></span><span class="pill online">3D WORLD</span></div>
-<section class="job-card" id="jobCard">
-<div class="job-head"><div class="job-icon" id="jobIcon">🏠</div><div><b id="jobTitle">Your home</b><small id="jobLocation">Ibadan</small></div></div>
-<div class="job-line"><span id="jobTask">Explore the city</span><strong id="jobPay">₦0</strong></div>
-<div class="bar"><i id="jobProgress"></i></div>
-<div class="actions"><button id="interactBtn" class="primary">INTERACT</button><button id="closeJob">CLOSE</button></div>
-</section>
-<section class="needs" aria-label="Player needs">
-<div class="need">🍛<div><i id="hungerBar"></i></div><em id="hunger">82</em></div>
-<div class="need">⚡<div><i id="energyBar"></i></div><em id="energy">88</em></div>
-<div class="need">😊<div><i id="funBar"></i></div><em id="fun">74</em></div>
-<div class="need">🧼<div><i id="hygieneBar"></i></div><em id="hygiene">91</em></div>
-</section>
-<div class="status" id="status"><b id="statusTitle">Welcome to Ibadan</b><span id="statusSub">Use the controls to explore.</span></div>
-<div class="controls">
-<div class="pad">
-<button class="ctrl up" id="up">▲</button><button class="ctrl left" id="left">◀</button><button class="ctrl down" id="down">▼</button><button class="ctrl right" id="right">▶</button>
+  <div class="top">
+    <div class="pill brand">🧑🏾 Acerola Life</div>
+    <div class="pill">☀️ <span id="clock">8:00 AM</span> · <span id="mood">😊</span></div>
+    <div class="pill money" id="money">₦25,000</div><button class="plus" id="addMoney">+</button>
+    <div class="pill online">● 1,284 online</div>
+  </div>
+  <section class="panel" id="jobPanel">
+    <h2 id="jobTitle">Student</h2><div class="muted" id="place">Acerola Academy</div>
+    <div class="row"><span>Daily progress</span><strong id="progressText">35%</strong></div>
+    <div class="bar"><i id="progressBar" style="width:35%"></i></div>
+    <div class="row"><span>⭐ Reputation</span><strong id="rep">2 / 5</strong></div>
+    <div class="task">Task · <span id="task">Attend class</span></div>
+    <div class="actions">
+      <button data-action="study">📚 Study</button><button data-action="social">💬 Socialize</button><button data-action="eat">🍛 Eat</button><button data-action="rest">😴 Rest</button>
+      <button class="leave" data-action="work">Work / Attend class</button>
+    </div>
+  </section>
+  <div class="status" id="needs"></div>
+  <div class="controls" aria-label="movement controls"><button class="up" data-key="w">▲</button><button class="left" data-key="a">◀</button><button class="down" data-key="s">▼</button><button class="right" data-key="d">▶</button></div>
+  <div class="hint">3D world · Drag the scene to rotate the camera · Use the movement buttons to explore.</div>
+  <nav class="bottom">
+    <button class="active" data-tab="home">🏠<small>Home</small></button><button data-tab="shop">🛍️<small>Shop</small></button><button data-tab="map">🗺️<small>Map</small></button><button data-tab="phone">📱<small>Phone</small></button>
+  </nav>
+  <div id="toast"></div>
 </div>
-<nav class="bottom-nav" aria-label="Game navigation">
-<button class="navbtn active" data-tab="home"><span>⌂</span><small>Home</small></button>
-<button class="navbtn" data-tab="shop"><span>🛍️</span><small>Shop</small></button>
-<button class="navbtn" data-tab="map"><span>🗺️</span><small>Map</small></button>
-<button class="navbtn" data-tab="phone"><span>📱</span><small>Phone</small></button>
-</nav>
-</div>
-<div class="toast" id="toast"></div>
-<div class="modal" id="modal"><section class="sheet" id="sheet"></section></div>
-</div>
-</main>
-<script src="https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./game.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
