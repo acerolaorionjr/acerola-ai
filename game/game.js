@@ -57,7 +57,7 @@ $('resetStart').addEventListener('click',()=>{localStorage.removeItem('ibadanLif
 
 function renderUI(){$('money').textContent=moneyText(money);$('progressText').textContent=Math.round(progress)+'%';$('progressBar').style.width=Math.max(0,Math.min(100,progress))+'%';$('rep').textContent=Math.floor(rep)+' / 5';$('clock').textContent=((Math.floor(gameMinutes/60)%24)||12)+':'+String(Math.floor(gameMinutes%60)).padStart(2,'0')+' '+(gameMinutes%1440<720?'AM':'PM');let mood=energy<25?'😴':hunger<25?'😵':social<25?'😔':health<35?'🤒':progress>80?'🔥':'😊';$('mood').textContent=mood;const arr=[['🍛',hunger],['⚡',energy],['🎉',fun],['💬',social],['🧼',hygiene],['❤️',health]];$('needs').innerHTML=arr.map(([a,v])=>`<span class="need">${a} ${Math.round(v)}%</span>`).join('')}
 function toast(t){const el=$('toast');el.textContent=t;el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.opacity=0,1500)}
-function action(a){if(a==='eat'){hunger=Math.min(100,hunger+25);money=Math.max(0,money-500);$('task').textContent='Enjoy lunch';toast('🍛 You ate a local meal · −₦500')}if(a==='rest'){energy=Math.min(100,energy+28);toast('😴 You rested')}if(a==='social'){social=Math.min(100,social+20);fun=Math.min(100,fun+10);toast('💬 You made time for people')}if(a==='study'){progress=Math.min(100,progress+8);energy=Math.max(0,energy-7);toast('📚 Study session complete')}if(a==='work'){progress=Math.min(100,progress+15);money+=2500;energy=Math.max(0,energy-12);hunger=Math.max(0,hunger-8);rep=Math.min(5,rep+(progress>70?.05:0));toast('💼 Shift complete · +₦2,500');$('task').textContent=progress>85?'Go home':'Next: assignment'}
+function action(a){if(a==='eat'){hunger=Math.min(100,hunger+25);money=Math.max(0,money-500);$('task').textContent='Enjoy lunch';toast('🍛 You ate a local meal · −₦500')}if(a==='rest'){energy=Math.min(100,energy+28);toast('😴 You rested')}if(a==='social'){social=Math.min(100,social+20);fun=Math.min(100,fun+10);toast('💬 You made time for people')}if(a==='study'){progress=Math.min(100,progress+8);energy=Math.max(0,energy-7);toast('📚 Study session complete')}if(a==='work'){progress=Math.min(100,progress+15);money+=2500;energy=Math.max(0,energy-12);hunger=Math.max(0,hunger-8);rep=Math.min(5,rep+(progress>70?.05:0));toast('💼 Shift complete · +₦2,500');$('task').textContent=progress>85?'Go home':'Next: assignment'}renderUI()}
 const phone=$('phoneOverlay'), appPanel=$('appPanel');
 const appCopy={
  jobs:['Jobs','Browse careers, gigs and applications. Build skills to unlock better-paying work.',['Find work','View skills']],
@@ -73,18 +73,76 @@ const appCopy={
  travel:['Travel','Plan trips from Ibadan to other cities and, later, other Nigerian states. Travel costs money and time.',['Plan trip']],
  events:['Events','Find concerts, football, cinema, community and other activities around the city.',['View events']]
 };
+const CATALOGUE=[
+ {id:'partition',name:'Partition Wall',icon:'🧱',cat:'storage',price:18000},
+ {id:'slat',name:'Wooden Slat Divider',icon:'🪵',cat:'design',price:12000},
+ {id:'plant',name:'Potted Plant',icon:'🪴',cat:'decor',price:4500},
+ {id:'sofa',name:'Italian Leather Sofa',icon:'🛋️',cat:'comfort',price:95000},
+ {id:'bath',name:'Bathtub',icon:'🛁',cat:'bath',price:65000},
+ {id:'dining',name:'Dining Table',icon:'🍽️',cat:'comfort',price:42000},
+ {id:'cooker',name:'Gas Cooker',icon:'🍳',cat:'kitchen',price:28000},
+ {id:'fridge',name:'Double-Door Fridge',icon:'🧊',cat:'kitchen',price:110000},
+ {id:'sink',name:'Kitchen Sink',icon:'🚰',cat:'kitchen',price:18000},
+ {id:'snooker',name:'Snooker Table',icon:'🎱',cat:'fun',price:140000},
+ {id:'tv',name:'65\" Smart TV',icon:'📺',cat:'fun',price:135000},
+ {id:'fan',name:'Standing Fan',icon:'🌬️',cat:'light',price:22000},
+ {id:'ac',name:'Split Air Conditioner',icon:'❄️',cat:'comfort',price:180000},
+ {id:'bucket',name:'Bucket & Bowl',icon:'🪣',cat:'bath',price:3500},
+ {id:'toilet',name:'WC Toilet',icon:'🚽',cat:'bath',price:32000},
+ {id:'counter',name:'Kitchen Counter',icon:'🗄️',cat:'kitchen',price:48000},
+ {id:'solar',name:'Solar + Inverter',icon:'☀️',cat:'light',price:260000},
+ {id:'lamp',name:'Rechargeable Lamp',icon:'🏮',cat:'light',price:9000},
+ {id:'ps5',name:'PS5 Gaming Setup',icon:'🎮',cat:'fun',price:320000},
+ {id:'jacuzzi',name:'Jacuzzi',icon:'🫧',cat:'luxury',price:380000},
+ {id:'shower',name:'Rain Shower',icon:'🚿',cat:'bath',price:72000},
+ {id:'washer',name:'Washing Machine',icon:'🧺',cat:'kitchen',price:125000},
+ {id:'glass',name:'Frosted Glass Partition',icon:'🪟',cat:'design',price:38000},
+ {id:'royal',name:'Royal Gold Sofa',icon:'👑',cat:'luxury',price:220000},
+ {id:'speakers',name:'Party Speakers',icon:'🔊',cat:'fun',price:85000},
+ {id:'aquarium',name:'Aquarium',icon:'🐠',cat:'pets',price:95000},
+ {id:'lion',name:'Gold Lion Statue',icon:'🦁',cat:'luxury',price:175000}
+];
+const catalogueCats=[['all','📦 Storage'],['design','🎨 Design'],['sleep','🛏️ Sleep'],['kitchen','🍳 Kitchen'],['bath','🚿 Bath'],['comfort','🛋️ Comfort'],['fun','📺 Fun'],['skills','🎸 Skills'],['light','💡 Light'],['decor','🪴 Decor'],['pets','🐶 Pets'],['luxury','💎 Luxury']];
+let catalogueFilter='all';
+let inventory=JSON.parse(localStorage.getItem('ibadanLifeInventory')||'[]');
+const placedObjects=new THREE.Group();world.add(placedObjects);
+function saveInventory(){localStorage.setItem('ibadanLifeInventory',JSON.stringify(inventory))}
+function furnitureVisual(item,index){
+ const x=((index%4)-1.5)*2.2, z=-2+Math.floor(index/4)*2.1;
+ const mat=new THREE.MeshLambertMaterial({color:item.cat==='luxury'?0xd4af37:item.cat==='decor'?0x4e9b68:item.cat==='kitchen'?0xd9d9d9:0x6b5143});
+ const o=box(item.name,x,.05,z,1.7,.8,1.0,mat,placedObjects);o.userData.itemId=item.id;
+ const label=textSprite(item.name,'#fff');label.position.set(x,1.2,z);placedObjects.add(label);
+}
+function renderCatalogue(){
+ const grid=$('catalogueGrid'), owned=new Set(inventory);
+ const list=catalogueFilter==='all'?CATALOGUE:CATALOGUE.filter(x=>x.cat===catalogueFilter);
+ $('catalogueCats').innerHTML=catalogueCats.map(([id,label])=>'<button class="'+(id===catalogueFilter?'active':'')+'" data-cat="'+id+'">'+label+'</button>').join('');
+ $('catalogueCats').querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catalogueFilter=b.dataset.cat;renderCatalogue()});
+ grid.innerHTML=list.map(item=>{const have=owned.has(item.id);return '<article class="catalogueItem"><div class="itemIcon">'+item.icon+'</div><div class="itemName">'+item.name+'</div><div class="itemPrice">'+(have?'Owned':moneyText(item.price))+'</div><button data-buy="'+item.id+'">'+(have?'Place':'Buy · '+moneyText(item.price))+'</button></article>'}).join('');
+ grid.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>buyOrPlace(b.dataset.buy));
+ $('catalogueMoney').textContent=moneyText(money);
+}
+function buyOrPlace(id){
+ const item=CATALOGUE.find(x=>x.id===id);if(!item)return;
+ const i=inventory.indexOf(id);
+ if(i>=0){furnitureVisual(item,i);inventory.splice(i,1);saveInventory();renderCatalogue();toast('🛋️ '+item.name+' placed');return}
+ if(money<item.price){toast('💸 Not enough money for '+item.name);return}
+ money-=item.price;inventory.push(id);saveInventory();renderCatalogue();renderUI();toast('📦 '+item.name+' added to storage');
+}
+function openBuyMode(){catalogueFilter='all';renderCatalogue();$('buyOverlay').classList.add('show');$('buyOverlay').setAttribute('aria-hidden','false')}
+function closeBuyMode(){$('buyOverlay').classList.remove('show');$('buyOverlay').setAttribute('aria-hidden','true')}
 function openApp(name){
  const d=appCopy[name]; if(!d)return;
  appPanel.innerHTML='<h3>'+d[0]+'</h3><p>'+d[1]+'</p><div class="appAction">'+d[2].map((x,i)=>'<button class="'+(i?'alt':'')+'" data-app-action="'+name+'">'+x+'</button>').join('')+'</div>';
  appPanel.querySelectorAll('[data-app-action]').forEach(b=>b.addEventListener('click',()=>handleAppAction(name,b.textContent)));
 }
-function lifeModal(title,desc,choices){$('lifeTitle').textContent=title;$('lifeDesc').textContent=desc;$('lifeChoices').innerHTML=choices.map((c,i)=>'<button class="choice" data-choice="'+i+'"><strong>'+c.title+'</strong><small>'+c.desc+'</small></button>').join('');$('lifeModal').classList.add('show');$('lifeModal').setAttribute('aria-hidden','false');$('lifeChoices').querySelectorAll('.choice').forEach((b,i)=>b.addEventListener('click',()=>{c=choices[i];c.run();closeLife()}))}
+function lifeModal(title,desc,choices){$('lifeTitle').textContent=title;$('lifeDesc').textContent=desc;$('lifeChoices').innerHTML=choices.map((c,i)=>'<button class="choice" data-choice="'+i+'"><strong>'+c.title+'</strong><small>'+c.desc+'</small></button>').join('');$('lifeModal').classList.add('show');$('lifeModal').setAttribute('aria-hidden','false');$('lifeChoices').querySelectorAll('.choice').forEach((b,i)=>b.addEventListener('click',()=>{const choice=choices[i];choice.run();closeLife()}))}
 function closeLife(){$('lifeModal').classList.remove('show');$('lifeModal').setAttribute('aria-hidden','true')}
 $('closeLife').addEventListener('click',closeLife);
 function handleAppAction(name,label){
  if(name==='jobs'){lifeModal('💼 Jobs','Choose work you can currently qualify for.',JOBS.map(j=>({title:j.name+' · '+moneyText(j.pay),desc:j.desc+' Reputation required: '+j.req,run:()=>{if(rep<j.req){toast('🔒 Build reputation to unlock this job');return}currentJob=j;money+=j.pay;energy=Math.max(0,energy-j.energy);progress=Math.min(100,progress+6);rep=Math.min(5,rep+.08);toast('💼 '+j.name+' complete · +'+moneyText(j.pay));renderUI()}})))}
  else if(name==='bank'){if(label.includes('Deposit')){const n=Math.min(5000,money);money-=n;bankSavings+=n;toast('🏦 Saved '+moneyText(n))}else if(label.includes('Repay')){const n=Math.min(5000,bankDebt,money);money-=n;bankDebt-=n;toast(n?'🏦 Debt repayment · '+moneyText(n):'🏦 Nothing to repay')}else{toast('🏦 Balance '+moneyText(money)+' · Debt '+moneyText(bankDebt)+' · Savings '+moneyText(bankSavings))}renderUI()}
- else if(name==='ride'){toast('🚕 Ride planning will use your map routes next')}
+ else if(name==='shop'){openBuyMode()}else if(name==='ride'){toast('🚕 Ride planning will use your map routes next')}
  else if(name==='travel'){toast('🚌 Travel hub ready · inter-state routes coming next')}
  else if(name==='business'){toast('🏢 Business management unlocked for the next economy layer')}
  else if(name==='advertise'){toast('📢 Campaigns will use business budget when businesses go live')}
@@ -94,7 +152,7 @@ function handleAppAction(name,label){
 function dLabel(n){return appCopy[n]?appCopy[n][0]:n}
 
 document.querySelectorAll('[data-app]').forEach(b=>b.addEventListener('click',()=>openApp(b.dataset.app)));
-$('closePhone').addEventListener('click',()=>{phone.classList.remove('show');phone.setAttribute('aria-hidden','true')});
+$('closePhone').addEventListener('click',()=>{phone.classList.remove('show');phone.setAttribute('aria-hidden','true')});$('closeBuy').addEventListener('click',closeBuyMode);
 function openPhone(){phone.classList.add('show');phone.setAttribute('aria-hidden','false')}
 renderUI()}
 let deferredInstallPrompt=null;
@@ -103,7 +161,7 @@ $('installBtn').addEventListener('click',async()=>{if(!deferredInstallPrompt){to
 window.addEventListener('appinstalled',()=>{$('installBtn').classList.remove('show');toast('📲 Ibadan Life installed')});
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));
-document.querySelectorAll('.bottom button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const t=b.dataset.tab;if(t==='shop')toast('🛍️ Shop: food, clothes, furniture');if(t==='map')toast('🗺️ Map: Market · Hospital · School · Mall');if(t==='phone'){openPhone();return};if(t==='home')toast('🏠 Home: your current life overview')}));
+document.querySelectorAll('.bottom button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const t=b.dataset.tab;if(t==='shop'){openBuyMode();return;}if(t==='map')toast('🗺️ Map: Market · Hospital · School · Mall');if(t==='phone'){openPhone();return};if(t==='home')toast('🏠 Home: your current life overview')}));
 function setKey(k,v){keys[k]=v}document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();setKey(k,true);b.setPointerCapture(e.pointerId)});b.addEventListener('pointerup',()=>setKey(k,false));b.addEventListener('pointercancel',()=>setKey(k,false))});addEventListener('keydown',e=>{if(e.key.toLowerCase() in keys)setKey(e.key.toLowerCase(),true)});addEventListener('keyup',e=>{if(e.key.toLowerCase() in keys)setKey(e.key.toLowerCase(),false)});
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX});addEventListener('pointerup',()=>dragging=false);addEventListener('pointermove',e=>{if(dragging){camAngle+=(e.clientX-lastX)*.006;lastX=e.clientX}});
 function update(dt){const speed=dt*4.2;let dx=(keys.d?1:0)-(keys.a?1:0),dz=(keys.s?1:0)-(keys.w?1:0);if(dx||dz){const len=Math.hypot(dx,dz);dx/=len;dz/=len;player.position.x+=dx*speed;player.position.z+=dz*speed;player.position.x=Math.max(-32,Math.min(32,player.position.x));player.position.z=Math.max(-32,Math.min(32,player.position.z));player.rotation.y=Math.atan2(dx,dz);progress=Math.min(100,progress+dt*1.5)}gameMinutes+=dt*2.2;hunger=Math.max(0,hunger-dt*.45);energy=Math.max(0,energy-dt*.25);fun=Math.max(0,fun-dt*.12);social=Math.max(0,social-dt*.08);hygiene=Math.max(0,hygiene-dt*.1);if(health<100&&energy>60)health=Math.min(100,health+dt*.04);npcs.forEach((n,i)=>{n.t+=dt*(.35+i*.04);n.g.position.x=n.baseX+Math.sin(n.t+n.phase)*1.8;n.g.position.z=n.baseZ+Math.cos(n.t*.8+n.phase)*1.5;n.g.rotation.y=Math.sin(n.t)*.25});const target=new THREE.Vector3(player.position.x,1.8,player.position.z);const cp=Math.cos(camAngle),sp=Math.sin(camAngle);camera.position.x=player.position.x+cp*camDistance;camera.position.z=player.position.z+sp*camDistance;camera.position.y=15;camera.lookAt(target);renderUI()}
