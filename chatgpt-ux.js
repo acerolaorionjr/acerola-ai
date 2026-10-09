@@ -26,6 +26,56 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 .acerola-sources.collapsed .acerola-source{display:none}
 .acerola-sources-title:after{content:'⌄';margin-left:auto;opacity:.6}
 .acerola-sources:not(.collapsed) .acerola-sources-title:after{content:'⌃'}
+
+/* Neutral ChatGPT-like conversation layout while preserving Acerola branding/features */
+:root{--bg:#212121;--panel:#2f2f2f;--line:#414141;--cyan:#ececec;--pink:#ececec;--text:#ececec;--muted:#a0a0a0}
+html,body,#app{background:#212121!important;color:#ececec!important}
+#app{background:#212121!important}
+.top{background:#212121!important;border-bottom:1px solid #303030!important;box-shadow:none!important}
+.brand small{display:none!important}
+.online{background:transparent!important;border:0!important;color:#a0a0a0!important;letter-spacing:0!important;font-size:10px!important;padding:4px!important}
+.ac-system-strip{display:none!important}
+.inner{max-width:850px!important;padding:28px 18px 155px!important}
+.list{gap:24px!important}
+.row{gap:12px!important}
+.row .avatar{width:28px!important;height:28px!important;border-radius:50%!important;background:#303030!important;border:1px solid #454545!important;color:#e5e5e5!important}
+.row.user .avatar{display:none!important}
+.row .bubble{max-width:min(760px,100%)!important;overflow-wrap:anywhere!important}
+.row.assistant .bubble{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#ececec!important}
+.row.assistant .bubble>.name,.row.user .bubble>.name{display:none!important}
+.row.user .bubble{padding:10px 15px!important;border:0!important;border-radius:20px!important;background:#303030!important;color:#ececec!important}
+.row.user .message-actions{border-top:1px solid rgba(255,255,255,.06)!important}
+.welcome{width:min(780px,100%)!important;padding:0 0 24px!important;text-align:center!important}
+.ac-core-stage,.ac-core-label{display:none!important}
+.welcome h1{font-size:clamp(28px,6vw,36px)!important;line-height:1.2!important;letter-spacing:-.7px!important;margin:0 0 12px!important;color:#ececec!important}
+.welcome p{color:#a0a0a0!important;font-size:14px!important;margin-left:auto!important;margin-right:auto!important}
+.mission-launcher{max-width:720px!important;gap:9px!important}
+.mission-launcher button{background:#2f2f2f!important;border:1px solid #414141!important;border-radius:16px!important;color:#ececec!important}
+.mission-launcher button:hover{background:#373737!important;border-color:#555!important;transform:none!important}
+.mission-launcher span{color:#a0a0a0!important}
+.composer-area{background:linear-gradient(180deg,transparent,#212121 24%,#212121)!important}
+.composer{background:#303030!important;border:1px solid #4b4b4b!important;border-radius:26px!important;box-shadow:none!important;padding:7px 9px!important}
+.tool,.send{background:transparent!important;border:0!important;color:#ececec!important;border-radius:50%!important}
+.send{background:#ececec!important;color:#212121!important;width:34px!important;height:34px!important;border-radius:50%!important}
+.send.is-generating{background:#414141!important}
+textarea{color:#ececec!important}
+textarea::placeholder{color:#a0a0a0!important}
+.hint{display:none!important}
+.phone-dock{background:rgba(33,33,33,.97)!important;border:1px solid #414141!important;box-shadow:0 5px 20px rgba(0,0,0,.3)!important}
+.phone-dock button{color:#a0a0a0!important}
+.phone-dock button.dock-active{color:#ececec!important;background:#383838!important}
+.phone-dock .dock-core{border-color:#505050!important;box-shadow:none!important;background:#303030!important}
+.drawer{background:#212121!important}
+.chat-item:hover,.chat-item.active{background:#303030!important}
+.chat-item-title{color:#ececec!important}
+.chat-item-meta{color:#a0a0a0!important}
+.drawer-search,.drawer-new{border-color:#414141!important;color:#ececec!important}
+.drawer-new-chat{background:#303030!important;border-color:#414141!important;color:#ececec!important}
+.drawer-account{background:#303030!important;border-color:#414141!important}
+.chat-message-menu{background:#2f2f2f!important;border-color:#484848!important}
+.chat-message-menu button{color:#ececec!important}
+.chat-message-menu button:hover{background:#414141!important}
+.chat-search-input{background:#303030!important;border-color:#484848!important;color:#ececec!important}
 `;document.head.appendChild(style);
 
 let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null,chatSearchQuery='';
