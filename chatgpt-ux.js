@@ -108,9 +108,9 @@ function applyChatSearch(){
  const history=$('#history');if(!history)return;
  const q=chatSearchQuery.trim().toLocaleLowerCase();
  const chats=getChats();
- history.querySelectorAll('.chat-item[data-id]').forEach(button=>{
+ history.querySelectorAll('.chat-item').forEach(button=>{
   const chat=chats.find(c=>c.id===button.dataset.id);
-  const haystack=[chat?.title||'',...(chat?.messages||[]).map(m=>m.content||'')].join(' ').toLocaleLowerCase();
+  const haystack=[chat?.title||'',...(chat?.messages||[]).map(m=>m.content||''),button.innerText||''].join(' ').toLocaleLowerCase();
   button.style.display=!q||haystack.includes(q)?'':'none';
  });
 }
