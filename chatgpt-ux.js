@@ -111,7 +111,7 @@ function applyChatSearch(){
  history.querySelectorAll('.chat-item').forEach(button=>{
   const chat=chats.find(c=>c.id===button.dataset.id);
   const haystack=[chat?.title||'',...(chat?.messages||[]).map(m=>m.content||''),button.innerText||''].join(' ').toLocaleLowerCase();
-  button.style.display=!q||haystack.includes(q)?'':'none';
+  if(!q||haystack.includes(q)){button.style.removeProperty('display')}else{button.style.setProperty('display','none','important')}
  });
 }
 function setupChatSearch(){
