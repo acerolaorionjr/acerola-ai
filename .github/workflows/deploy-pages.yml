@@ -26,17 +26,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Validate JavaScript syntax (game only)
+      - name: Validate all JavaScript syntax
         run: |
-          node --check game/game.js
-          test -f game/index.html
-          echo "Game JavaScript syntax OK"
+          find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -r -n1 node --check
+          echo "All JavaScript syntax checks passed"
 
       - name: Check Acerola gateway CORS preflight
         run: |
           python - <<'PY'
           import requests
-          url = "https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway-v2"
+          url = "https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway"
           origin = "http://localhost:5173"
           preflight = requests.options(
               url,
