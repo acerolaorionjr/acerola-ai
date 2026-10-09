@@ -100,6 +100,16 @@ def test_mobile_shell_and_controls_are_live(local_site):
         user_row.locator(".bubble").dispatch_event("contextmenu", {"clientX": 24, "clientY": 24})
         assert page.locator(".chat-message-menu button[data-a='edit']").count() == 1
         assert page.locator(".chat-message-menu button[data-a='copy']").count() == 1
+        page.locator("#drawerClose").click()
+        page.locator("#menu").click()
+        page.locator(".drawer-search").click()
+        search = page.locator(".chat-search-input")
+        search.wait_for(state="visible", timeout=2000)
+        search.fill("smoke test")
+        assert page.locator(".chat-item:visible").count() >= 1
+        search.fill("query-that-does-not-match")
+        assert page.locator(".chat-item:visible").count() == 0
+        search.press("Escape")
 
         # No synchronous startup/runtime error is allowed.
         assert not errors, "Acerola page errors: " + " | ".join(errors)
