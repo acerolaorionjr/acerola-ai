@@ -69,7 +69,7 @@ textarea::placeholder{color:#a0a0a0!important}
 .chat-item:hover,.chat-item.active{background:#303030!important}
 .chat-item-title{color:#ececec!important}
 .chat-item-meta{color:#a0a0a0!important}
-.drawer-search,.drawer-new{border-color:#414141!important;color:#ececec!important}
+.drawer-search{display:inline-flex!important;align-items:center!important;justify-content:center!important;border-color:#414141!important;color:#ececec!important}.drawer-new{border-color:#414141!important;color:#ececec!important}
 .drawer-new-chat{background:#303030!important;border-color:#414141!important;color:#ececec!important}
 .drawer-account{background:#303030!important;border-color:#414141!important}
 .chat-message-menu{background:#2f2f2f!important;border-color:#484848!important}
