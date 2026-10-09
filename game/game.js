@@ -154,7 +154,7 @@ function dLabel(n){return appCopy[n]?appCopy[n][0]:n}
 document.querySelectorAll('[data-app]').forEach(b=>b.addEventListener('click',()=>openApp(b.dataset.app)));
 $('closePhone').addEventListener('click',()=>{phone.classList.remove('show');phone.setAttribute('aria-hidden','true')});$('closeBuy').addEventListener('click',closeBuyMode);
 function openPhone(){phone.classList.add('show');phone.setAttribute('aria-hidden','false')}
-renderUI()}
+renderUI()
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('installBtn').classList.add('show')});
 $('installBtn').addEventListener('click',async()=>{if(!deferredInstallPrompt){toast('📲 Use your browser menu → Install app');return}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$('installBtn').classList.remove('show')});
