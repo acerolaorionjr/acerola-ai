@@ -26,6 +26,7 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 
 let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null;
 const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}};
+const getActiveChatId=()=>localStorage.getItem('acerola-ai-active-v6')||window.activeId||'';
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
 const unread=()=>window.__acerolaUnread||(window.__acerolaUnread={});
 function notifyReady(detail={}){
@@ -62,18 +63,17 @@ function showMenu(row,index,x,y){
  menu.innerHTML=buttons.map(([a,t])=>'<button type="button" data-a="'+a+'">'+t+'</button>').join('');
  document.body.appendChild(menu);
  menu.style.left=Math.min(Math.max(8,x),innerWidth-190)+'px';menu.style.top=Math.min(Math.max(8,y),innerHeight-menu.offsetHeight-8)+'px';
- const c=(()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}})().find(z=>z.id===window.activeId);
+ const c=getChats().find(z=>z.id===getActiveChatId());
  const msg=c?.messages?.[index];const act=a=>{
   if(a==='copy')copyText(msg?.content||'');
   if(a==='edit'){window.acerolaEditMessage?.(index)}
   if(a==='read'){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(String(msg?.content||'')))}}
   if(a==='share'){if(navigator.share)navigator.share({title:'Acerola',text:String(msg?.content||'')}).catch(()=>{});else copyText(msg?.content||'')}
-  if(a==='feedback'){msg.feedback='good';try{localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')))}catch(_){}}
-  if(a==='bad'){msg.feedback='bad';try{localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')))}catch(_){}}
+  if(a==='feedback'||a==='bad'){try{const all=getChats(),active=all.find(z=>z.id===getActiveChatId()),target=active?.messages?.[index];if(target){target.feedback=a==='feedback'?'good':'bad';localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(all));}}catch(_){}}
   closeMenu()
  };
  menu.querySelectorAll('button').forEach(b=>b.onclick=()=>act(b.dataset.a));
- setTimeout(()=>document.addEventListener('pointerdown',closeMenu,{once:true}),0);
+ setTimeout(()=>{const dismiss=e=>{if(menu&&!menu.contains(e.target)){closeMenu();document.removeEventListener('pointerdown',dismiss,true)}};document.addEventListener('pointerdown',dismiss,true)},0);
 }
 function attachMessageLongPress(){
  const list=$('.list');if(!list)return;
@@ -124,23 +124,11 @@ window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chat
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
-function startNewChatOnFreshOpen(){
-  try{
-    const key='acerola-fresh-open-v1';
-    if(sessionStorage.getItem(key)==='1')return;
-    sessionStorage.setItem(key,'1');
-    setTimeout(()=>{
-      const b=document.querySelector('#new');
-      if(b){b.click();return}
-      window.dispatchEvent(new CustomEvent('acerola:new-chat-request'));
-    },900);
-  }catch(_){}
-}
+/* The main app already creates a fresh chat on boot. Do not create a second one here. */
 window.addEventListener('acerola:gateway-retry',()=>{
   const p=document.querySelector('.engine-progress #engine-progress-text');
   if(p)p.textContent='Connection interrupted — retrying automatically…';
 });
 setTimeout(()=>{observe();markSeen()},800);
-startNewChatOnFreshOpen();
 setInterval(observe,1200);
 })();
