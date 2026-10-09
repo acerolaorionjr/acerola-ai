@@ -16,6 +16,7 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 .chat-message-menu{position:fixed;z-index:99999;min-width:170px;padding:6px;border:1px solid rgba(255,255,255,.13);border-radius:14px;background:#111318;box-shadow:0 16px 45px rgba(0,0,0,.55);backdrop-filter:blur(18px)}
 .chat-message-menu button{display:block;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#eef4ff;text-align:left;font-size:12px}
 .chat-message-menu button:hover{background:rgba(255,255,255,.08)}
+.chat-search-row{padding:0 12px 9px}.chat-search-input{display:block;width:100%;min-height:40px;padding:9px 12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#15171b;color:#f3f4f6;font-size:13px;outline:none}.chat-search-input:focus{border-color:rgba(255,255,255,.3)}.chat-search-input::placeholder{color:#858b96}
 .acerola-research-live{margin:4px 0 4px 40px;padding:10px 12px;border:1px solid rgba(32,246,255,.12);border-radius:13px;background:rgba(9,18,32,.7);font-size:11px;color:#9eafc5}
 .acerola-research-live b{display:block;color:#e7f8ff;font-size:11px;margin-bottom:5px}
 .acerola-research-live .research-place{display:inline-flex;align-items:center;gap:5px;margin:3px 4px 0 0;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.045);color:#9fb0c8}
@@ -27,7 +28,7 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 .acerola-sources:not(.collapsed) .acerola-sources-title:after{content:'⌃'}
 `;document.head.appendChild(style);
 
-let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null;
+let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null,chatSearchQuery='';
 const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}};
 const getActiveChatId=()=>localStorage.getItem('acerola-ai-active-v6')||window.activeId||'';
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
@@ -53,7 +54,32 @@ function renderUnread(){
   const u=unread(),h=$('#history');if(!h)return;
   h.querySelectorAll('.chat-item[data-id]').forEach(b=>{const has=!!u[b.dataset.id];b.querySelector('.chat-unread-dot')?.remove();if(has){const d=document.createElement('span');d.className='chat-unread-dot';d.setAttribute('aria-label','Unread reply');b.appendChild(d)}});
 }
+function applyChatSearch(){
+ const history=$('#history');if(!history)return;
+ const q=chatSearchQuery.trim().toLocaleLowerCase();
+ const chats=getChats();
+ history.querySelectorAll('.chat-item[data-id]').forEach(button=>{
+  const chat=chats.find(c=>c.id===button.dataset.id);
+  const haystack=[chat?.title||'',...(chat?.messages||[]).map(m=>m.content||'')].join(' ').toLocaleLowerCase();
+  button.style.display=!q||haystack.includes(q)?'':'none';
+ });
+}
+function setupChatSearch(){
+ const button=document.querySelector('.drawer-search'),head=document.querySelector('.drawer-head');
+ if(!button||!head||button.dataset.searchBound)return;button.dataset.searchBound='1';
+ let row=document.querySelector('.chat-search-row'),field;
+ if(!row){row=document.createElement('div');row.className='chat-search-row';row.hidden=true;field=document.createElement('input');field.className='chat-search-input';field.type='search';field.placeholder='Search chats and messages';field.setAttribute('aria-label','Search chats and messages');row.appendChild(field);head.insertAdjacentElement('afterend',row)}else field=row.querySelector('input');
+ button.setAttribute('aria-label','Search chats');
+ button.addEventListener('click',()=>{
+  row.hidden=!row.hidden;
+  if(row.hidden){chatSearchQuery='';field.value='';applyChatSearch();button.setAttribute('aria-pressed','false')}
+  else{button.setAttribute('aria-pressed','true');field.focus()}
+ });
+ field.addEventListener('input',()=>{chatSearchQuery=field.value;applyChatSearch()});
+ field.addEventListener('keydown',e=>{if(e.key==='Escape'){field.value='';chatSearchQuery='';applyChatSearch();row.hidden=true;button.setAttribute('aria-pressed','false');button.focus()}});
+}
 function enhanceHistory(){
+  setupChatSearch();applyChatSearch();
   renderUnread();
   $('#history')?.querySelectorAll('.chat-item[data-id]').forEach(b=>{b.addEventListener('click',()=>{delete unread()[b.dataset.id];saveUnread();setTimeout(renderUnread,0)},{once:false})});
 }
