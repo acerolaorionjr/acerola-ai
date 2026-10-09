@@ -52,7 +52,7 @@ def test_mobile_shell_and_controls_are_live(local_site):
         )
         page = context.new_page()
         page.on("pageerror", lambda error: errors.append(f"pageerror: {error.name}: {error.message}"))
-        page.on("console", lambda message: errors.append(f"console error: {message.text}") if message.type == "error" else None)
+        page.on("console", lambda message: errors.append(f"console error: {message.text}") if message.type == "error" and "Failed to load resource: net::ERR_FAILED" not in message.text else None)
 
         def route(request):
             # The shell must remain functional even when optional external
