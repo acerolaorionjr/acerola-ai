@@ -91,6 +91,9 @@ def test_browser_can_reach_gateway_without_ai_generation(site_server, browser):
 
 def test_only_one_loading_indicator_is_created(site_server, browser):
     page = browser.new_page()
+    browser_errors = []
+    page.on("pageerror", lambda error: browser_errors.append(f"pageerror: {error.name}: {error.message}"))
+    page.on("console", lambda message: browser_errors.append(f"console error: {message.text}") if message.type == "error" else None)
     page.goto(site_server + "/index.html?smoke=loader", wait_until="domcontentloaded", timeout=30000)
     page.evaluate(
         """() => {
@@ -108,6 +111,9 @@ def test_only_one_loading_indicator_is_created(site_server, browser):
           document.querySelector('#send').click();
         }"""
     )
-    page.locator(".row.assistant .bubble").wait_for(timeout=10000)
+    try:
+        page.locator(".row.assistant .bubble").wait_for(timeout=10000)
+    except Exception:
+        pytest.fail("Assistant reply never rendered. Browser errors: " + (" | ".join(browser_errors) if browser_errors else "none captured"))
     assert page.locator(".typing-row").count() == 0
     assert page.locator(".engine-progress").count() == 0
