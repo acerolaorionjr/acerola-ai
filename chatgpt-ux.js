@@ -7,9 +7,12 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 .send.is-generating{font-size:0!important;border-radius:12px!important;background:#15171b!important;border-color:rgba(255,255,255,.18)!important}
 .send.is-generating:before{content:'';display:block;width:14px;height:14px;margin:auto;border:2px solid #d8e1ee;border-radius:3px}
 .send.is-generating:hover:before{border-color:#20f6ff}
-.message-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;opacity:.78}
-.message-actions button{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);color:#b8c5d7;border-radius:9px;padding:5px 8px;font-size:10px}
-.message-actions button:hover{background:rgba(255,255,255,.08);color:#fff}
+.message-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:7px;border-top:1px solid rgba(255,255,255,.055);opacity:.88}
+.message-actions button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;border:1px solid transparent;background:transparent;color:#9ba6b7;border-radius:8px;padding:5px 7px;font-size:14px;line-height:1;cursor:pointer;touch-action:manipulation}
+.message-actions button:hover,.message-actions button:focus-visible{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.09);color:#f4f6fa;outline:none}
+.message-actions button[data-message-action="feedback"],.message-actions button[data-message-action="bad"]{font-size:13px}
+.message-actions button[data-message-action="edit"]{color:#d2d7e0}
+@media(max-width:600px){.message-actions{gap:2px;margin-top:8px}.message-actions button{min-width:32px;min-height:32px;font-size:15px}.chat-message-menu{min-width:180px!important}.chat-message-menu button{min-height:42px;font-size:14px!important}}
 .chat-message-menu{position:fixed;z-index:99999;min-width:170px;padding:6px;border:1px solid rgba(255,255,255,.13);border-radius:14px;background:#111318;box-shadow:0 16px 45px rgba(0,0,0,.55);backdrop-filter:blur(18px)}
 .chat-message-menu button{display:block;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#eef4ff;text-align:left;font-size:12px}
 .chat-message-menu button:hover{background:rgba(255,255,255,.08)}
@@ -42,7 +45,7 @@ async function enableNotifications(){
   if(Notification.permission==='default'){try{await Notification.requestPermission()}catch(_){}}
 }
 function markSeen(){
-  const id=localStorage.getItem('acerola-ai-active-v6');
+  const id=getActiveChatId();
   if(id&&unread()[id]){delete unread()[id];saveUnread()}
   const h=$('#history');h?.querySelectorAll('.chat-item').forEach(b=>b.querySelector('.chat-unread-dot')?.remove());
 }
@@ -59,7 +62,7 @@ function closeMenu(){menu?.remove();menu=null}
 function showMenu(row,index,x,y){
  closeMenu();menu=document.createElement('div');menu.className='chat-message-menu';
  const role=row.classList.contains('user')?'user':'assistant';
- const buttons=role==='user'?[['copy','Copy'],['edit','Edit'],['share','Share']]:[['copy','Copy'],['read','Read aloud'],['share','Share'],['feedback','Good response'],['bad','Bad response']];
+ const buttons=role==='user'?[['copy','Copy'],['edit','Edit'],['share','Share']]:[['copy','Copy'],['read','Read aloud'],['share','Share'],['feedback','Good response'],['bad','Bad response'],['retry','Regenerate response']];
  menu.innerHTML=buttons.map(([a,t])=>'<button type="button" data-a="'+a+'">'+t+'</button>').join('');
  document.body.appendChild(menu);
  menu.style.left=Math.min(Math.max(8,x),innerWidth-190)+'px';menu.style.top=Math.min(Math.max(8,y),innerHeight-menu.offsetHeight-8)+'px';
@@ -69,6 +72,7 @@ function showMenu(row,index,x,y){
   if(a==='edit'){window.acerolaEditMessage?.(index)}
   if(a==='read'){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(String(msg?.content||'')))}}
   if(a==='share'){if(navigator.share)navigator.share({title:'Acerola',text:String(msg?.content||'')}).catch(()=>{});else copyText(msg?.content||'')}
+  if(a==='retry'){window.acerolaRetryLast?.()}
   if(a==='feedback'||a==='bad'){try{const all=getChats(),active=all.find(z=>z.id===getActiveChatId()),target=active?.messages?.[index];if(target){target.feedback=a==='feedback'?'good':'bad';localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(all));}}catch(_){}}
   closeMenu()
  };
@@ -80,11 +84,31 @@ function attachMessageLongPress(){
  [...list.children].forEach((row,index)=>{
   if(row.dataset.uxBound)return;row.dataset.uxBound='1';
   const target=row.querySelector('.bubble')||row;
+  const bubble=row.querySelector('.bubble');
+  if(bubble&&!bubble.querySelector('.message-actions')){
+   bubble.querySelector('.edit-message')?.remove();
+   const actions=document.createElement('div');actions.className='message-actions';actions.setAttribute('aria-label','Message actions');
+   const role=row.classList.contains('user')?'user':'assistant';
+   const items=role==='user'?[['copy','⧉','Copy'],['edit','✎','Edit'],['share','↗','Share']]:[['copy','⧉','Copy'],['read','◖','Read aloud'],['share','↗','Share'],['feedback','👍','Good response'],['bad','👎','Bad response'],['retry','↻','Regenerate']];
+   actions.innerHTML=items.map(([action,icon,label])=>'<button type="button" data-message-action="'+action+'" data-message-index="'+index+'" title="'+label+'" aria-label="'+label+'">'+icon+'</button>').join('');
+   bubble.appendChild(actions);
+  }
+  target.addEventListener('contextmenu',e=>{e.preventDefault();showMenu(row,index,e.clientX,e.clientY)});
   target.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;downX=e.clientX;downY=e.clientY;clearTimeout(longTimer);longTimer=setTimeout(()=>showMenu(row,index,e.clientX,e.clientY),520)},{passive:true});
   ['pointerup','pointercancel','pointerleave'].forEach(ev=>target.addEventListener(ev,()=>clearTimeout(longTimer),{passive:true}));
   target.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-downX)>10||Math.abs(e.clientY-downY)>10)clearTimeout(longTimer)},{passive:true});
  });
 }
+function runMessageAction(action,index){
+ const chat=getChats().find(z=>z.id===getActiveChatId()),msg=chat?.messages?.[index];if(!msg)return;
+ if(action==='copy'){copyText(msg.content||'');return}
+ if(action==='edit'){window.acerolaEditMessage?.(index);return}
+ if(action==='read'){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(String(msg.content||'')))}return}
+ if(action==='share'){if(navigator.share)navigator.share({title:'Acerola',text:String(msg.content||'')}).catch(()=>{});else copyText(msg.content||'');return}
+ if(action==='feedback'||action==='bad'){try{const all=getChats(),c=all.find(z=>z.id===getActiveChatId()),m=c?.messages?.[index];if(m){m.feedback=action==='feedback'?'good':'bad';localStorage.setItem('acerola-ai-chats-v6',JSON.stringify(all));}}catch(_){}return}
+ if(action==='retry'){window.acerolaRetryLast?.();return}
+}
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-message-action]');if(!b)return;e.preventDefault();e.stopPropagation();runMessageAction(b.dataset.messageAction,Number(b.dataset.messageIndex))},true);
 
 function sanitizeRenderedReplies(){
  document.querySelectorAll('.row.assistant .bubble').forEach(b=>{
@@ -120,7 +144,7 @@ function observe(){
  const inner=$('.inner');if(inner&&!inner.dataset.uxObserver){inner.dataset.uxObserver='1';new MutationObserver(()=>{enhanceHistory();attachMessageLongPress();collapseSources()}).observe(inner,{childList:true,subtree:true})}
 }
 window.addEventListener('acerola:engine-task',e=>{researchLive(e.detail);if(e.detail?.type==='complete'||e.detail?.type==='failed')finishResearch()});
-window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&d.chatId!==window.activeId){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
+window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&d.chatId!==getActiveChatId()){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
