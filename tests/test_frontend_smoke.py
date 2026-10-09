@@ -51,7 +51,8 @@ def test_mobile_shell_and_controls_are_live(local_site):
             service_workers="block",
         )
         page = context.new_page()
-        page.on("pageerror", lambda error: errors.append(f"{error.name}: {error.message}"))
+        page.on("pageerror", lambda error: errors.append(f"pageerror: {error.name}: {error.message}"))
+        page.on("console", lambda message: errors.append(f"console error: {message.text}") if message.type == "error" else None)
 
         def route(request):
             # The shell must remain functional even when optional external
@@ -67,6 +68,10 @@ def test_mobile_shell_and_controls_are_live(local_site):
         page.locator("#input").wait_for(state="visible", timeout=5000)
         page.locator("#send").wait_for(state="visible", timeout=5000)
 
+        try:
+            page.locator(".welcome h1").wait_for(state="visible", timeout=5000)
+        except Exception:
+            pytest.fail("Welcome heading did not render. Browser errors: " + (" | ".join(errors) if errors else "none captured"))
         assert page.locator(".welcome h1").inner_text() == "What can I help you with?"
         assert page.evaluate("typeof window.acerolaSend") == "function"
         assert page.evaluate("typeof window.AcerolaEngine") == "function"
