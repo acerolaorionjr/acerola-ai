@@ -91,6 +91,16 @@ def test_mobile_shell_and_controls_are_live(local_site):
         page.locator("#send").click()
         assert "smoke test" in page.locator(".row.user .bubble").last.inner_text()
 
+        # ChatGPT-style message actions should be present and usable.
+        user_row = page.locator(".row.user").last
+        user_row.locator(".message-actions").wait_for(state="visible", timeout=3000)
+        assert user_row.locator('[data-message-action="copy"]').count() == 1
+        assert user_row.locator('[data-message-action="edit"]').count() == 1
+        assert user_row.locator('[data-message-action="share"]').count() == 1
+        user_row.locator(".bubble").dispatch_event("contextmenu", {"clientX": 24, "clientY": 24})
+        assert page.locator(".chat-message-menu button[data-a='edit']").count() == 1
+        assert page.locator(".chat-message-menu button[data-a='copy']").count() == 1
+
         # No synchronous startup/runtime error is allowed.
         assert not errors, "Acerola page errors: " + " | ".join(errors)
 
