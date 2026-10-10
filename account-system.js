@@ -116,9 +116,10 @@
   }
   // Persistent memory is owned by Agent Core -> gateway -> service-role path.
   // Browser code must never write directly to acerola_memory.
-  const bindAccountButton=()=>{const b=document.getElementById('accountBtn');if(!b)return false;b.type='button';b.style.pointerEvents='auto';b.style.touchAction='manipulation';b.onclick=(e)=>{e?.preventDefault?.();e?.stopPropagation?.();open()};b.onpointerup=(e)=>{e?.preventDefault?.();open()};b.title='Acerola Account';b.setAttribute('aria-label','Open Acerola Account');return true};
+  // Use one delegated click handler. Multiple pointerup/click handlers used to
+  // open the account sheet more than once on Android touch devices.
+  const bindAccountButton=()=>{const b=document.getElementById('accountBtn');if(!b)return false;b.type='button';b.style.pointerEvents='auto';b.style.touchAction='manipulation';b.title='Acerola Account';b.setAttribute('aria-label','Open Acerola Account');return true};
 document.addEventListener('click',e=>{const b=e.target?.closest?.('#accountBtn');if(!b)return;e.preventDefault();e.stopPropagation();open()},true);
-document.addEventListener('pointerup',e=>{const b=e.target?.closest?.('#accountBtn');if(!b)return;e.preventDefault();open()},true);
   window.acerolaOpenAccount=open;
   if(!bindAccountButton()){let tries=0;const timer=setInterval(()=>{tries++;if(bindAccountButton()||tries>=30)clearInterval(timer)},250)}
   window.__acerolaAccountSystemReady=true
