@@ -11,7 +11,7 @@ Acerola is a personal intelligence system built around a browser client, an auth
 - Authentication: Supabase Auth
 - Persistent memory: authenticated Supabase-backed memory with local fallback
 - Multimodal input: up to 5 attachments per request
-- Optional media generation: image and short-video Edge Functions
+- Media generation: image generation and spoken-audio generation through deployed Edge Functions; video generation is not currently implemented and is not advertised as an available feature
 
 ## Runtime flow
 
