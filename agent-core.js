@@ -85,12 +85,12 @@
     async complete(payload, signal) {
       const parent = signal;
       let lastError = null;
-      // A transient fetch failure should not force the user to resend the same question.
-      // Retry once automatically; cancellation always wins.
-      for (let attempt = 0; attempt < 2; attempt++) {
+      // Retry transient network failures and internal timeouts, but never override
+      // the user's Stop/Cancel action or retry ordinary auth/quota errors.
+      const maxAttempts = 3;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
         const timeout = typeof AbortController === 'function' ? new AbortController() : null;
-          // Research and multi-step requests can legitimately take longer than a normal chat turn.
         let timer = null;
         let onAbort = null;
         try {
@@ -106,13 +106,26 @@
           return normalizeGatewayResponse(await this.request(payload, activeSignal));
         } catch (error) {
           lastError = error;
-          if (parent?.aborted || error?.name === 'AbortError') throw error;
-          if (attempt === 0) {
-            global.dispatchEvent?.(new CustomEvent('acerola:gateway-retry', { detail: { attempt: 2 } }));
-            await new Promise(resolve => setTimeout(resolve, 300));
-            continue;
-          }
-          throw lastError;
+          if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
+          const timedOut = Boolean(timeout?.signal?.aborted && !parent?.aborted);
+          const message = String(error?.message || '');
+          const retryable = timedOut || /gateway network error|failed to fetch|network|timed out|timeout|gateway returned 502|gateway returned 503|gateway returned 504/i.test(message);
+          if (!retryable || attempt >= maxAttempts - 1) throw lastError;
+          const nextAttempt = attempt + 2;
+          global.dispatchEvent?.(new CustomEvent('acerola:gateway-retry', { detail: { attempt: nextAttempt, maxAttempts } }));
+          // If Android reports no network, give the connection a moment to recover;
+          // still retry on a timer because navigator.onLine can be inaccurate.
+          const delay = 650 * Math.pow(2, attempt);
+          await new Promise((resolve, reject) => {
+            let done = false;
+            const finish = () => { if (done) return; done = true; clearTimeout(timerId); parent?.removeEventListener('abort', abort); resolve(); };
+            const abort = () => { if (done) return; done = true; clearTimeout(timerId); parent?.removeEventListener('abort', abort); reject(new DOMException('Request cancelled.','AbortError')); };
+            const timerId = setTimeout(finish, delay);
+            if (parent) {
+              if (parent.aborted) abort();
+              else parent.addEventListener('abort', abort, { once: true });
+            }
+          });
         } finally {
           if (timer) clearTimeout(timer);
           if (parent && onAbort) parent.removeEventListener('abort', onAbort);
