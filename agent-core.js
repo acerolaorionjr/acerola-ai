@@ -297,11 +297,15 @@
         if (!session) { const result = await this.auth.auth.signInAnonymously(); if (result.error) throw result.error; session = result.data.session; }
         if (!session?.access_token) throw new Error('No Supabase access token');
         this.gateway.setAccessToken(session.access_token);
-        try {
-          const remote = await this.gateway.memory('load');
-          if (remote.ok && Array.isArray(remote.memories)) this.memory.replace(remote.memories.map(item => item.memory_value));
-          this.remoteMemory = true;
-        } catch (_) { this.remoteMemory = false; }
+        // Do not block the first AI turn on a separate memory request. The gateway
+        // can fetch server memories for its own context; local memory hydrates in the background.
+        this.remoteMemory = true;
+        this.gateway.memory('load').then(remote => {
+          if (remote?.ok && Array.isArray(remote.memories)) {
+            const remoteValues = remote.memories.map(item => String(item?.memory_value || '')).filter(Boolean);
+            this.memory.replace([...new Set([...remoteValues, ...this.memory.all()])].slice(-100));
+          }
+        }).catch(() => { this.remoteMemory = false; });
         return { authenticated: true, anonymous: !!session.user?.is_anonymous, memoryCount: this.memory.all().length };
       } catch (error) { this.remoteMemory = false; return { authenticated: false, reason: error?.message || 'Authentication unavailable' }; }
     }
