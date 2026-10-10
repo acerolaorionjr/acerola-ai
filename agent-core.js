@@ -232,6 +232,52 @@
     }
 
     async initialize() {
+      // Start cloud bootstrap in the background so local features remain responsive
+      // even when CDNs or Supabase are slow or unreachable.
+      if (!this.initializationPromise) {
+        const attempt = this._initializeRemote();
+        this.initializationPromise = attempt.finally(() => {
+          if (!this.gateway.accessToken) this.initializationPromise = null;
+        });
+        this.initializationPromise.catch(() => {});
+      }
+      return { authenticated: !!this.gateway.accessToken, pending: !this.gateway.accessToken };
+    }
+
+    async ensureGatewayReady(signal) {
+      if (this.gateway.accessToken) return true;
+      if (!this.initializationPromise) await this.initialize();
+      const pending = this.initializationPromise;
+      if (!pending) throw new Error('Gateway network error: Acerola cloud services are not reachable yet.');
+      if (signal) {
+        await new Promise((resolve, reject) => {
+          let settled = false;
+          const cleanup = () => signal.removeEventListener('abort', onAbort);
+          const onAbort = () => {
+            if (settled) return;
+            settled = true; cleanup();
+            reject(new DOMException('Request cancelled.','AbortError'));
+          };
+          if (signal.aborted) return onAbort();
+          signal.addEventListener('abort', onAbort, { once: true });
+          pending.then(value => {
+            if (settled) return;
+            settled = true; cleanup(); resolve(value);
+          }, error => {
+            if (settled) return;
+            settled = true; cleanup(); reject(error);
+          });
+        });
+      } else {
+        await pending;
+      }
+      if (!this.gateway.accessToken) {
+        throw new Error('Gateway network error: Acerola could not connect to its cloud service. Your message is saved and can be retried.');
+      }
+      return true;
+    }
+
+    async _initializeRemote() {
       try {
         // Supabase is loaded through a resilient CDN bootstrap on the static site.
         // On slower/mobile networks that bootstrap can finish after this module is parsed,
@@ -306,6 +352,7 @@
     }
 
     async runAgent(payload, options = {}) {
+      await this.ensureGatewayReady(options.signal);
       const maxSteps = Math.min(6, Math.max(1, Number(options.maxSteps) || 4));
       let request = { ...payload, agent_mode: true };
       const trace = [];
