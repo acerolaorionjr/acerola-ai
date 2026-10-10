@@ -167,7 +167,9 @@
           } catch (error) {
             if (error?.name === 'AbortError' || signal?.aborted) return { ok: false, cancelled: true, error: 'Request cancelled.' };
             lastError = error;
-            if (attempt >= retries) break;
+            // Do not wait through the same long auth/CDN bootstrap twice when
+            // the cloud client is unavailable; leave the message retryable instead.
+            if (/Acerola cloud services are not reachable|could not connect to its cloud service/i.test(String(error?.message || '')) || attempt >= retries) break;
             prepared.payload = {
               ...prepared.payload,
               recovery: {
