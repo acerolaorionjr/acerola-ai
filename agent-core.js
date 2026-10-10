@@ -283,6 +283,11 @@
         // On slower/mobile networks that bootstrap can finish after this module is parsed,
         // so never declare Acerola offline just because the client is not ready yet.
         if (!global.supabase?.createClient) {
+          // If every CDN already failed or the browser reports no network, fail
+          // fast for this attempt; the online handler can bootstrap Supabase again.
+          if (global.__acerolaSupabaseUnavailable || global.navigator?.onLine === false) {
+            return { authenticated: false, reason: 'Cloud client unavailable; retry when connectivity returns' };
+          }
           await new Promise((resolve) => {
             let done = false;
             const finish = () => { if (done) return; done = true; global.removeEventListener('acerola:supabase-ready', finish); global.removeEventListener('acerola:supabase-unavailable', finish); resolve(); };
