@@ -29,7 +29,8 @@ function ensureMessageActions(){
   if(!actions){actions=document.createElement('div');actions.className='message-actions';actions.setAttribute('aria-label','Message actions');bubble.appendChild(actions)}
   const role=row.classList.contains('user')?'user':'assistant';
   const items=role==='user'?[['copy','⧉','Copy'],['edit','✎','Edit message'],['share','↗','Share']]:[['copy','⧉','Copy'],['read','◖','Read aloud'],['share','↗','Share'],['feedback','👍','Good response'],['bad','👎','Bad response'],['retry','↻','Regenerate']];
-  actions.innerHTML=items.map(([a,ico,label])=>'<button type="button" data-fix-action="'+a+'" data-fix-index="'+index+'" title="'+label+'" aria-label="'+label+'">'+ico+'</button>').join('');
+  const next=items.map(([a,ico,label])=>'<button type="button" data-fix-action="'+a+'" data-fix-index="'+index+'" title="'+label+'" aria-label="'+label+'">'+ico+'</button>').join('');
+  if(actions.innerHTML!==next)actions.innerHTML=next;
  });
 }
 function activeChat(){try{const all=JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]');const id=localStorage.getItem('acerola-ai-active-v6');return all.find(c=>c.id===id)||all[0]}catch(_){return null}}
