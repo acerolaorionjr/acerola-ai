@@ -7,7 +7,10 @@ const style=document.createElement('style');style.id='acerola-chatgpt-ux-style';
 .send.is-generating{font-size:0!important;border-radius:12px!important;background:#15171b!important;border-color:rgba(255,255,255,.18)!important}
 .send.is-generating:before{content:'';display:block;width:14px;height:14px;margin:auto;border:2px solid #d8e1ee;border-radius:3px}
 .send.is-generating:hover:before{border-color:#20f6ff}
-.message-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:7px;border-top:1px solid rgba(255,255,255,.055);opacity:.88}
+/* Touch-safe message interactions: actions stay visible; holding a message must not select its text. */
+.list .row .bubble{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}
+.list .row .bubble .message-actions{-webkit-user-select:none!important;user-select:none!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+.message-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:7px;border-top:1px solid rgba(255,255,255,.055);opacity:1!important;visibility:visible!important;pointer-events:auto!important}
 .message-actions button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;border:1px solid transparent;background:transparent;color:#9ba6b7;border-radius:8px;padding:5px 7px;font-size:14px;line-height:1;cursor:pointer;touch-action:manipulation}
 .message-actions button:hover,.message-actions button:focus-visible{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.09);color:#f4f6fa;outline:none}
 .message-actions button[data-message-action="feedback"],.message-actions button[data-message-action="bad"]{font-size:13px}
