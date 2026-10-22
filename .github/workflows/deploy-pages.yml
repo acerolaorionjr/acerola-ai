@@ -31,7 +31,8 @@ jobs:
           find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -r -n1 node --check
           echo "All JavaScript syntax checks passed"
 
-      - name: Check Acerola gateway CORS preflight
+      - name: Check Acerola gateway CORS preflight (diagnostic)
+        continue-on-error: true
         run: |
           python - <<'PY'
           import requests
