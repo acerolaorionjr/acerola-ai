@@ -293,7 +293,7 @@
             const finish = () => { if (done) return; done = true; global.removeEventListener('acerola:supabase-ready', finish); global.removeEventListener('acerola:supabase-unavailable', finish); resolve(); };
             global.addEventListener('acerola:supabase-ready', finish, { once: true });
             global.addEventListener('acerola:supabase-unavailable', finish, { once: true });
-            setTimeout(finish, 12000);
+            setTimeout(finish, 24000);
           });
         }
         if (!global.supabase?.createClient) return { authenticated: false, reason: 'Supabase client unavailable after CDN bootstrap' };
