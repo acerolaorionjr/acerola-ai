@@ -1,6 +1,6 @@
 /* Acerola offline shell cache. Cloud AI still requires a working connection. */
 'use strict';
-const CACHE = 'acerola-shell-v1';
+const CACHE = 'acerola-shell-v2';
 const SHELL = [
   './',
   './index.html',
@@ -58,16 +58,20 @@ self.addEventListener('fetch', event => {
   if (/\.(?:js|css|svg|webmanifest|png|jpg|jpeg|webp|woff2?)$/i.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
-      const cached = await cache.match(request, { ignoreSearch: true });
+      const canonical = new URL(request.url);
+      canonical.search = '';
+      const cached = await cache.match(canonical);
+      // Serve cached assets immediately on weak mobile networks, but refresh the
+      // canonical cache key in the background so versioned URLs cannot pin stale JS.
       if (cached) {
         fetch(request).then(response => {
-          if (response && response.ok) cache.put(request, response.clone()).catch(() => {});
+          if (response && response.ok) cache.put(canonical, response.clone()).catch(() => {});
         }).catch(() => {});
         return cached;
       }
       try {
         const response = await fetch(request);
-        if (response && response.ok) cache.put(request, response.clone()).catch(() => {});
+        if (response && response.ok) cache.put(canonical, response.clone()).catch(() => {});
         return response;
       } catch (_) {
         return new Response('', { status: 504, statusText: 'Offline asset unavailable' });
