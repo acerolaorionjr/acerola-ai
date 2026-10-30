@@ -63,8 +63,8 @@ jobs:
           {
             echo "## Acerola AI QA report"
             echo ""
-            echo "- Commit: `$GITHUB_SHA`"
-            echo "- Trigger: `$GITHUB_EVENT_NAME`"
+            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Trigger: `%s`\n' "$GITHUB_EVENT_NAME"
             echo "- Result: $([ "$result" -eq 0 ] && echo PASS || echo FAIL)"
             echo ""
             echo '~~~text'
