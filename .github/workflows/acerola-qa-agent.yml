@@ -1,0 +1,120 @@
+name: Acerola AI QA Agent
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: acerola-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test Acerola AI features
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest requests playwright
+
+      - name: Install Chromium for browser tests
+        run: python -m playwright install --with-deps chromium
+
+      - name: Check JavaScript syntax
+        run: |
+          find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -r -n1 node --check
+          echo "All JavaScript files passed syntax checks."
+
+      - name: Check required application and backend files
+        run: |
+          test -f index.html
+          test -f agent-core.js
+          test -f account-system.js
+          test -f engine-runtime.js
+          test -f supabase/config.toml
+          test -f .github/workflows/supabase-functions.yml
+          echo "Required frontend and Supabase project files are present."
+
+      - name: Run unit, browser, and runtime checks
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          pytest -q --junitxml=qa-report.xml 2>&1 | tee qa-report.txt
+          result=${PIPESTATUS[0]}
+          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Acerola AI QA report"
+            echo ""
+            echo "- Commit: `$GITHUB_SHA`"
+            echo "- Trigger: `$GITHUB_EVENT_NAME`"
+            echo "- Result: $([ "$result" -eq 0 ] && echo PASS || echo FAIL)"
+            echo ""
+            echo '~~~text'
+            tail -n 100 qa-report.txt
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+
+      - name: Upload detailed test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acerola-qa-report-${{ github.run_id }}
+          path: |
+            qa-report.txt
+            qa-report.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Open or update a GitHub issue when scheduled QA fails
+        if: steps.tests.outcome == 'failure' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          {
+            echo "Automated QA found failures in Acerola AI."
+            echo ""
+            echo "- **Run:** $RUN_URL"
+            echo "- **Commit:** $COMMIT_SHA"
+            echo "- **Trigger:** $EVENT_NAME"
+            echo "- **Report artifact:** acerola-qa-report-$GITHUB_RUN_ID"
+            echo ""
+            echo "## Test output (last 100 lines)"
+            echo '~~~text'
+            tail -n 100 qa-report.txt 2>/dev/null || echo "The test runner did not produce a report file."
+            echo '~~~'
+            echo ""
+            echo "## Next action"
+            echo "Inspect the failed test and workflow logs, reproduce the issue, and prepare a fix in a separate branch/PR. This workflow reports failures; it does not automatically change production code or merge fixes."
+          } > qa-issue-body.md
+
+          existing=$(gh issue list --repo "$GH_REPO" --state open --limit 100 --json number,title --jq '.[] | select(.title == "Acerola QA failure: automated checks failed") | .number' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GH_REPO" --body-file qa-issue-body.md
+          else
+            gh issue create --repo "$GH_REPO" --title "Acerola QA failure: automated checks failed" --body-file qa-issue-body.md
+          fi
