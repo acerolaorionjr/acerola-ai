@@ -168,11 +168,16 @@
           if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
           const timedOut = Boolean(timeout?.signal?.aborted && !parent?.aborted);
           const message = String(error?.message || '');
-          if (!payload?.agent_mode && !payload?.disable_stream && /rate_limit_exceeded|rate limit|quota exceeded/i.test(message)) {
+          if (!payload?.agent_mode && !payload?.disable_stream && /rate_limit_exceeded|rate limit|quota exceeded|AI_QUOTA_OR_RATE_LIMIT/i.test(message)) {
             global.dispatchEvent?.(new CustomEvent('acerola:stream-reset', { detail: { reason: 'provider_rate_limit' } }));
-            // Retry without streaming so the gateway can move past a provider's
-            // stream-level rate-limit event and fall back to another configured provider.
-            return normalizeGatewayResponse(await this.request({ ...payload, disable_stream: true }, parent));
+            if (payload?.force_gemini_stream) {
+              // If the fallback provider also rejects streaming, make one normal
+              // request so the gateway can still try its remaining providers.
+              return normalizeGatewayResponse(await this.request({ ...payload, force_gemini_stream: false, disable_stream: true }, parent));
+            }
+            // OpenAI can return HTTP 200 before a stream-level rate-limit error.
+            // Switch to Gemini streaming first rather than retrying the same model.
+            return normalizeGatewayResponse(await this.request({ ...payload, force_gemini_stream: true }, parent));
           }
           const retryable = timedOut || /gateway network error|failed to fetch|network|timed out|timeout|gateway returned 502|gateway returned 503|gateway returned 504/i.test(message);
           if (!retryable || attempt >= maxAttempts - 1) throw lastError;
