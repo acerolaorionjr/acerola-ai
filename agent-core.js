@@ -81,7 +81,54 @@
         const requestId = detail?.request_id ? ` (request ${detail.request_id})` : '';
         throw new Error(`${detail?.error || `Gateway returned ${response.status}`}${code}${requestId}`);
       }
-      const data = await response.json();
+      let data;
+      if (response.headers.get('content-type')?.includes('text/event-stream')) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Streaming response body is unavailable');
+        const decoder = new TextDecoder();
+        let buffer = '', reply = '', finalResponse = null, streamError = null;
+        const handleEvent = (raw) => {
+          const line = raw.split(/\r?\n/).find(value => value.startsWith('data:'));
+          if (!line) return;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') return;
+          let event;
+          try { event = JSON.parse(payload); } catch (_) { return; }
+          if (event.type === 'response.output_text.delta' && typeof event.delta === 'string') {
+            reply += event.delta;
+            try { global.dispatchEvent?.(new CustomEvent('acerola:stream-delta', { detail: { delta: event.delta, text: reply } })); } catch (_) {}
+          } else if (event.type === 'response.completed') {
+            finalResponse = event.response || null;
+          } else if (event.type === 'response.failed' || event.type === 'error') {
+            streamError = event.error?.message || event.response?.error?.message || 'AI streaming request failed';
+          }
+        };
+        while (true) {
+          const part = await reader.read();
+          buffer += decoder.decode(part.value || new Uint8Array(), { stream: !part.done });
+          let boundary;
+          while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
+            const raw = buffer.slice(0, boundary);
+            const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)[0];
+            buffer = buffer.slice(boundary + separator.length);
+            handleEvent(raw);
+          }
+          if (part.done) break;
+        }
+        if (buffer.trim()) handleEvent(buffer);
+        if (streamError) throw new Error(streamError);
+        if (!finalResponse && !reply) throw new Error('The AI stream ended before a response arrived');
+        const output = Array.isArray(finalResponse?.output) ? finalResponse.output : [];
+        const sources = [];
+        const addSource = (url, title) => { if (/^https?:\/\//i.test(String(url || '')) && !sources.some(item => item.url === url)) sources.push({ url, title: String(title || url).slice(0, 240), number: sources.length + 1 }); };
+        for (const item of output) {
+          if (item?.type === 'web_search_call') for (const source of (Array.isArray(item?.action?.sources) ? item.action.sources : [])) addSource(source?.url, source?.title);
+          for (const content of (Array.isArray(item?.content) ? item.content : [])) for (const annotation of (Array.isArray(content?.annotations) ? content.annotations : [])) if (annotation?.type === 'url_citation') addSource(annotation.url_citation?.url, annotation.url_citation?.title);
+        }
+        data = { ok: true, reply: String(finalResponse?.output_text || reply).trim(), model: finalResponse?.model || response.headers.get('X-Acerola-Model') || '', provider: response.headers.get('X-Acerola-Provider') || 'openai', web_search_enabled: output.some(item => item?.type === 'web_search_call'), sources: sources.slice(0, 10) };
+      } else {
+        data = await response.json();
+      }
       try {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         global.dispatchEvent?.(new CustomEvent('acerola:gateway-timing', { detail: {
