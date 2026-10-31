@@ -210,7 +210,7 @@ Deno.serve(async(req:Request)=>{
       : [["gpt-6-luna",false],["gpt-6.1-sol",false],["gpt-6-astra",false]] as const;
     for(const [model,useSearch] of attempts){
       try{
-        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode,message,!Boolean(body.agent_mode));
+        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode,message,!Boolean(body.agent_mode)&&!Boolean(body.disable_stream));
         if(r.ok){
           upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";return true;
         }
