@@ -127,7 +127,7 @@
       for(const chat of local){
         const id=String(chat?.id||'');
         if(!id)continue;
-        const timestamp=new Date(Number(chat.updatedAt||Date.now())).toISOString();
+        const dateValue=new Date(chat.updatedAt||Date.now());const timestamp=(Number.isNaN(dateValue.getTime())?new Date():dateValue).toISOString();
         const titleText=String(chat.title||'New chat').slice(0,100);
         const lookup=await db.from('conversations').select('id').eq('id',id).eq('user_id',session.user.id).maybeSingle();
         if(lookup.error){failures++;continue}
@@ -140,11 +140,11 @@
           const role=['user','assistant','system'].includes(message?.role)?message.role:'assistant';
           const content=String(message?.content||'').slice(0,20000);
           if(!content)continue;
-          const stamp=Number(message.at||chat.updatedAt||Date.now());
+          const messageDate=new Date(message.at||chat.updatedAt||Date.now());const stamp=(Number.isNaN(messageDate.getTime())?new Date():messageDate).toISOString();
           const exists=await db.from('messages').select('id').eq('conversation_id',id).eq('user_id',session.user.id).eq('role',role).eq('content',content).limit(1);
           if(exists.error){failures++;continue}
           if(exists.data?.length)continue;
-          const inserted=await db.from('messages').insert({conversation_id:id,user_id:session.user.id,role,content,created_at:new Date(stamp).toISOString()});
+          const inserted=await db.from('messages').insert({conversation_id:id,user_id:session.user.id,role,content,created_at:stamp});
           if(inserted.error)failures++;else syncedMessages++;
         }
       }
