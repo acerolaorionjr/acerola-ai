@@ -17,9 +17,10 @@ def test_gateway_search_detection_keeps_search_for_current_or_sourced_questions(
     assert "|2026|" not in detector
 
 
-def test_gateway_uses_client_memory_and_bounds_remote_memory_wait():
+def test_gateway_bounds_authenticated_remote_memory_wait():
     source = (ROOT / "supabase/functions/acerola-ai-gateway/index.ts").read_text(encoding="utf-8")
-    assert "Array.isArray(body.memories)" in source
+    assert "user_id=eq.${encodeURIComponent(user.id)}" in source
+    assert "Array.isArray(body.memories)" not in source
     assert "setTimeout(()=>memoryController.abort(),350)" in source
     assert "Server-Timing" in source
     assert "X-Acerola-Provider" in source
