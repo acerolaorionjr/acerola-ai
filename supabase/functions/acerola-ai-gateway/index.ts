@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const ALLOWED_ORIGINS = new Set(["https://acerolaorionjr.github.io", "https://deploy-preview-5--acerola-ai.netlify.app", "https://fix-acerola-speed-reliability-20261031-acerola-ai.ikennabobo2011.workers.dev", "http://localhost:3000", "http://localhost:5173"]);
+const ALLOWED_ORIGINS = new Set(["https://acerolaorionjr.github.io", "http://localhost:3000", "http://localhost:5173"]);
 const MAX_BODY_BYTES = 26 * 1024 * 1024;
 const MAX_MESSAGE_CHARS = 12000;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
