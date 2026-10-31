@@ -247,5 +247,7 @@ Deno.serve(async(req:Request)=>{
       }
     }catch{/* model returned non-JSON; client will treat it as final text */}
   }
-  const providerMs=performance.now()-providerStartedAt;\n  const timing=`memory;dur=${memoryMs.toFixed(1)}, provider;dur=${providerMs.toFixed(1)}, total;dur=${(performance.now()-requestStartedAt).toFixed(1)}`;\n  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,sources,request_id:id},200,origin,{...common,"Server-Timing":timing,"X-Acerola-Provider":provider,"X-Acerola-Model":usedModel});
+  const providerMs=performance.now()-providerStartedAt;
+  const timing=`memory;dur=${memoryMs.toFixed(1)}, provider;dur=${providerMs.toFixed(1)}, total;dur=${(performance.now()-requestStartedAt).toFixed(1)}`;
+  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,sources,request_id:id},200,origin,{...common,"Server-Timing":timing,"X-Acerola-Provider":provider,"X-Acerola-Model":usedModel});
 });
