@@ -25,18 +25,21 @@
   const style=document.createElement('style');style.textContent=`#accountBtn{font:inherit;cursor:pointer}.account-sheet{position:fixed;z-index:40;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:16px}.account-sheet.open{display:flex}.account-card{width:min(430px,100%);max-height:90vh;overflow:auto;background:#080e1d;border:1px solid #1d2b49;border-radius:20px;padding:20px;box-shadow:0 20px 80px #000}.account-card h2{margin:0 0 4px}.account-muted{color:#8495b1;font-size:11px;margin-bottom:16px}.account-input{width:100%;padding:11px;border:1px solid #1d2b49;border-radius:10px;background:#0b1428;outline:0;margin:5px 0 8px}.account-btn{width:100%;padding:11px;border:1px solid #236078;border-radius:10px;background:#0b2030;color:#00eaff;margin:5px 0;font-weight:700}.account-btn.google{border-color:#603052;color:#ff69b8;background:#190e1b}.account-btn.secondary{background:#0b1428;color:#f3f8ff;border-color:#1d2b49}.account-msg{min-height:18px;color:#8495b1;font-size:10px;margin-top:8px}.account-section-title{color:#20f6ff;font-size:8px;letter-spacing:1.5px;margin:15px 0 5px}.account-label{display:block;color:#8495b1;font-size:10px;margin-top:8px}.account-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.account-textarea{min-height:90px;resize:vertical}.account-divider{display:flex;align-items:center;gap:8px;color:#607390;font-size:9px;margin:12px 0}.account-divider:before,.account-divider:after{content:'';height:1px;background:#1d2b49;flex:1}.voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.voice-row{padding:10px;border:1px solid #1d2b49;border-radius:10px;background:#0b1428}.voice-row label{display:block;color:#8495b1;font-size:10px;margin-bottom:5px}.voice-row select{width:100%;background:#080e1d;color:#f3f8ff;border:1px solid #1d2b49;border-radius:8px;padding:8px}.profile{padding:12px;border:1px solid #1d2b49;border-radius:12px;background:#0b1428;margin-bottom:10px}.profile b{display:block}.profile span{color:#8495b1;font-size:10px}.account-close{float:right;width:34px;height:34px;border:1px solid #1d2b49;border-radius:9px;background:#0c162a;color:#fff}`;document.head.appendChild(style);const finalStyle=document.createElement('style');finalStyle.textContent='.acerola-account-open{overflow:hidden!important}.account-sheet{background:rgba(0,0,0,.72);backdrop-filter:blur(10px);align-items:flex-end;padding:0}.account-card{width:min(720px,100%);max-height:92dvh;border:1px solid rgba(255,255,255,.09);border-bottom:0;border-radius:24px 24px 0 0;background:#202020;padding:22px 18px calc(24px + env(safe-area-inset-bottom,0px));box-shadow:0 -20px 80px rgba(0,0,0,.5)}.account-card h2{font-size:27px;letter-spacing:-.7px}.account-muted{color:#999}.account-close{border:0;border-radius:50%;background:#2b2b2b}.account-input{background:#171717;border-color:rgba(255,255,255,.09);border-radius:12px}.account-btn{background:#f1f1f1;color:#111;border:0;border-radius:13px}.account-btn.google,.account-btn.secondary{background:#2a2a2a;color:#f5f5f5;border-color:rgba(255,255,255,.08)}.profile,.voice-row{background:#2a2a2a;border-color:rgba(255,255,255,.08)}.account-section-title{color:#20f6ff}@media(max-width:520px){.account-sheet{padding:0}.account-card{padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));border-radius:24px 24px 0 0}}';document.head.appendChild(finalStyle);
   const sheet=document.createElement('div');sheet.className='account-sheet';sheet.innerHTML=`<div class="account-card"><button class="account-close" id="accClose">×</button><h2 id="accTitle">Acerola Account</h2><div class="account-muted" id="accSub">Sign in to keep your chats and memories across devices.</div><div id="accBody"></div></div>`;document.body.appendChild(sheet);
   const body=$('#accBody'),title=$('#accTitle'),sub=$('#accSub');
-  function open(){sheet.classList.add('open');sheet.style.display='flex';sheet.style.zIndex='9999';document.body.classList.add('acerola-account-open');render()}function close(){sheet.classList.remove('open');sheet.style.display='none';document.body.classList.remove('acerola-account-open')}$('#accClose').onclick=close;sheet.onclick=e=>{if(e.target===sheet)close()};
+  function showAccountError(error){title.textContent='Acerola Account';sub.textContent='Account could not load';body.innerHTML='<div class="account-msg">'+esc(error?.message||'Something went wrong while loading your account.')+'</div><button class="account-btn secondary" id="accountRetry">Try again</button>';$('#accountRetry').onclick=()=>render().catch(showAccountError)}function open(){sheet.classList.add('open');sheet.style.display='flex';sheet.style.zIndex='9999';document.body.classList.add('acerola-account-open');render().catch(showAccountError)}function close(){sheet.classList.remove('open');sheet.style.display='none';document.body.classList.remove('acerola-account-open')}$('#accClose').onclick=close;sheet.onclick=e=>{if(e.target===sheet)close()};
+
+  function notificationButtonMarkup(){return window.acerolaNotificationButtonMarkup?.()||'<button class="account-btn secondary" id="enableNotifications">Enable reply notifications</button>'}
+  function bindNotifications(){window.acerolaBindNotifications?.()}
   function oauthRedirect(){return new URL('./',location.href).href}
-  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button><div class="account-msg" id="accMsg"></div>`;
-    $('#google').onclick=async()=>{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)$('#accMsg').textContent=r.error.message};
-    $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
-  async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});r=u;if(!u.error){const p=await db.auth.updateUser({password});r=p}}else r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
+  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button>${notificationButtonMarkup()}<div class="account-msg" id="accMsg"></div>`;
+    $('#google').onclick=async()=>{const b=$('#google'),msg=$('#accMsg');b.disabled=true;if(msg)msg.textContent='Connecting to Google…';try{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)throw r.error;if(msg)msg.textContent='Continue with Google to finish signing in.'}catch(error){if(msg)msg.textContent='Google sign-in failed: '+String(error?.message||error)}finally{b.disabled=false}};
+    $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true);bindNotifications()}
+  async function emailAuth(signup){const email=$('#email')?.value.trim()||'',password=$('#pass')?.value||'',msg=$('#accMsg');if(!email||!/^\S+@\S+\.\S+$/.test(email)||password.length<8){if(msg)msg.textContent='Enter a valid email and a password with at least 8 characters.';return}const buttons=[$('#login'),$('#signup')].filter(Boolean);buttons.forEach(b=>b.disabled=true);if(msg)msg.textContent=signup?'Creating your account…':'Signing in…';try{const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){r=await db.auth.updateUser({email,password,data:{name:email.split('@')[0]}})}else if(signup){r=await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]},emailRedirectTo:oauthRedirect()}})}else{r=await db.auth.signInWithPassword({email,password})}if(r?.error)throw r.error;if(signup){if(msg)msg.textContent='Account request submitted. Check your email for verification, then return here and log in. Your email is your account sign-in.';return}if(msg)msg.textContent='Signed in. Syncing your Acerola account…';setTimeout(()=>location.reload(),400)}catch(error){if(msg)msg.textContent=String(error?.message||'Account request failed. Check your connection and try again.')}finally{buttons.forEach(b=>b.disabled=false)}}
   function voices(){try{return globalThis.speechSynthesis?.getVoices?.()||[]}catch(_){return []}}
-  function refreshVoiceOptions(selected=''){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'');};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
-  function voiceOptions(selected){
+  function refreshVoiceOptions(selected='',language='en-NG'){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'',language);};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
+  function voiceOptions(selected,language='en-NG'){
     const vs=voices();
     if(!vs.length)return CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x||(!selected&&x==='marin')?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
-    const lang=p?.language||'en-NG';
+    const lang=language||'en-NG';
     const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
     const list=matches.length?matches:vs;
     const cloud=CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
@@ -73,9 +76,9 @@
 </select></label>
       <label class="account-label">About me<textarea class="account-input account-textarea" id="aboutMe" maxlength="1000" placeholder="Tell Acerola about yourself, your interests, goals, or how you like to work.">${esc(p?.about_me||'')}</textarea></label>
       <div class="account-section-title">VOICE</div>
-      <div class="voice-grid"><div class="voice-row"><label>Voice profile</label><select id="voice">${voiceOptions(p?.voice_id||'')}</select></div><div class="voice-row"><label>Speech</label><button class="account-btn secondary" id="testVoice">Test voice</button></div></div>
+      <div class="voice-grid"><div class="voice-row"><label>Voice profile</label><select id="voice">${voiceOptions(p?.voice_id||'',p?.language||'en-NG')}</select></div><div class="voice-row"><label>Speech</label><button class="account-btn secondary" id="testVoice">Test voice</button></div></div>
       <button class="account-btn" id="saveProfile">Save profile</button>
-      <button class="account-btn secondary" id="sync">Sync chats & memories</button>
+      <button class="account-btn secondary" id="sync">Sync chats & memories</button>${notificationButtonMarkup()}
       <button class="account-btn secondary" id="logout">Log out</button>
       <div class="account-msg" id="accMsg">Your profile is private to your account. Acerola can use these details for personalization.</div>`;
     const save=async()=>{
@@ -83,11 +86,11 @@
       const r=await db.from('profiles').upsert(payload,{onConflict:'id'});const x=$('#accMsg');if(r.error){x.textContent='Could not save profile: '+r.error.message;return}localStorage.setItem('acerola-voice-id',payload.voice_id);x.textContent='Profile saved. Acerola will use it for personalization.';setTimeout(render,450)
     };
     $('#saveProfile').onclick=save;
-    speechSynthesis?.addEventListener?.('voiceschanged',()=>refreshVoiceOptions(p?.voice_id||''));refreshVoiceOptions(p?.voice_id||'');
+    globalThis.speechSynthesis?.addEventListener?.('voiceschanged',()=>refreshVoiceOptions(p?.voice_id||'',p?.language||'en-NG'));refreshVoiceOptions(p?.voice_id||'',p?.language||'en-NG');
     $('#voice').onchange=()=>localStorage.setItem('acerola-voice-id',$('#voice').value);
     $('#language').onchange=()=>{
       const sel=$('#voice');
-      if(sel){refreshVoiceOptions('');}
+      if(sel){refreshVoiceOptions('', $('#language').value||'en-NG');}
     };
     $('#testVoice').onclick=async()=>{
       const selected=String($('#voice').value||'');
@@ -108,11 +111,47 @@
       if(!globalThis.speechSynthesis||!globalThis.SpeechSynthesisUtterance){$('#accMsg').textContent='Browser speech is unavailable on this device. Use an Acerola cloud voice instead.';refreshVoiceOptions('cloud:marin');return}
       const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u);
     };
-    $('#sync').onclick=()=>sync(true);
+    $('#sync').onclick=()=>sync(true);bindNotifications();
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
   }
-  async function sync(show){const {data:{session}}=await db.auth.getSession();if(!session)return;const uid=session.user.id;let local=[];try{local=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]')}catch{};for(const c of local){let {data:remote}=await db.from('conversations').select('id').eq('id',c.id).eq('user_id',uid).maybeSingle();if(!remote){await db.from('conversations').insert({id:c.id,user_id:uid,title:String(c.title||'New chat').slice(0,100),created_at:new Date(c.updatedAt||Date.now()).toISOString(),updated_at:new Date(c.updatedAt||Date.now()).toISOString()});}else await db.from('conversations').update({title:String(c.title||'New chat').slice(0,100),updated_at:new Date(c.updatedAt||Date.now()).toISOString()}).eq('id',c.id).eq('user_id',uid);for(const m of c.messages||[]){const stamp=Number(m.at||c.updatedAt||Date.now());const exists=await db.from('messages').select('id').eq('conversation_id',c.id).eq('user_id',uid).eq('role',m.role).eq('content',String(m.content||'')).limit(1);if(!exists.data?.length)await db.from('messages').insert({conversation_id:c.id,user_id:uid,role:m.role,content:String(m.content||'').slice(0,20000),created_at:new Date(stamp).toISOString()})}}
-    if(show){const x=$('#accMsg');if(x)x.textContent='Sync complete.'}
+  async function sync(show){
+    const status=()=>show?$('#accMsg'):null;
+    try{
+      const {data:{session},error:sessionError}=await db.auth.getSession();
+      if(sessionError)throw sessionError;
+      if(!session){if(show&&status())status().textContent='Sign in before syncing chats and memories.';return}
+      if(session.user?.is_anonymous){if(show&&status())status().textContent='Create or sign in to an email account before syncing across devices.';return}
+      let local=[];
+      try{local=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]')}catch(_){local=[]}
+      let syncedChats=0,syncedMessages=0,failures=0;
+      for(const chat of local){
+        const id=String(chat?.id||'');
+        if(!id)continue;
+        const dateValue=new Date(chat.updatedAt||Date.now());const timestamp=(Number.isNaN(dateValue.getTime())?new Date():dateValue).toISOString();
+        const titleText=String(chat.title||'New chat').slice(0,100);
+        const lookup=await db.from('conversations').select('id').eq('id',id).eq('user_id',session.user.id).maybeSingle();
+        if(lookup.error){failures++;continue}
+        const write=lookup.data
+          ? await db.from('conversations').update({title:titleText,updated_at:timestamp}).eq('id',id).eq('user_id',session.user.id)
+          : await db.from('conversations').insert({id,user_id:session.user.id,title:titleText,created_at:timestamp,updated_at:timestamp});
+        if(write.error){failures++;continue}
+        syncedChats++;
+        for(const message of (Array.isArray(chat.messages)?chat.messages:[])){
+          const role=['user','assistant','system'].includes(message?.role)?message.role:'assistant';
+          const content=String(message?.content||'').slice(0,20000);
+          if(!content)continue;
+          const messageDate=new Date(message.at||chat.updatedAt||Date.now());const stamp=(Number.isNaN(messageDate.getTime())?new Date():messageDate).toISOString();
+          const exists=await db.from('messages').select('id').eq('conversation_id',id).eq('user_id',session.user.id).eq('role',role).eq('content',content).limit(1);
+          if(exists.error){failures++;continue}
+          if(exists.data?.length)continue;
+          const inserted=await db.from('messages').insert({conversation_id:id,user_id:session.user.id,role,content,created_at:stamp});
+          if(inserted.error)failures++;else syncedMessages++;
+        }
+      }
+      if(show&&status())status().textContent=failures
+        ? 'Sync partly completed: '+syncedChats+' chats and '+syncedMessages+' messages synced; '+failures+' item(s) failed. Check your connection and retry.'
+        : 'Sync complete: '+syncedChats+' chats and '+syncedMessages+' messages synced.';
+    }catch(error){if(show&&status())status().textContent='Sync failed: '+String(error?.message||'Check your connection and try again.')}
   }
   // Persistent memory is owned by Agent Core -> gateway -> service-role path.
   // Browser code must never write directly to acerola_memory.
