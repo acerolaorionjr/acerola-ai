@@ -1,10 +1,10 @@
-/* Acerola — Agent Core v1.5.10
+/* Acerola — Agent Core v1.1.0
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '1.5.10';
+  const VERSION = '1.6.6';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -82,6 +82,7 @@
     constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) { this.endpoint = endpoint; this.apiKey = apiKey; this.accessToken = ''; }
     setAccessToken(token) { this.accessToken = token || ''; }
     async request(body, signal) {
+      const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const headers = { 'Content-Type': 'application/json', 'apikey': this.apiKey };
       if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
       let response;
@@ -97,14 +98,71 @@
         const requestId = detail?.request_id ? ` (request ${detail.request_id})` : '';
         throw new Error(`${detail?.error || `Gateway returned ${response.status}`}${code}${requestId}`);
       }
-      return response.json();
+      let data;
+      if (response.headers.get('content-type')?.includes('text/event-stream')) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Streaming response body is unavailable');
+        const decoder = new TextDecoder();
+        let buffer = '', reply = '', finalResponse = null, streamError = null;
+        const handleEvent = (raw) => {
+          const line = raw.split(/\r?\n/).find(value => value.startsWith('data:'));
+          if (!line) return;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') return;
+          let event;
+          try { event = JSON.parse(payload); } catch (_) { return; }
+          if (event.type === 'response.output_text.delta' && typeof event.delta === 'string') {
+            reply += event.delta;
+            try { global.dispatchEvent?.(new CustomEvent('acerola:stream-delta', { detail: { delta: event.delta, text: reply } })); } catch (_) {}
+          } else if (event.type === 'response.completed') {
+            finalResponse = event.response || null;
+          } else if (event.type === 'response.failed' || event.type === 'error') {
+            streamError = event.error?.message || event.response?.error?.message || 'AI streaming request failed';
+          }
+        };
+        while (true) {
+          const part = await reader.read();
+          buffer += decoder.decode(part.value || new Uint8Array(), { stream: !part.done });
+          let boundary;
+          while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
+            const raw = buffer.slice(0, boundary);
+            const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)[0];
+            buffer = buffer.slice(boundary + separator.length);
+            handleEvent(raw);
+          }
+          if (part.done) break;
+        }
+        if (buffer.trim()) handleEvent(buffer);
+        if (streamError) throw new Error(streamError);
+        if (!finalResponse && !reply) throw new Error('The AI stream ended before a response arrived');
+        const output = Array.isArray(finalResponse?.output) ? finalResponse.output : [];
+        const sources = [];
+        const addSource = (url, title) => { if (/^https?:\/\//i.test(String(url || '')) && !sources.some(item => item.url === url)) sources.push({ url, title: String(title || url).slice(0, 240), number: sources.length + 1 }); };
+        for (const item of output) {
+          if (item?.type === 'web_search_call') for (const source of (Array.isArray(item?.action?.sources) ? item.action.sources : [])) addSource(source?.url, source?.title);
+          for (const content of (Array.isArray(item?.content) ? item.content : [])) for (const annotation of (Array.isArray(content?.annotations) ? content.annotations : [])) if (annotation?.type === 'url_citation') addSource(annotation.url_citation?.url, annotation.url_citation?.title);
+        }
+        data = { ok: true, reply: String(finalResponse?.output_text || reply).trim(), model: finalResponse?.model || response.headers.get('X-Acerola-Model') || '', provider: response.headers.get('X-Acerola-Provider') || 'openai', web_search_enabled: output.some(item => item?.type === 'web_search_call'), sources: sources.slice(0, 10) };
+      } else {
+        data = await response.json();
+      }
+      try {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        global.dispatchEvent?.(new CustomEvent('acerola:gateway-timing', { detail: {
+          duration_ms: Math.round(now - startedAt),
+          server_timing: response.headers.get('Server-Timing') || '',
+          provider: response.headers.get('X-Acerola-Provider') || data?.provider || '',
+          model: response.headers.get('X-Acerola-Model') || data?.model || '',
+          request_id: response.headers.get('X-Request-Id') || data?.request_id || ''
+        }}));
+      } catch (_) {}
+      return data;
     }
     async complete(payload, signal) {
       const parent = signal;
       let lastError = null;
       // Retry transient network failures and internal timeouts, but never override
       // the user's Stop/Cancel action or retry ordinary auth/quota errors.
-      // Bound failure waits while preserving one retry for transient network faults.
       const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
@@ -113,7 +171,7 @@
         let onAbort = null;
         try {
           if (timeout) {
-            timer = setTimeout(() => timeout.abort(), 15000);
+            timer = setTimeout(() => timeout.abort(), 35000);
             if (parent) {
               onAbort = () => timeout.abort();
               if (parent.aborted) timeout.abort();
@@ -127,6 +185,17 @@
           if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
           const timedOut = Boolean(timeout?.signal?.aborted && !parent?.aborted);
           const message = String(error?.message || '');
+          if (!payload?.agent_mode && !payload?.disable_stream && /rate_limit_exceeded|rate limit|quota exceeded|AI_QUOTA_OR_RATE_LIMIT/i.test(message)) {
+            global.dispatchEvent?.(new CustomEvent('acerola:stream-reset', { detail: { reason: 'provider_rate_limit' } }));
+            if (payload?.force_gemini_stream) {
+              // If the fallback provider also rejects streaming, make one normal
+              // request so the gateway can still try its remaining providers.
+              return normalizeGatewayResponse(await this.request({ ...payload, force_gemini_stream: false, disable_stream: true }, parent));
+            }
+            // OpenAI can return HTTP 200 before a stream-level rate-limit error.
+            // Switch to Gemini streaming first rather than retrying the same model.
+            return normalizeGatewayResponse(await this.request({ ...payload, force_gemini_stream: true }, parent));
+          }
           const retryable = timedOut || /gateway network error|failed to fetch|network|timed out|timeout|gateway returned 502|gateway returned 503|gateway returned 504/i.test(message);
           if (!retryable || attempt >= maxAttempts - 1) throw lastError;
           const nextAttempt = attempt + 2;
@@ -485,7 +554,7 @@
       const forget = text.match(/^forget\s+(.+)/i); if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^clear (?:chat|conversation|conversation history)$/i.test(text)) { this.clearConversation(); return { type: 'action', action: 'conversation.clear', result: 'Conversation context cleared.' }; }
-      if (/^(what(?:'s|\s+is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
+      if (/^(?:what(?:'s|\s+is)?\s+)?(?:the\s+)?(?:current\s+)?time(?:\s+is\s+it)?\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
       if (/^(what(?:'s|\s+is)\s+)?(?:today'?s\s+)?date\??$/i.test(text) || /^date\??$/i.test(text)) return { type: 'action', action: 'system.date', result: await this.actions.execute('system.date') };
       const math = text.match(/^(?:calculate|calc|compute)\s+(.+)$/i); if (math) return { type: 'action', action: 'calculator.calculate', result: await this.actions.execute('calculator.calculate', { expression: math[1] }) };
       const moduleMatch = text.match(/^(?:open|show|go to)\s+(chat|memory|actions|system)(?:\s+module)?$/i); if (moduleMatch) return { type: 'action', action: 'ui.open_module', result: await this.actions.execute('ui.open_module', { module: moduleMatch[1] }) };
