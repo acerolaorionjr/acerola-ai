@@ -12,7 +12,7 @@ const RATE_LIMIT_USER = 40;
 const buckets = new Map<string, { started: number; count: number }>();
 
 function baseHeaders(origin: string | null) {
-  const h: Record<string, string> = {"Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, GET, OPTIONS","Access-Control-Max-Age":"86400","Cache-Control":"no-store","Vary":"Origin","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Permissions-Policy":"camera=(), geolocation=(), payment=()","Content-Type":"application/json; charset=utf-8"};
+  const h: Record<string, string> = {"Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, GET, OPTIONS","Access-Control-Max-Age":"86400","Access-Control-Expose-Headers":"X-Request-Id, Server-Timing, X-Acerola-Provider, X-Acerola-Model","Cache-Control":"no-store","Vary":"Origin","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Permissions-Policy":"camera=(), geolocation=(), payment=()","Content-Type":"application/json; charset=utf-8"};
   if (origin && ALLOWED_ORIGINS.has(origin)) h["Access-Control-Allow-Origin"] = origin;
   return h;
 }
@@ -60,7 +60,7 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   if(action==="clear"){const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}`,{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});if(!r.ok)return json({error:"Unable to clear memory",request_id:id},502,origin);return json({ok:true,cleared:(await r.json()).length,request_id:id},200,origin);}
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }
-function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|verify|fact[- ]?check|source|sources|citation|citations|compare|as of|this week|this month|2026)\b/i.test(text);}
+function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|research|look up|verify|fact[- ]?check|as of|this week|this month)\b|\bsearch(?:\s+(?:the\s+)?(?:web|internet|for))?\b|\b(?:give|provide|include|show|find)\s+(?:me\s+)?(?:the\s+)?(?:sources?|citations?)\b|\b(?:sources?|citations?)\s+(?:for|about)\b/i.test(text);}
 async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false){
   const body:any={model,instructions,input,max_output_tokens:researchMode?7000:5000};
   const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(input||""));
@@ -113,7 +113,7 @@ function extractReply(result:any){if(typeof result?.output_text==="string"&&resu
 function extractSources(result:any){const out:any[]=[];const add=(url:any,title:any)=>{const u=String(url||"").trim();if(!/^https?:\/\//i.test(u)||out.some(x=>x.url===u))return;out.push({url:u,title:String(title||u).trim().slice(0,240)});};for(const item of Array.isArray(result?.output)?result.output:[]){if(item?.type==="web_search_call"){for(const s of Array.isArray(item?.action?.sources)?item.action.sources:[])add(s?.url,s?.title);}for(const content of Array.isArray(item?.content)?item.content:[]){for(const a of Array.isArray(content?.annotations)?content.annotations:[]){if(a?.type==="url_citation")add(a?.url_citation?.url,a?.url_citation?.title);}}}return out.slice(0,10).map((s:any,i:number)=>({...s,number:i+1}));}
 
 Deno.serve(async(req:Request)=>{
-  const origin=req.headers.get("Origin"),id=requestId();
+  const requestStartedAt=performance.now(),origin=req.headers.get("Origin"),id=requestId();
   if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed",request_id:id},403,origin,{"X-Request-Id":id});
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...baseHeaders(origin),"X-Request-Id":id}});
   if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"50",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
@@ -129,8 +129,19 @@ Deno.serve(async(req:Request)=>{
   const context=body.context&&typeof body.context==="object"?JSON.stringify({...body.context, owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}).slice(0,18000):JSON.stringify({owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name});
   const rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
-  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
-  if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey}});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
+  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const clientMemories=Array.isArray(body.memories)?body.memories.slice(-10).map((x:any)=>String(x||"").trim()).filter(Boolean):[];
+  let memories:string[]=clientMemories;
+  const memoryStartedAt=performance.now();
+  if(url&&serviceKey&&memories.length<10){
+    const memoryController=new AbortController(),memoryTimer=setTimeout(()=>memoryController.abort(),350);
+    try{
+      const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey},signal:memoryController.signal});
+      if(r.ok){const rows=await r.json();if(Array.isArray(rows)){const remote=rows.map((x:any)=>String(x.memory_value||"").trim()).filter(Boolean);memories=[...new Set([...remote,...clientMemories])].slice(-10);}}
+    }catch{/* fall back to client memory when the remote memory store is slow or unavailable */}
+    finally{clearTimeout(memoryTimer);}
+  }
+  const memoryMs=performance.now()-memoryStartedAt;
   const toolCatalog=Array.isArray(body.available_tools)?body.available_tools.slice(0,80):[];
   const toolResults=Array.isArray(body.tool_results)?body.tool_results.slice(-8):[];
   const system = [
@@ -236,5 +247,5 @@ Deno.serve(async(req:Request)=>{
       }
     }catch{/* model returned non-JSON; client will treat it as final text */}
   }
-  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,sources,request_id:id},200,origin,common);
+  const providerMs=performance.now()-providerStartedAt;\n  const timing=`memory;dur=${memoryMs.toFixed(1)}, provider;dur=${providerMs.toFixed(1)}, total;dur=${(performance.now()-requestStartedAt).toFixed(1)}`;\n  return json({ok:true,owner:ownerContext.owner,role:ownerContext.role,reply:plan?.message||reply,plan,model:result.model||usedModel,provider,provider_mode:prefer,response_id:result.id||null,multimodal:files.length>0,attachment_count:files.length,web_search_enabled:usedSearch,sources,request_id:id},200,origin,{...common,"Server-Timing":timing,"X-Acerola-Provider":provider,"X-Acerola-Model":usedModel});
 });
