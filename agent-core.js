@@ -171,7 +171,7 @@
         let onAbort = null;
         try {
           if (timeout) {
-            timer = setTimeout(() => timeout.abort(), 15000);
+            timer = setTimeout(() => timeout.abort(), 35000);
             if (parent) {
               onAbort = () => timeout.abort();
               if (parent.aborted) timeout.abort();
