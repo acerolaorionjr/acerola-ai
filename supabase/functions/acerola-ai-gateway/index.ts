@@ -33,11 +33,19 @@ async function getUser(req: Request) {
 
 async function getOwnerContext(user:any){
   const app = user?.app_metadata && typeof user.app_metadata === "object" ? user.app_metadata : {};
-  const role = String(app.role || (app.owner === true ? "owner" : "user"));
+  // Owner status is granted only by trusted server-side app metadata or an explicit
+  // server-side allowlist. Never trust user-editable metadata or a chat claim.
+  const configuredOwnerId = (Deno.env.get("ACEROLA_OWNER_USER_ID") || "").trim();
+  const configuredOwnerEmail = (Deno.env.get("ACEROLA_OWNER_EMAIL") || "").trim().toLowerCase();
+  const email = String(user?.email || "").trim().toLowerCase();
+  const emailVerified = Boolean(user?.email_confirmed_at || user?.confirmed_at);
+  const owner = app.owner === true ||
+    Boolean(configuredOwnerId && user?.id && user.id === configuredOwnerId) ||
+    Boolean(configuredOwnerEmail && emailVerified && email && email === configuredOwnerEmail);
   return {
-    owner: app.owner === true,
-    role,
-    display_name: String(user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User").slice(0,120)
+    owner,
+    role: owner ? "owner" : "user",
+    display_name: String(user?.user_metadata?.display_name || user?.user_metadata?.full_name || email.split("@")[0] || "User").slice(0,120)
   };
 }
 
