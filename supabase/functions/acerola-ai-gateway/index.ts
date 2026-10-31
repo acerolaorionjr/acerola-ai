@@ -129,16 +129,14 @@ Deno.serve(async(req:Request)=>{
   const context=body.context&&typeof body.context==="object"?JSON.stringify({...body.context, owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name}).slice(0,18000):JSON.stringify({owner: ownerContext.owner, role: ownerContext.role, display_name: ownerContext.display_name});
   const rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
-  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const clientMemories=Array.isArray(body.memories)?body.memories.slice(-10).map((x:any)=>String(x||"").trim()).filter(Boolean):[];
-  let memories:string[]=clientMemories;
+  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
   const memoryStartedAt=performance.now();
-  if(url&&serviceKey&&memories.length<10){
+  if(url&&serviceKey){
     const memoryController=new AbortController(),memoryTimer=setTimeout(()=>memoryController.abort(),350);
     try{
       const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey},signal:memoryController.signal});
-      if(r.ok){const rows=await r.json();if(Array.isArray(rows)){const remote=rows.map((x:any)=>String(x.memory_value||"").trim()).filter(Boolean);memories=[...new Set([...remote,...clientMemories])].slice(-10);}}
-    }catch{/* fall back to client memory when the remote memory store is slow or unavailable */}
+      if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"").trim()).filter(Boolean);}
+    }catch{/* fail open to a normal answer if persistent memory is slow */}
     finally{clearTimeout(memoryTimer);}
   }
   const memoryMs=performance.now()-memoryStartedAt;
