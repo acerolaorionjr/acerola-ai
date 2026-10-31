@@ -157,14 +157,17 @@ Deno.serve(async(req:Request)=>{
     "For admissions, WAEC, JAMB, university requirements, scholarships, laws, prices, medical guidance, or other consequential factual advice, verify against authoritative current sources when available. State the relevant year, institution, programme, or jurisdiction. Never turn one institution's requirement into a universal rule. Distinguish WAEC subject availability from JAMB/UTME and university admission requirements. If requirements vary, say they vary and identify what exact programme/institution is needed. Never invent requirements, deadlines, scores, policies, or source checks. Prefer official sources such as WAEC, JAMB/IBASS, universities, government agencies, or the relevant provider.",
     "Keep relationship and social guidance age-appropriate. Do not arrange real-world intimate encounters or direct users to adult-only services. If a request is sexually explicit, set a brief boundary and redirect to safe, age-appropriate information about relationships, consent, boundaries, or wellbeing.",
     "For coding requests, provide production-quality solutions and only claim repository changes after a real write succeeds.",
-    "Agent mode: when a tool is genuinely needed, return ONLY valid JSON of the form {\\\"type\\\":\\\"tool_call\\\",\\\"tool\\\":\\\"exact allowed tool name\\\",\\\"arguments\\\":{},\\\"message\\\":\\\"short progress message\\\"}. When no tool is needed, return {\\\"type\\\":\\\"final\\\",\\\"tool\\\":\\\"\\\",\\\"arguments\\\":{},\\\"message\\\":\\\"answer\\\"}.",
-    "Only select tools from Available tools. Never invent tool names or pretend a tool succeeded.",
-    "You may take multiple tool steps. After tool results arrive, inspect them, decide whether another allowed tool is needed, and otherwise return final.",
+    body.agent_mode ? "Agent mode: when a tool is genuinely needed, return ONLY valid JSON of the form {\\\"type\\\":\\\"tool_call\\\",\\\"tool\\\":\\\"exact allowed tool name\\\",\\\"arguments\\\":{},\\\"message\\\":\\\"short progress message\\\"}. When no tool is needed, return {\\\"type\\\":\\\"final\\\",\\\"tool\\\":\\\"\\\",\\\"arguments\\\":{},\\\"message\\\":\\\"answer\\\"}." : "",
+    body.agent_mode ? "Only select tools from Available tools. Never invent tool names or pretend a tool succeeded." : "",
+    body.agent_mode ? "You may take multiple tool steps. After tool results arrive, inspect them, decide whether another allowed tool is needed, and otherwise return final." : "",
     "Prefer the smallest safe set of actions. Do not perform destructive, financial, account, publishing, or external-write actions without an explicit confirmation step when such a tool exists.",
     body.agent_mode ? "The user wants an agent response. Follow the JSON contract exactly." : ""
   ].filter(Boolean).join("\\n");
 
-  const userText=`User message:\n${message}\n\nServer memories:\n${memories.map(m=>`- ${m}`).join("\n")||"(none)"}\n\nRecent conversation context:\n${context}\n\nAvailable tools:\n${JSON.stringify(toolCatalog)}\n\nPrevious agent reply:\n${String(body.previous_reply||"")}\n\nTool execution results:\n${JSON.stringify(toolResults)}`;
+  const memoryText=memories.map(m=>"- "+m).join("\n")||"(none)";
+  const userText=body.agent_mode
+    ? "User message:\n"+message+"\n\nServer memories:\n"+memoryText+"\n\nRecent conversation context:\n"+context+"\n\nAvailable tools:\n"+JSON.stringify(toolCatalog)+"\n\nPrevious agent reply:\n"+String(body.previous_reply||"")+"\n\nTool execution results:\n"+JSON.stringify(toolResults)
+    : "User message:\n"+message+"\n\nServer memories:\n"+memoryText+"\n\nRecent conversation context:\n"+context;
   const input=files.length?buildInput(userText,files):userText;
   const researchMode=Boolean(body?.research_mode)||/\bdeep research|research mode|study mode\b/i.test(message);
   const searchRequested=researchMode||needsWebSearch(message);
