@@ -46,3 +46,31 @@ def test_notification_script_loads_before_account_and_reply_paths_dispatch_event
     assert html.index('src="notifications.js?v=1.0.0-20261031"') < html.index('src="account-system.js?v=2.2.5-20261031"')
     assert "acerola:reply-ready" in html
     assert "acerola:gateway-timing" in (ROOT / "agent-core.js").read_text(encoding="utf-8")
+
+
+
+def test_gateway_streams_direct_openai_replies_as_server_sent_events():
+    source = (ROOT / "supabase/functions/acerola-ai-gateway/index.ts").read_text(encoding="utf-8")
+    assert "streamResponse=false" in source
+    assert "if(streamResponse)body.stream=true" in source
+    assert "message,!Boolean(body.agent_mode)" in source
+    assert 'provider==="openai"&&!body.agent_mode&&upstream.body' in source
+    assert '"Content-Type":"text/event-stream; charset=utf-8"' in source
+
+
+def test_browser_consumes_stream_deltas_and_renders_progressively():
+    core = (ROOT / "agent-core.js").read_text(encoding="utf-8")
+    runtime = (ROOT / "engine-runtime.js").read_text(encoding="utf-8")
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    assert "response.output_text.delta" in core
+    assert "acerola:stream-delta" in core
+    assert "needsAgentTools" in runtime
+    assert "agent_mode: false" in runtime
+    assert "acerola:stream-delta" in html
+    assert "streaming-preview" in html
+
+
+def test_streaming_scripts_use_fresh_cache_versions():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    assert "agent-core.js?v=1.6.0-20261031" in html
+    assert "engine-runtime.js?v=0.9.4-20261031" in html
