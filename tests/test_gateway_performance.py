@@ -74,7 +74,7 @@ def test_browser_consumes_stream_deltas_and_renders_progressively():
 
 def test_streaming_scripts_use_fresh_cache_versions():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
-    assert "agent-core.js?v=1.6.3-20261031" in html
+    assert "agent-core.js?v=1.6.4-20261031" in html
     assert "engine-runtime.js?v=0.9.4-20261031" in html
 
 
@@ -89,4 +89,4 @@ def test_local_action_results_render_as_human_readable_text():
 
 def test_local_time_intent_accepts_natural_question_wording():
     source = (ROOT / "agent-core.js").read_text(encoding="utf-8")
-    assert "(?:current\\\\s+)?time(?:\\\\s+is\\\\s+it)?" in source
+    assert r"(?:current\s+)?time(?:\s+is\s+it)?" in source
