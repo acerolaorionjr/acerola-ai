@@ -90,3 +90,11 @@ def test_local_action_results_render_as_human_readable_text():
 def test_local_time_intent_accepts_natural_question_wording():
     source = (ROOT / "agent-core.js").read_text(encoding="utf-8")
     assert r"(?:current\s+)?time(?:\s+is\s+it)?" in source
+
+
+
+def test_direct_chat_prompt_excludes_agent_json_contract_and_tool_catalog():
+    source = (ROOT / "supabase/functions/acerola-ai-gateway/index.ts").read_text(encoding="utf-8")
+    assert 'body.agent_mode ? "Agent mode: when a tool is genuinely needed' in source
+    assert 'const userText=body.agent_mode' in source
+    assert ': "User message:\\n"+message+"\\n\\nServer memories:\\n"+memoryText+"\\n\\nRecent conversation context:\\n"+context;' in source
