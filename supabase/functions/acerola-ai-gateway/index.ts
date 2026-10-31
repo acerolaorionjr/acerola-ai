@@ -78,7 +78,7 @@ async function callOpenAI(apiKey:string,model:string,input:any,instructions:stri
     signal
   });
 }
-async function callGemini(apiKey:string, model:string, input:string, instructions:string, files:any[], signal:AbortSignal){
+async function callGemini(apiKey:string, model:string, input:string, instructions:string, files:any[], signal:AbortSignal,streamResponse=false){
   const parts:any[]=[{text:input}];
   for(const f of files){
     const p=parseDataUrl(String(f.data||""));
@@ -91,7 +91,7 @@ async function callGemini(apiKey:string, model:string, input:string, instruction
     generationConfig:{temperature:0.7,maxOutputTokens:4000}
   };
   if(input.includes("return ONLY valid JSON")) body.generationConfig.responseMimeType="application/json";
-  return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
+  return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:${streamResponse?"streamGenerateContent?alt=sse":"generateContent"}`,{
     method:"POST",
     headers:{"x-goog-api-key":apiKey,"Content-Type":"application/json"},
     body:JSON.stringify(body),
@@ -179,7 +179,7 @@ Deno.serve(async(req:Request)=>{
   const searchRequested=researchMode||needsWebSearch(message);
   const providerStartedAt=performance.now();
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
-  const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
+  const prefer=body.force_gemini_stream?"gemini":providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
   // Provider fallback policy:
   // 1) Try the preferred provider first.
   // 2) If it is rate-limited, quota-exhausted, unavailable, or a model is unavailable,
@@ -192,21 +192,26 @@ Deno.serve(async(req:Request)=>{
 
   async function tryGemini(){
     if(!geminiKey) return false;
-    for(const model of ["gemini-3.8-flash","gemini-3.7-flash","gemini-3.6-flash","gemini-3.5-flash"]){
+    for(const model of ["gemini-3.8-flash","gemini-3.6-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"]){
+      const modelController=new AbortController();
+      const relayAbort=()=>modelController.abort();
+      if(controller.signal.aborted)return false;
+      controller.signal.addEventListener("abort",relayAbort,{once:true});
+      const modelTimer=setTimeout(()=>modelController.abort(),6500);
       try{
-        const r=await callGemini(geminiKey,model,userText,system,files,controller.signal);
+        const streamResponse=!body.agent_mode&&!body.disable_stream;
+        const r=await callGemini(geminiKey,model,userText,system,files,modelController.signal,streamResponse);
         if(r.ok){
           upstream=r;usedModel=model;provider="gemini";return true;
         }
         const text=await r.text();
         lastError={status:r.status,body:text.slice(0,800),model,provider:"gemini"};
-        // 401/403 means this key/provider cannot authenticate. Let the other
-        // provider have a chance, but don't waste requests on more Gemini models.
         if(r.status===401||r.status===403) break;
-        // 429, 408, 5xx, and model/request errors are retryable across the
-        // configured Gemini models, so continue instead of aborting fallback.
       }catch(e){
         lastError={status:0,body:e instanceof Error?e.message:"request failed",model,provider:"gemini"};
+      }finally{
+        clearTimeout(modelTimer);
+        controller.signal.removeEventListener("abort",relayAbort);
       }
     }
     return false;
