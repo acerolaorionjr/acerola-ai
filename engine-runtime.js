@@ -138,7 +138,14 @@
         for (let attempt = 0; attempt <= retries; attempt++) {
           try {
             this._setStep(task, 1, 'thinking', '', 'Planning the request…');
-            const result = await this.core.runAgent(prepared.payload, { maxSteps, signal });
+            const needsAgentTools = /\b(?:generate|create|draw|make)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|logo|illustration|artwork|song|music|audio|video)\b|\b(?:edit|transform)\s+(?:this\s+)?(?:image|picture|photo)\b|\b(?:use|run|execute)\s+(?:the\s+)?(?:tool|action|command)\b/i.test(input);
+            let result;
+            if (needsAgentTools) {
+              result = await this.core.runAgent(prepared.payload, { maxSteps, signal });
+            } else {
+              await this.core.ensureGatewayReady(signal);
+              result = await this.core.gateway.complete({ ...prepared.payload, agent_mode: false }, signal);
+            }
             const trace = Array.isArray(result?.trace) ? result.trace : [];
             trace.forEach((item, index) => this._setStep(task, index + 1, item?.result?.ok === false ? 'failed' : 'completed', item?.tool || '', item?.tool ? 'Using ' + item.tool : 'Processing…'));
             const invalidTool = result?.trace?.find(item => item?.tool && !this._toolExists(item.tool));
