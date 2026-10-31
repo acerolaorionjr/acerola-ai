@@ -74,7 +74,7 @@ def test_browser_consumes_stream_deltas_and_renders_progressively():
 
 def test_streaming_scripts_use_fresh_cache_versions():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
-    assert "agent-core.js?v=1.6.5-20261031" in html
+    assert "agent-core.js?v=1.6.6-20261031" in html
     assert "engine-runtime.js?v=0.9.4-20261031" in html
 
 
@@ -109,3 +109,13 @@ def test_gemini_streaming_fallback_uses_valid_models_and_common_sse_contract():
     assert '"gemini-3.1-flash-lite"' in gateway
     assert 'type:"response.output_text.delta"' in gateway
     assert 'force_gemini_stream: true' in core
+
+
+
+def test_production_gateway_url_is_restored_and_preview_origins_are_not_allowlisted():
+    core = (ROOT / "agent-core.js").read_text(encoding="utf-8")
+    gateway = (ROOT / "supabase/functions/acerola-ai-gateway/index.ts").read_text(encoding="utf-8")
+    assert "functions/v1/acerola-ai-gateway';" in core
+    assert "acerola-ai-gateway-qa" not in core
+    assert "deploy-preview-5--acerola-ai.netlify.app" not in gateway
+    assert "fix-acerola-speed-reliability-20261031-acerola-ai.ikennabobo2011.workers.dev" not in gateway
