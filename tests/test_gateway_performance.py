@@ -38,6 +38,7 @@ def test_gateway_client_emits_timing_and_limits_retries():
     assert "acerola:gateway-timing" in source
     assert "response.headers.get('Server-Timing')" in source
     assert "const maxAttempts = 2;" in source
+    assert "setTimeout(() => timeout.abort(), 35000)" in source
 
 
 def test_notification_script_loads_before_account_and_reply_paths_dispatch_event():
