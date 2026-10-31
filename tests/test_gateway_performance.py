@@ -54,7 +54,8 @@ def test_gateway_streams_direct_openai_replies_as_server_sent_events():
     assert "streamResponse=false" in source
     assert "if(streamResponse)body.stream=true" in source
     assert "message,!Boolean(body.agent_mode)" in source
-    assert 'provider==="openai"&&!body.agent_mode&&upstream.body' in source
+    assert '!body.agent_mode&&!body.disable_stream&&upstream.body' in source
+    assert 'if(provider==="openai")' in source
     assert '"Content-Type":"text/event-stream; charset=utf-8"' in source
 
 
