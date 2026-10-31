@@ -1,10 +1,10 @@
-/* Acerola — Agent Core v1.5.9
+/* Acerola — Agent Core v1.5.10
  * Browser-safe orchestration layer. Provider secrets stay server-side.
  */
 (function (global) {
   'use strict';
 
-  const VERSION = '1.5.9';
+  const VERSION = '1.5.10';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
