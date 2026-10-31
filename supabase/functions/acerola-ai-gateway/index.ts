@@ -63,7 +63,7 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
 function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|research|look up|verify|fact[- ]?check|as of|this week|this month)\b|\bsearch(?:\s+(?:the\s+)?(?:web|internet|for))?\b|\b(?:give|provide|include|show|find)\s+(?:me\s+)?(?:the\s+)?(?:sources?|citations?)\b|\b(?:sources?|citations?)\s+(?:for|about)\b/i.test(text);}
 async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false,complexityText=""){
   const body:any={model,instructions,input,max_output_tokens:researchMode?7000:5000};
-  const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(input||""));
+  const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(complexityText||""));
   body.reasoning={effort:researchMode||complexity?"medium":"low"};
   if(useSearch){
     body.tools=[{type:"web_search",search_context_size:researchMode?"high":"medium"}];
