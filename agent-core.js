@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '1.5.0';
+  const VERSION = '1.6.6';
   const MEMORY_KEY = 'acerola-ai-memory-v1';
   const HISTORY_KEY = 'acerola-ai-history-v1';
   const DEFAULT_GATEWAY = 'https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway';
@@ -19,7 +19,24 @@
     remove(query) { const q = String(query || '').toLowerCase().trim(); if (!q) return 0; const before = this.items.length; this.items = this.items.filter(item => !item.toLowerCase().includes(q)); this._save(); return before - this.items.length; }
     clear() { this.items = []; this._save(); }
     recent(limit = 5) { return this.items.slice(-Math.max(0, Number(limit) || 5)).reverse(); }
-    search(query, limit = 8) { const q = String(query || '').toLowerCase().trim(); if (!q) return []; const terms = q.split(/\s+/).filter(Boolean); return this.items.map((text, index) => ({ text, index, score: terms.reduce((score, term) => score + (text.toLowerCase().includes(term) ? 1 : 0), 0) })).filter(item => item.score > 0).sort((a, b) => b.score - a.score || b.index - a.index).slice(0, Math.max(0, Number(limit) || 8)).map(item => item.text); }
+    search(query, limit = 8) {
+      const normalize = value => String(value || '').toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').replace(/\s+/g, ' ').trim();
+      const q = normalize(query);
+      if (!q) return [];
+      const terms = [...new Set(q.split(/\s+/).filter(term => term.length > 1))];
+      if (!terms.length) return [];
+      const requested = Number(limit);
+      const count = Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 8;
+      if (!count) return [];
+      return this.items.map((text, index) => {
+        const normalizedText = normalize(text);
+        const matched = terms.filter(term => normalizedText.includes(term)).length;
+        const phraseBoost = normalizedText.includes(q) ? terms.length + 2 : 0;
+        return { text, index, score: matched + phraseBoost + matched / terms.length };
+      }).filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || b.index - a.index)
+        .slice(0, count).map(item => item.text);
+    }
     all() { return [...this.items]; }
     replace(items) { this.items = Array.isArray(items) ? items.map(String) : []; this._save(); }
   }
@@ -154,7 +171,7 @@
         let onAbort = null;
         try {
           if (timeout) {
-            timer = setTimeout(() => timeout.abort(), 30000);
+            timer = setTimeout(() => timeout.abort(), 15000);
             if (parent) {
               onAbort = () => timeout.abort();
               if (parent.aborted) timeout.abort();
@@ -185,7 +202,7 @@
           global.dispatchEvent?.(new CustomEvent('acerola:gateway-retry', { detail: { attempt: nextAttempt, maxAttempts } }));
           // If Android reports no network, give the connection a moment to recover;
           // still retry on a timer because navigator.onLine can be inaccurate.
-          const delay = 650 * Math.pow(2, attempt);
+          const delay = Math.min(350 * Math.pow(2, attempt), 700);
           await new Promise((resolve, reject) => {
             let done = false;
             const finish = () => { if (done) return; done = true; clearTimeout(timerId); parent?.removeEventListener('abort', abort); resolve(); };
