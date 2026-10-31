@@ -26,17 +26,26 @@
   const sheet=document.createElement('div');sheet.className='account-sheet';sheet.innerHTML=`<div class="account-card"><button class="account-close" id="accClose">×</button><h2 id="accTitle">Acerola Account</h2><div class="account-muted" id="accSub">Sign in to keep your chats and memories across devices.</div><div id="accBody"></div></div>`;document.body.appendChild(sheet);
   const body=$('#accBody'),title=$('#accTitle'),sub=$('#accSub');
   function open(){sheet.classList.add('open');sheet.style.display='flex';sheet.style.zIndex='9999';document.body.classList.add('acerola-account-open');render()}function close(){sheet.classList.remove('open');sheet.style.display='none';document.body.classList.remove('acerola-account-open')}$('#accClose').onclick=close;sheet.onclick=e=>{if(e.target===sheet)close()};
+
+  const NOTIFY_KEY='acerola-ai-notifications-enabled';
+  function notificationsEnabled(){try{return localStorage.getItem(NOTIFY_KEY)==='true'}catch(_){return false}}
+  function notificationButtonMarkup(){return '<button class="account-btn secondary" id="enableNotifications">Enable reply notifications</button>'}
+  function bindNotifications(){const b=$('#enableNotifications'),msg=$('#accMsg');if(!b)return;const paint=()=>{b.textContent=notificationsEnabled()?'Reply notifications enabled ✓':'Enable reply notifications';};paint();b.onclick=async()=>{if(!('Notification' in window)){if(msg)msg.textContent='This browser does not support notifications. Keep Acerola open to see replies.';return}try{const permission=Notification.permission==='default'?await Notification.requestPermission():Notification.permission;if(permission!=='granted'){if(msg)msg.textContent='Notifications are blocked by your browser. Allow notifications for this site in browser settings.';return}localStorage.setItem(NOTIFY_KEY,'true');paint();if(msg)msg.textContent='Notifications enabled. Acerola can notify you when a reply is ready while this page is in the background.';new Notification('Acerola notifications enabled',{body:'You will be notified when Acerola finishes a reply while this page is in the background.'})}catch(error){if(msg)msg.textContent='Could not enable notifications: '+String(error?.message||error)}}}
+  function deliverBrowserNotification(message){if(!notificationsEnabled()||!('Notification' in window)||Notification.permission!=='granted'||!document.hidden)return;try{new Notification('Acerola', {body:String(message||'Acerola has replied.').slice(0,180),tag:'acerola-reply',icon:new URL('icon.svg',location.href).href})}catch(_){}}
+  window.addEventListener('acerola:notify',event=>{const message=String(event?.detail?.message||'Acerola notification').slice(0,240);let toast=document.getElementById('acerola-notification-toast');if(!toast){toast=document.createElement('div');toast.id='acerola-notification-toast';toast.style.cssText='position:fixed;z-index:10050;left:50%;bottom:calc(95px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(92vw,480px);padding:12px 16px;border:1px solid #343434;border-radius:14px;background:#202020;color:#fff;box-shadow:0 8px 30px #0008;font:13px/1.45 system-ui;';document.body.appendChild(toast)}toast.textContent=message;toast.style.display='block';clearTimeout(window.__acerolaToastTimer);window.__acerolaToastTimer=setTimeout(()=>{toast.style.display='none'},4500);deliverBrowserNotification(message)});
+  window.addEventListener('acerola:reply-ready',event=>deliverBrowserNotification(event?.detail?.message||'Acerola has replied.'));
+
   function oauthRedirect(){return new URL('./',location.href).href}
-  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button><div class="account-msg" id="accMsg"></div>`;
+  function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button>${notificationButtonMarkup()}<div class="account-msg" id="accMsg"></div>`;
     $('#google').onclick=async()=>{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)$('#accMsg').textContent=r.error.message};
-    $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
-  async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});r=u;if(!u.error){const p=await db.auth.updateUser({password});r=p}}else r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
+    $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true);bindNotifications()}
+  async function emailAuth(signup){const email=$('#email')?.value.trim()||'',password=$('#pass')?.value||'',msg=$('#accMsg');if(!email||!/^\S+@\S+\.\S+$/.test(email)||password.length<8){if(msg)msg.textContent='Enter a valid email and a password with at least 8 characters.';return}const buttons=[$('#login'),$('#signup')].filter(Boolean);buttons.forEach(b=>b.disabled=true);if(msg)msg.textContent=signup?'Creating your account…':'Signing in…';try{const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){r=await db.auth.updateUser({email,password,data:{name:email.split('@')[0]}})}else if(signup){r=await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]},emailRedirectTo:oauthRedirect()}})}else{r=await db.auth.signInWithPassword({email,password})}if(r?.error)throw r.error;if(signup){if(msg)msg.textContent='Account request submitted. Check your email for verification, then return here and log in. Your email is your account sign-in.';return}if(msg)msg.textContent='Signed in. Syncing your Acerola account…';setTimeout(()=>location.reload(),400)}catch(error){if(msg)msg.textContent=String(error?.message||'Account request failed. Check your connection and try again.')}finally{buttons.forEach(b=>b.disabled=false)}}
   function voices(){try{return globalThis.speechSynthesis?.getVoices?.()||[]}catch(_){return []}}
-  function refreshVoiceOptions(selected=''){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'');};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
-  function voiceOptions(selected){
+  function refreshVoiceOptions(selected='',language='en-NG'){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'',language);};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
+  function voiceOptions(selected,language='en-NG'){
     const vs=voices();
     if(!vs.length)return CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x||(!selected&&x==='marin')?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
-    const lang=p?.language||'en-NG';
+    const lang=language||'en-NG';
     const matches=vs.filter(v=>lang==='en'?/^en[-_]/i.test(v.lang):v.lang.toLowerCase()===lang.toLowerCase()||v.lang.toLowerCase().startsWith(lang.toLowerCase()+'-')||((lang==='en-NG'||lang==='en-GB'||lang==='en-US')&&/^en[-_]/i.test(v.lang)));
     const list=matches.length?matches:vs;
     const cloud=CLOUD_VOICES.map(x=>`<option value="cloud:${x}" ${String(selected)==='cloud:'+x?'selected':''}>Acerola ${esc(x)} — cloud voice</option>`).join('');
@@ -73,9 +82,9 @@
 </select></label>
       <label class="account-label">About me<textarea class="account-input account-textarea" id="aboutMe" maxlength="1000" placeholder="Tell Acerola about yourself, your interests, goals, or how you like to work.">${esc(p?.about_me||'')}</textarea></label>
       <div class="account-section-title">VOICE</div>
-      <div class="voice-grid"><div class="voice-row"><label>Voice profile</label><select id="voice">${voiceOptions(p?.voice_id||'')}</select></div><div class="voice-row"><label>Speech</label><button class="account-btn secondary" id="testVoice">Test voice</button></div></div>
+      <div class="voice-grid"><div class="voice-row"><label>Voice profile</label><select id="voice">${voiceOptions(p?.voice_id||'',p?.language||'en-NG')}</select></div><div class="voice-row"><label>Speech</label><button class="account-btn secondary" id="testVoice">Test voice</button></div></div>
       <button class="account-btn" id="saveProfile">Save profile</button>
-      <button class="account-btn secondary" id="sync">Sync chats & memories</button>
+      <button class="account-btn secondary" id="sync">Sync chats & memories</button>${notificationButtonMarkup()}
       <button class="account-btn secondary" id="logout">Log out</button>
       <div class="account-msg" id="accMsg">Your profile is private to your account. Acerola can use these details for personalization.</div>`;
     const save=async()=>{
@@ -83,11 +92,11 @@
       const r=await db.from('profiles').upsert(payload,{onConflict:'id'});const x=$('#accMsg');if(r.error){x.textContent='Could not save profile: '+r.error.message;return}localStorage.setItem('acerola-voice-id',payload.voice_id);x.textContent='Profile saved. Acerola will use it for personalization.';setTimeout(render,450)
     };
     $('#saveProfile').onclick=save;
-    speechSynthesis?.addEventListener?.('voiceschanged',()=>refreshVoiceOptions(p?.voice_id||''));refreshVoiceOptions(p?.voice_id||'');
+    globalThis.speechSynthesis?.addEventListener?.('voiceschanged',()=>refreshVoiceOptions(p?.voice_id||'',p?.language||'en-NG'));refreshVoiceOptions(p?.voice_id||'',p?.language||'en-NG');
     $('#voice').onchange=()=>localStorage.setItem('acerola-voice-id',$('#voice').value);
     $('#language').onchange=()=>{
       const sel=$('#voice');
-      if(sel){refreshVoiceOptions('');}
+      if(sel){refreshVoiceOptions('', $('#language').value||'en-NG');}
     };
     $('#testVoice').onclick=async()=>{
       const selected=String($('#voice').value||'');
@@ -108,7 +117,7 @@
       if(!globalThis.speechSynthesis||!globalThis.SpeechSynthesisUtterance){$('#accMsg').textContent='Browser speech is unavailable on this device. Use an Acerola cloud voice instead.';refreshVoiceOptions('cloud:marin');return}
       const u=new SpeechSynthesisUtterance('Hello. I am Acerola.');if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u);
     };
-    $('#sync').onclick=()=>sync(true);
+    $('#sync').onclick=()=>sync(true);bindNotifications();
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
   }
   async function sync(show){const {data:{session}}=await db.auth.getSession();if(!session)return;const uid=session.user.id;let local=[];try{local=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]')}catch{};for(const c of local){let {data:remote}=await db.from('conversations').select('id').eq('id',c.id).eq('user_id',uid).maybeSingle();if(!remote){await db.from('conversations').insert({id:c.id,user_id:uid,title:String(c.title||'New chat').slice(0,100),created_at:new Date(c.updatedAt||Date.now()).toISOString(),updated_at:new Date(c.updatedAt||Date.now()).toISOString()});}else await db.from('conversations').update({title:String(c.title||'New chat').slice(0,100),updated_at:new Date(c.updatedAt||Date.now()).toISOString()}).eq('id',c.id).eq('user_id',uid);for(const m of c.messages||[]){const stamp=Number(m.at||c.updatedAt||Date.now());const exists=await db.from('messages').select('id').eq('conversation_id',c.id).eq('user_id',uid).eq('role',m.role).eq('content',String(m.content||'')).limit(1);if(!exists.data?.length)await db.from('messages').insert({conversation_id:c.id,user_id:uid,role:m.role,content:String(m.content||'').slice(0,20000),created_at:new Date(stamp).toISOString()})}}
