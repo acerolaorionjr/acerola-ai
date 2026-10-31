@@ -121,3 +121,12 @@ def test_production_gateway_url_is_restored_and_preview_origins_are_not_allowlis
     assert "acerola-ai-gateway-qa" not in core
     assert "deploy-preview-5--acerola-ai.netlify.app" not in gateway
     assert "fix-acerola-speed-reliability-20261031-acerola-ai.ikennabobo2011.workers.dev" not in gateway
+
+
+def test_acerola_problem_solving_specialty_is_present_in_both_modes():
+    source = (ROOT / "supabase/functions/acerola-ai-gateway/index.ts").read_text(encoding="utf-8")
+    assert source.count("evidence-led problem-solving intelligence") >= 2
+    assert "investigate relevant evidence" in source
+    assert "diagnose the root cause" in source
+    assert "verify outcomes" in source
+    assert "Never claim verification, implementation, or deployment that did not happen." in source
