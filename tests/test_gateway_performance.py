@@ -64,6 +64,8 @@ def test_browser_consumes_stream_deltas_and_renders_progressively():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     assert "response.output_text.delta" in core
     assert "acerola:stream-delta" in core
+    assert "disable_stream: true" in core
+    assert "acerola:stream-reset" in core
     assert "needsAgentTools" in runtime
     assert "agent_mode: false" in runtime
     assert "acerola:stream-delta" in html
@@ -72,5 +74,5 @@ def test_browser_consumes_stream_deltas_and_renders_progressively():
 
 def test_streaming_scripts_use_fresh_cache_versions():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
-    assert "agent-core.js?v=1.6.1-20261031" in html
+    assert "agent-core.js?v=1.6.2-20261031" in html
     assert "engine-runtime.js?v=0.9.4-20261031" in html
