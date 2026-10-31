@@ -61,8 +61,9 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }
 function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|research|look up|verify|fact[- ]?check|as of|this week|this month)\b|\bsearch(?:\s+(?:the\s+)?(?:web|internet|for))?\b|\b(?:give|provide|include|show|find)\s+(?:me\s+)?(?:the\s+)?(?:sources?|citations?)\b|\b(?:sources?|citations?)\s+(?:for|about)\b/i.test(text);}
-async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false,complexityText=""){
+async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false,complexityText="",streamResponse=false){
   const body:any={model,instructions,input,max_output_tokens:researchMode?7000:5000};
+  if(streamResponse)body.stream=true;
   const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(complexityText||""));
   body.reasoning={effort:researchMode||complexity?"medium":"low"};
   if(useSearch){
@@ -209,7 +210,7 @@ Deno.serve(async(req:Request)=>{
       : [["gpt-6-luna",false],["gpt-6.1-sol",false],["gpt-6-astra",false]] as const;
     for(const [model,useSearch] of attempts){
       try{
-        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode,message);
+        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode,message,!Boolean(body.agent_mode));
         if(r.ok){
           upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";return true;
         }
@@ -234,6 +235,11 @@ Deno.serve(async(req:Request)=>{
     }
   }finally{clearTimeout(timer);}
   if(!upstream){console.error("Acerola provider failure",id,lastError);const code=lastError?.status===401||lastError?.status===403?"AI_AUTH_FAILED":lastError?.status===429?"AI_QUOTA_OR_RATE_LIMIT":lastError?.status===0?"AI_NETWORK_FAILED":"AI_UPSTREAM_FAILED";return json({error:"AI provider request failed",code,provider_status:lastError?.status||0,request_id:id},lastError?.status===429?503:502,origin,common);}
+  if(provider==="openai"&&!body.agent_mode&&upstream.body){
+    const streamTimer=setTimeout(()=>controller.abort(),30000),reader=upstream.body.getReader();
+    const stream=new ReadableStream<Uint8Array>({async pull(target){try{const part=await reader.read();if(part.done){clearTimeout(streamTimer);target.close();return;}target.enqueue(part.value);}catch(error){clearTimeout(streamTimer);target.error(error);}},async cancel(reason){clearTimeout(streamTimer);try{await reader.cancel(reason);}catch{}}});
+    return new Response(stream,{status:200,headers:{...baseHeaders(origin),...common,"Content-Type":"text/event-stream; charset=utf-8","Cache-Control":"no-cache, no-transform","Connection":"keep-alive","X-Accel-Buffering":"no","X-Acerola-Provider":provider,"X-Acerola-Model":usedModel}});
+  }
   let result:any;try{result=await upstream.json();}catch{return json({error:"AI provider returned invalid data",code:"AI_INVALID_RESPONSE",request_id:id},502,origin,common);}
   const reply=provider==="gemini"?extractGeminiReply(result):extractReply(result);
   const sources=provider==="openai"&&usedSearch?extractSources(result):[];
