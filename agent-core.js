@@ -65,6 +65,7 @@
     constructor({ endpoint = DEFAULT_GATEWAY, apiKey = SUPABASE_PUBLISHABLE_KEY } = {}) { this.endpoint = endpoint; this.apiKey = apiKey; this.accessToken = ''; }
     setAccessToken(token) { this.accessToken = token || ''; }
     async request(body, signal) {
+      const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const headers = { 'Content-Type': 'application/json', 'apikey': this.apiKey };
       if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
       let response;
@@ -80,14 +81,25 @@
         const requestId = detail?.request_id ? ` (request ${detail.request_id})` : '';
         throw new Error(`${detail?.error || `Gateway returned ${response.status}`}${code}${requestId}`);
       }
-      return response.json();
+      const data = await response.json();
+      try {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        global.dispatchEvent?.(new CustomEvent('acerola:gateway-timing', { detail: {
+          duration_ms: Math.round(now - startedAt),
+          server_timing: response.headers.get('Server-Timing') || '',
+          provider: response.headers.get('X-Acerola-Provider') || data?.provider || '',
+          model: response.headers.get('X-Acerola-Model') || data?.model || '',
+          request_id: response.headers.get('X-Request-Id') || data?.request_id || ''
+        }}));
+      } catch (_) {}
+      return data;
     }
     async complete(payload, signal) {
       const parent = signal;
       let lastError = null;
       // Retry transient network failures and internal timeouts, but never override
       // the user's Stop/Cancel action or retry ordinary auth/quota errors.
-      const maxAttempts = 3;
+      const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
         const timeout = typeof AbortController === 'function' ? new AbortController() : null;
