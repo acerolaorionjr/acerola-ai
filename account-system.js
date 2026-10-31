@@ -114,8 +114,44 @@
     $('#sync').onclick=()=>sync(true);bindNotifications();
     $('#logout').onclick=async()=>{await db.auth.signOut();location.reload()}
   }
-  async function sync(show){const {data:{session}}=await db.auth.getSession();if(!session)return;const uid=session.user.id;let local=[];try{local=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]')}catch{};for(const c of local){let {data:remote}=await db.from('conversations').select('id').eq('id',c.id).eq('user_id',uid).maybeSingle();if(!remote){await db.from('conversations').insert({id:c.id,user_id:uid,title:String(c.title||'New chat').slice(0,100),created_at:new Date(c.updatedAt||Date.now()).toISOString(),updated_at:new Date(c.updatedAt||Date.now()).toISOString()});}else await db.from('conversations').update({title:String(c.title||'New chat').slice(0,100),updated_at:new Date(c.updatedAt||Date.now()).toISOString()}).eq('id',c.id).eq('user_id',uid);for(const m of c.messages||[]){const stamp=Number(m.at||c.updatedAt||Date.now());const exists=await db.from('messages').select('id').eq('conversation_id',c.id).eq('user_id',uid).eq('role',m.role).eq('content',String(m.content||'')).limit(1);if(!exists.data?.length)await db.from('messages').insert({conversation_id:c.id,user_id:uid,role:m.role,content:String(m.content||'').slice(0,20000),created_at:new Date(stamp).toISOString()})}}
-    if(show){const x=$('#accMsg');if(x)x.textContent='Sync complete.'}
+  async function sync(show){
+    const status=()=>show?$('#accMsg'):null;
+    try{
+      const {data:{session},error:sessionError}=await db.auth.getSession();
+      if(sessionError)throw sessionError;
+      if(!session){if(show&&status())status().textContent='Sign in before syncing chats and memories.';return}
+      if(session.user?.is_anonymous){if(show&&status())status().textContent='Create or sign in to an email account before syncing across devices.';return}
+      let local=[];
+      try{local=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]')}catch(_){local=[]}
+      let syncedChats=0,syncedMessages=0,failures=0;
+      for(const chat of local){
+        const id=String(chat?.id||'');
+        if(!id)continue;
+        const timestamp=new Date(Number(chat.updatedAt||Date.now())).toISOString();
+        const titleText=String(chat.title||'New chat').slice(0,100);
+        const lookup=await db.from('conversations').select('id').eq('id',id).eq('user_id',session.user.id).maybeSingle();
+        if(lookup.error){failures++;continue}
+        const write=lookup.data
+          ? await db.from('conversations').update({title:titleText,updated_at:timestamp}).eq('id',id).eq('user_id',session.user.id)
+          : await db.from('conversations').insert({id,user_id:session.user.id,title:titleText,created_at:timestamp,updated_at:timestamp});
+        if(write.error){failures++;continue}
+        syncedChats++;
+        for(const message of (Array.isArray(chat.messages)?chat.messages:[])){
+          const role=['user','assistant','system'].includes(message?.role)?message.role:'assistant';
+          const content=String(message?.content||'').slice(0,20000);
+          if(!content)continue;
+          const stamp=Number(message.at||chat.updatedAt||Date.now());
+          const exists=await db.from('messages').select('id').eq('conversation_id',id).eq('user_id',session.user.id).eq('role',role).eq('content',content).limit(1);
+          if(exists.error){failures++;continue}
+          if(exists.data?.length)continue;
+          const inserted=await db.from('messages').insert({conversation_id:id,user_id:session.user.id,role,content,created_at:new Date(stamp).toISOString()});
+          if(inserted.error)failures++;else syncedMessages++;
+        }
+      }
+      if(show&&status())status().textContent=failures
+        ? 'Sync partly completed: '+syncedChats+' chats and '+syncedMessages+' messages synced; '+failures+' item(s) failed. Check your connection and retry.'
+        : 'Sync complete: '+syncedChats+' chats and '+syncedMessages+' messages synced.';
+    }catch(error){if(show&&status())status().textContent='Sync failed: '+String(error?.message||'Check your connection and try again.')}
   }
   // Persistent memory is owned by Agent Core -> gateway -> service-role path.
   // Browser code must never write directly to acerola_memory.
