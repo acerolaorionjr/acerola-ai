@@ -20,10 +20,10 @@
     clear() { this.items = []; this._save(); }
     recent(limit = 5) { return this.items.slice(-Math.max(0, Number(limit) || 5)).reverse(); }
     search(query, limit = 8) {
-      const normalize = value => String(value || '').toLowerCase().normalize('NFKC').replace(/[^\\p{L}\\p{N}\\s'-]/gu, ' ').replace(/\\s+/g, ' ').trim();
+      const normalize = value => String(value || '').toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').replace(/\s+/g, ' ').trim();
       const q = normalize(query);
       if (!q) return [];
-      const terms = [...new Set(q.split(/\\s+/).filter(term => term.length > 1))];
+      const terms = [...new Set(q.split(/\s+/).filter(term => term.length > 1))];
       if (!terms.length) return [];
       const requested = Number(limit);
       const count = Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 8;
@@ -104,7 +104,8 @@
       let lastError = null;
       // Retry transient network failures and internal timeouts, but never override
       // the user's Stop/Cancel action or retry ordinary auth/quota errors.
-      // Bound failure waits while preserving one retry for transient network faults.\n      const maxAttempts = 2;
+      // Bound failure waits while preserving one retry for transient network faults.
+      const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (parent?.aborted) throw new DOMException('Request cancelled.','AbortError');
         const timeout = typeof AbortController === 'function' ? new AbortController() : null;
