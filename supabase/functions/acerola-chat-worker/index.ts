@@ -13,16 +13,19 @@ function reply(body: unknown, status = 200) {
 }
 
 function normalizeReplyText(value: unknown): string {
-  const raw = String(value ?? "").trim();
-  const unfenced = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-  if (!unfenced.startsWith("{") || !unfenced.endsWith("}")) return raw;
-  try {
-    const parsed = JSON.parse(unfenced);
-    if (parsed && typeof parsed.message === "string" && parsed.message.trim()) {
-      return parsed.message.trim();
-    }
-  } catch { /* Keep ordinary model text unchanged when it only resembles JSON. */ }
-  return raw;
+  let current = String(value ?? "").trim();
+  for (let depth = 0; depth < 5; depth++) {
+    const unfenced = current.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    if (!unfenced.startsWith("{") || !unfenced.endsWith("}")) return current;
+    let parsed: any;
+    try { parsed = JSON.parse(unfenced); } catch { return current; }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return current;
+    const candidates = [parsed.message, parsed.reply, parsed.content, parsed.output_text, parsed.result?.message, parsed.data?.message];
+    const next = candidates.find((item: unknown) => typeof item === "string" && item.trim());
+    if (typeof next !== "string" || next.trim() === current) return "";
+    current = next.trim();
+  }
+  return current.startsWith("{") && current.endsWith("}") ? "" : current;
 }
 
 Deno.serve(async (req: Request) => {
