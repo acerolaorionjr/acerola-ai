@@ -82,13 +82,18 @@ async function processMembershipEvent(event: any, secret: string, serviceKey: st
     const customerEmail = String(data.customer?.email || data.customer?.customer_email || "").trim().toLowerCase();
     const planCode = String(data.plan?.plan_code || data.plan_code || "");
     if (!customerEmail || !planCode || !subscriptionCode) return;
-    const lookup = await dbRequest(
-      "acerola_memberships?select=id&email=eq." + encodeURIComponent(customerEmail) +
-      "&plan_code=eq." + encodeURIComponent(planCode) + "&status=in.(pending,active,non_renewing)&paystack_subscription_code=is.null&order=created_at.desc&limit=1",
-      serviceKey,
-    );
-    if (!lookup.ok) throw new Error("Pending membership lookup failed: " + await lookup.text());
-    const rows = await lookup.json();
+    const identity = "acerola_memberships?select=id&email=eq." + encodeURIComponent(customerEmail) +
+      "&plan_code=eq." + encodeURIComponent(planCode) + "&paystack_subscription_code=is.null&order=created_at.desc&limit=1";
+    // Prefer a membership already activated by charge.success. This prevents an
+    // abandoned, newer pending checkout from stealing the subscription link.
+    let lookup = await dbRequest(identity + "&status=in.(active,non_renewing)", serviceKey);
+    if (!lookup.ok) throw new Error("Active membership lookup failed: " + await lookup.text());
+    let rows = await lookup.json();
+    if (!rows.length) {
+      lookup = await dbRequest(identity + "&status=eq.pending", serviceKey);
+      if (!lookup.ok) throw new Error("Pending membership lookup failed: " + await lookup.text());
+      rows = await lookup.json();
+    }
     if (rows[0]?.id) {
       await updateMembership(rows[0].id, {
         paystack_subscription_code: subscriptionCode,
