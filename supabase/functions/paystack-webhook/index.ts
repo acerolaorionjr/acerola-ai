@@ -63,6 +63,17 @@ async function findBySubscription(code: string, serviceKey: string) {
   return rows[0] || null;
 }
 
+async function findCurrentByCustomer(email: string, planCode: string, serviceKey: string) {
+  if (!email || !planCode) return null;
+  const result = await dbRequest(
+    "acerola_memberships?select=id,user_id,tier,amount,plan_code,status,reference,paystack_subscription_code,next_payment_date&email=eq." + encodeURIComponent(email) + "&plan_code=eq." + encodeURIComponent(planCode) + "&status=in.(active,non_renewing,attention)&order=created_at.desc&limit=1",
+    serviceKey,
+  );
+  if (!result.ok) throw new Error("Customer membership lookup failed: " + await result.text());
+  const rows = await result.json();
+  return rows[0] || null;
+}
+
 async function updateMembership(id: string, patch: Record<string, unknown>, serviceKey: string) {
   const result = await dbRequest("acerola_memberships?id=eq." + encodeURIComponent(id), serviceKey, {
     method: "PATCH",
@@ -107,9 +118,14 @@ async function processMembershipEvent(event: any, secret: string, serviceKey: st
   }
 
   if (eventName === "charge.success") {
-    if (!reference.startsWith("ACEROLAMEM") && !subscriptionCode) return;
+    if (!reference && !subscriptionCode) return;
+    const customerEmail = String(data.customer?.email || data.customer?.customer_email || "").trim().toLowerCase();
+    const eventPlanCode = String(data.plan?.plan_code || data.plan_code || "");
     let membership = reference ? await findByReference(reference, serviceKey) : null;
     if (!membership && subscriptionCode) membership = await findBySubscription(subscriptionCode, serviceKey);
+    // Recurring charge references differ from the first checkout reference.
+    // If Paystack omits the subscription code, resolve only the current exact plan.
+    if (!membership && customerEmail && eventPlanCode) membership = await findCurrentByCustomer(customerEmail, eventPlanCode, serviceKey);
     if (!membership) return;
 
     // Never grant access from a webhook payload alone: independently verify
