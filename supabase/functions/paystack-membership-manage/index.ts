@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
           next_payment_date: membership.next_payment_date,
           last_payment_at: membership.last_payment_at,
           created_at: membership.created_at,
-          can_cancel: Boolean(membership.paystack_subscription_code && membership.paystack_email_token && membership.status === "active"),
+          can_cancel: Boolean(membership.paystack_subscription_code && membership.paystack_email_token && ["active", "attention"].includes(membership.status)),
         },
       });
     }
