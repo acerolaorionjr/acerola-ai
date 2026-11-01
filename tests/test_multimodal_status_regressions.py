@@ -12,7 +12,10 @@ def test_image_generation_forwards_reference_images():
 
 def test_research_indicator_requires_a_research_tool():
     source = (ROOT / "chatgpt-ux.js").read_text(encoding="utf-8")
-    assert "const isResearchTool=tool.includes('search')||tool.includes('research')||tool.startsWith('web.')" in source
+    assert "detail?.type==='step'" in source
+    assert "tool==='web_search'" in source
+    assert "tool==='web.search'" in source
+    assert "tool.startsWith('web.search')" in source
     assert "if(!isResearchTool)" in source
 
 def test_explicit_image_requests_bypass_general_planning():
