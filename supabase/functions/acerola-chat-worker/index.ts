@@ -14,7 +14,7 @@ function reply(body: unknown, status = 200) {
 
 function normalizeReplyText(value: unknown): string {
   const raw = String(value ?? "").trim();
-  const unfenced = raw.replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, "").trim();
+  const unfenced = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   if (!unfenced.startsWith("{") || !unfenced.endsWith("}")) return raw;
   try {
     const parsed = JSON.parse(unfenced);
