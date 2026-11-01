@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import webpush from "npm:web-push@3.6.7";
 
 const ALLOWED_ORIGINS = new Set(["https://acerolaorionjr.github.io", "http://localhost:3000", "http://localhost:5173"]);
 const headersFor = (origin: string | null) => {
@@ -35,7 +36,17 @@ Deno.serve(async (req: Request) => {
 
   const restHeaders = { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey, "Content-Type": "application/json" };
   if (req.method === "POST") {
-    let body: any;
+    let body: any;    if (body?.action === "subscribe") {
+      const subscription = body.subscription, endpoint = String(subscription?.endpoint || "");
+      if (!endpoint.startsWith("https://") || endpoint.length > 2048 || !subscription?.keys?.p256dh || !subscription?.keys?.auth) return json({ error: "Invalid push subscription" }, 400, origin);
+      const saved = await fetch(`${url}/rest/v1/acerola_push_subscriptions?on_conflict=endpoint`, {
+        method: "POST", headers: { ...restHeaders, Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ user_id: user.id, endpoint, subscription }),
+      });
+      if (!saved.ok) return json({ error: "Could not save push subscription" }, 502, origin);
+      return json({ ok: true, subscribed: true }, 200, origin);
+    }
+
     try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400, origin); }
     if (body?.action !== "submit") return json({ error: "Unknown action" }, 400, origin);
     const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -68,6 +79,17 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "GET") {
     const requestUrl = new URL(req.url);
+    if (requestUrl.searchParams.get("action") === "push_key") {
+      let keyResponse = await fetch(`${url}/rest/v1/rpc/get_acerola_vapid_keys`, { method: "POST", headers: restHeaders, body: "{}" });
+      let keys = keyResponse.ok ? await keyResponse.json() : [];
+      if (!Array.isArray(keys) || !keys[0]?.public_key || !keys[0]?.private_key) {
+        const generated = webpush.generateVAPIDKeys();
+        keyResponse = await fetch(`${url}/rest/v1/rpc/save_acerola_vapid_keys`, { method: "POST", headers: restHeaders, body: JSON.stringify({ p_public: generated.publicKey, p_private: generated.privateKey }) });
+        keys = keyResponse.ok ? await keyResponse.json() : [];
+      }
+      if (!keys?.[0]?.public_key) return json({ error: "Push notifications are not configured" }, 503, origin);
+      return json({ ok: true, public_key: keys[0].public_key }, 200, origin);
+    }
     const jobId = requestUrl.searchParams.get("job_id") || "";
     if (!/^[0-9a-f-]{36}$/i.test(jobId)) return json({ error: "A valid job_id is required" }, 400, origin);
     const result = await fetch(`${url}/rest/v1/acerola_chat_jobs?id=eq.${encodeURIComponent(jobId)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,status,response,error,attempts,created_at,updated_at,completed_at&limit=1`, { headers: restHeaders });
