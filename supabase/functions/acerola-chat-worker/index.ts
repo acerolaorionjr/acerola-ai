@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import webpush from "npm:web-push@3.6.7";
 
 const cors = {
   "Content-Type": "application/json; charset=utf-8",
@@ -67,6 +68,25 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({ p_job_id: job.job_id, p_response: data, p_error: null }),
       });
       if (!saved.ok) throw new Error("Could not save the completed reply");
+      try {
+        const [keyResult, subscriptionResult] = await Promise.all([
+          fetch(`${url}/rest/v1/rpc/get_acerola_vapid_keys`, { method: "POST", headers, body: "{}" }),
+          fetch(`${url}/rest/v1/acerola_push_subscriptions?user_id=eq.${encodeURIComponent(job.user_id)}&select=id,subscription`, { headers }),
+        ]);
+        const keys = keyResult.ok ? await keyResult.json() : [];
+        const subscriptions = subscriptionResult.ok ? await subscriptionResult.json() : [];
+        if (keys?.[0]?.public_key && keys?.[0]?.private_key && Array.isArray(subscriptions) && subscriptions.length) {
+          webpush.setVapidDetails("https://acerolaorionjr.github.io/acerola-ai/", keys[0].public_key, keys[0].private_key);
+          const payload = JSON.stringify({ title: "Acerola reply ready", body: String(data.reply || "Acerola has finished replying.").slice(0, 160), chatId: job.conversation_id, jobId: job.job_id });
+          await Promise.allSettled(subscriptions.map(async (sub: any) => {
+            try { await webpush.sendNotification(sub.subscription, payload, { TTL: 86400 }); }
+            catch (error: any) {
+              const status = Number(error?.statusCode || 0);
+              if (status === 404 || status === 410) await fetch(`${url}/rest/v1/acerola_push_subscriptions?id=eq.${encodeURIComponent(sub.id)}`, { method: "DELETE", headers });
+            }
+          }));
+        }
+      } catch (pushError) { console.warn("Acerola push delivery skipped:", pushError); }
       completed++;
     } catch (error) {
       await fetch(`${url}/rest/v1/rpc/finish_acerola_chat_job`, {
