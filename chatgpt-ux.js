@@ -86,7 +86,7 @@ const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats
 const getActiveChatId=()=>localStorage.getItem('acerola-ai-active-v6')||window.activeId||'';
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
 const unread=()=>{if(!window.__acerolaUnread){try{const saved=JSON.parse(localStorage.getItem('acerola_unread_v1')||'{}');window.__acerolaUnread=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{}}catch(_){window.__acerolaUnread={}}}return window.__acerolaUnread};
-async async function notifyReady(detail={}){
+async function notifyReady(detail={}){
   const title='Acerola reply ready';
   const body=String(detail.preview||'Acerola has finished replying.').slice(0,180);
   if(document.hidden&&'Notification'in window&&Notification.permission==='granted'){
