@@ -421,6 +421,41 @@
       const maxSteps = Math.min(6, Math.max(1, Number(options.maxSteps) || 4));
       let request = { ...payload, agent_mode: true };
       const trace = [];
+      // Route explicit image-creation requests straight to the image tool. This
+      // avoids a planner choosing unrelated web research for a media-generation task.
+      const imageIntent = /\\b(?:create|generate|draw|make|render|design|produce)\\b[\\s\\S]{0,100}\\b(?:image|picture|photo|portrait|poster|illustration|artwork)\\b/i.test(String(request.message || ''));
+      if (imageIntent && this.tools.has('media.generate_image')) {
+        const action = await this.executePlannedAction({
+          type: 'tool_call',
+          tool: 'media.generate_image',
+          arguments: { prompt: String(request.message || '').slice(0, 5000) }
+        }, request);
+        if (action?.ok && action.result?.image) {
+          return {
+            ok: true,
+            type: 'media_result',
+            media: {
+              kind: 'image',
+              image: action.result.image,
+              size: action.result.size || null,
+              quality: action.result.quality || null,
+              format: action.result.format || null,
+              model: action.result.model || null
+            },
+            trace: [{ step: 1, type: 'tool_call', tool: 'media.generate_image', result: action }],
+            steps: 1,
+            final: true
+          };
+        }
+        return {
+          ok: false,
+          reply: 'I could not generate that image. Please check the connection and try again.',
+          error: action?.error || 'Image generation failed.',
+          trace: [{ step: 1, type: 'tool_call', tool: 'media.generate_image', result: action }],
+          steps: 1,
+          final: true
+        };
+      }
       for (let step = 0; step < maxSteps; step++) {
         const output = await this.gateway.complete(request, options.signal);
         const plan = output?.plan && typeof output.plan === 'object'
