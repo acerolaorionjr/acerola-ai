@@ -93,7 +93,7 @@ async function processMembershipEvent(event: any, secret: string, serviceKey: st
       await updateMembership(rows[0].id, {
         paystack_subscription_code: subscriptionCode,
         paystack_customer_code: data.customer?.customer_code || null,
-        paystack_email_token: data.email_token || null,
+        paystack_email_token: data.email_token || data.subscription?.email_token || null,
         next_payment_date: data.next_payment_date || null,
         metadata: { webhook_event: eventName, subscription_attached_at: new Date().toISOString() },
       }, serviceKey);
