@@ -18,7 +18,7 @@ def test_job_api_requires_authenticated_user_and_limits_attachments():
     source = (ROOT / "supabase/functions/acerola-chat-jobs/index.ts").read_text()
     assert '"/auth/v1/user"' in source
     assert "create_acerola_chat_job" in source
-    assert "20*1024*1024" in source
+    assert "20 * 1024 * 1024" in source
 
 
 def test_worker_verifies_secret_and_calls_gateway():
