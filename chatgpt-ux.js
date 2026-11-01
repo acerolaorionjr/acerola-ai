@@ -237,6 +237,7 @@ window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chat
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
 document.addEventListener('click',e=>{if(e.target.closest('#history .chat-item'))setTimeout(markSeen,0)},true);
 window.addEventListener('acerola:notification-open',e=>{const chatId=String(e.detail?.chatId||'');if(!chatId)return;const item=[...document.querySelectorAll('#history .chat-item[data-id]')].find(b=>b.dataset.id===chatId);if(item)item.click();else{window.AcerolaUI?.openDrawer?.();setTimeout(()=>document.querySelector('#history .chat-item[data-id="'+CSS.escape(chatId)+'"]')?.click(),100)}});
+if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='ACEROLA_OPEN_CHAT'&&e.data.chatId)window.dispatchEvent(new CustomEvent('acerola:notification-open',{detail:{chatId:e.data.chatId}}))});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
 /* The main app already creates a fresh chat on boot. Do not create a second one here. */
