@@ -79,3 +79,34 @@ self.addEventListener('fetch', event => {
     })());
   }
 });
+
+self.addEventListener('notificationclick', event => {
+  const chatId = String(event.notification?.data?.chatId || '');
+  event.notification?.close();
+  event.waitUntil((async () => {
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientsList) {
+      if (client.url.startsWith(self.registration.scope)) {
+        await client.focus();
+        client.postMessage({ type: 'ACEROLA_OPEN_CHAT', chatId });
+        return;
+      }
+    }
+    const client = await self.clients.openWindow(self.registration.scope);
+    if (client) client.postMessage({ type: 'ACEROLA_OPEN_CHAT', chatId });
+  })());
+});
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch (_) {}
+  const chatId = String(payload.chatId || '');
+  const title = String(payload.title || 'Acerola reply ready').slice(0, 100);
+  const body = String(payload.body || 'Acerola has finished replying.').slice(0, 180);
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: new URL('./icon.svg', self.registration.scope).href,
+    tag: 'acerola-reply-' + (chatId || 'latest'),
+    renotify: true,
+    data: { chatId }
+  }));
+});
