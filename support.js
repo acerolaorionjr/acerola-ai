@@ -40,9 +40,11 @@
     document.querySelectorAll('[data-ac-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.acTab));document.querySelectorAll('[data-ac-amount]').forEach(b=>b.onclick=()=>selectAmount(Number(b.dataset.acAmount)));
     $('#acCustom').oninput=()=>{if($('#acCustom').value)document.querySelectorAll('[data-ac-amount]').forEach(b=>b.classList.remove('active'))};
     $('#acDonatePay').onclick=()=>start({email:$('#acEmail').value.trim(),amount:amount(),product:'donation',button:$('#acDonatePay')});$('#acProPay').onclick=()=>start({email:$('#acProEmail').value.trim(),amount:1000,product:'premium',button:$('#acProPay')});
+    document.querySelectorAll('[data-ac-subscribe]').forEach(b=>b.onclick=()=>startMembership(b.dataset.acSubscribe));
+    $('#acMembershipRefresh').onclick=refreshMembership;$('#acMembershipCancel').onclick=cancelMembership;$('#acMembershipUpdate').onclick=updateMembershipPayment;
   }
   function open(tab='donate'){mount();$('#acSupportBg').classList.add('open');document.body.style.overflow='hidden';if(tab)switchTab(tab)}function close(){const x=$('#acSupportBg');if(x)x.classList.remove('open');document.body.style.overflow=''}
-  function switchTab(tab){document.querySelectorAll('[data-ac-tab]').forEach(b=>b.classList.toggle('active',b.dataset.acTab===tab));$('#acDonate').classList.toggle('active',tab==='donate');$('#acPro').classList.toggle('active',tab==='pro');setStatus('Secure Paystack checkout · NGN')}
+  function switchTab(tab){document.querySelectorAll('[data-ac-tab]').forEach(b=>b.classList.toggle('active',b.dataset.acTab===tab));$('#acDonate').classList.toggle('active',tab==='donate');$('#acPro').classList.toggle('active',tab==='pro');$('#acMembership').classList.toggle('active',tab==='membership');if(tab==='membership')refreshMembership();setStatus('Secure Paystack checkout · NGN')}
   function selectAmount(n){selected=n;$('#acCustom').value=String(n);document.querySelectorAll('[data-ac-amount]').forEach(b=>b.classList.toggle('active',Number(b.dataset.acAmount)===n));$('#acCustom').focus();$('#acCustom').select()}function amount(){const raw=$('#acCustom').value.trim();const n=raw?Number(raw):selected;return Number.isFinite(n)&&n>=100&&n<=1000000?Math.round(n):null}
   function setStatus(t,type=''){const x=$('#acStatus');x.textContent=t;x.className='ac-status'+(type?' '+type:'')}function stop(){if(poll){clearInterval(poll);poll=null}}
   async function post(url,body){const c=new AbortController(),timer=setTimeout(()=>c.abort(),15000);try{let headers={'Content-Type':'application/json'};try{if(window.supabase?.createClient){const db=window.supabase.createClient(SUPA_URL,'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7');const {data:{session}}=await db.auth.getSession();if(session?.access_token)headers.Authorization='Bearer '+session.access_token;}}catch(_){}const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:c.signal});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Server request failed');return d}finally{clearTimeout(timer)}}
@@ -50,6 +52,38 @@
   async function wait(reference,amt,product,buttons){stop();let tries=0;const check=async()=>{tries++;try{const ok=await verify(reference,amt,product);if(ok){stop();buttons.forEach(b=>b.disabled=false);return}}catch(e){if(tries>=60){stop();setStatus('Verification is taking longer than expected. Check your receipt and try again.','error');buttons.forEach(b=>b.disabled=false);return}setStatus('Waiting for Paystack confirmation…')}};await check();if(!poll)poll=setInterval(check,5000)}
   function loadPaystack(){return new Promise((resolve,reject)=>{if(window.PaystackPop)return resolve();const s=document.createElement('script');s.src='https://js.paystack.co/v2/inline.js';s.onload=resolve;s.onerror=()=>reject(new Error('Paystack checkout could not load.'));document.head.appendChild(s)})}
   async function start({email,amount:amt,product,button}){if(product==='premium')amt=1000;if(!amt){setStatus('Enter an amount from ₦100 to ₦1,000,000.','error');return}if(!/^\S+@\S+\.\S+$/.test(email)){setStatus('Enter a valid email for the payment receipt.','error');return}button.disabled=true;const buttons=[$('#acDonatePay'),$('#acProPay')];buttons.forEach(b=>b.disabled=true);setStatus('Preparing secure checkout…');try{await loadPaystack();const init=await post(INIT_URL,{email,amount:amt,product,source:'acerola-core'});if(!init.success||!init.access_code||!init.reference)throw new Error(init.error||'Unable to initialize payment');setStatus('Opening secure Paystack checkout…');const popup=new PaystackPop();popup.resumeTransaction(init.access_code);setStatus('Complete the payment in Paystack…');await wait(init.reference,amt,product,buttons)}catch(e){stop();setStatus(e.name==='AbortError'?'Payment service timed out. Try again.':(e.message||'Unable to start payment.'),'error');buttons.forEach(b=>b.disabled=false)}}
+  async function membershipPost(body){
+    if(!window.supabase?.createClient)throw new Error('Sign-in service is unavailable. Reload and try again.');
+    const db=window.supabase.createClient(SUPA_URL,'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7');
+    const {data:{session}}=await db.auth.getSession();
+    if(!session?.access_token)throw new Error('Sign in to Acerola before subscribing or managing a membership.');
+    const endpoint=body.action?'paystack-membership-manage':'paystack-subscription';
+    const r=await fetch(SUPA_URL+'/functions/v1/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7'},body:JSON.stringify(body),cache:'no-store'});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Membership request failed.");return d;
+  }
+  async function startMembership(tier){
+    const buttons=[...document.querySelectorAll('[data-ac-subscribe]')];buttons.forEach(b=>b.disabled=true);setStatus('Preparing secure monthly checkout…');
+    try{const d=await membershipPost({tier});if(!d.authorization_url)throw new Error("Paystack did not return a checkout link.");setStatus("Redirecting to secure Paystack checkout…","ok");location.href=d.authorization_url}
+    catch(e){setStatus(e.message||"Could not start membership checkout.","error");buttons.forEach(b=>b.disabled=false)}
+  }
+  async function refreshMembership(){
+    const state=$('#acMembershipState');if(!state)return;state.textContent='Checking membership…';$('#acMembershipCancel').hidden=true;$('#acMembershipUpdate').hidden=true;
+    try{
+      const d=await membershipPost({action:'status'}),m=d.membership;
+      if(!m){state.textContent='No monthly membership found. Choose a tier above to join.';document.body.dataset.acMembershipTier='';return}
+      const names={standard:'Standard',premium:'Premium',ultimate:'Ultimate'},statuses={active:'Active · auto-renewal on',non_renewing:'Active until paid-through date · will not renew',attention:'Payment needs attention',pending:'Awaiting payment confirmation',cancelled:'Cancelled',disabled:'Disabled',expired:'Expired'};
+      state.textContent=(names[m.tier]||m.tier)+' · ₦'+Number(m.amount).toLocaleString('en-NG')+'/month · '+(statuses[m.status]||m.status)+(m.next_payment_date?' · Next payment: '+new Date(m.next_payment_date).toLocaleDateString():'');
+      $('#acMembershipCancel').hidden=!m.can_cancel;$('#acMembershipUpdate').hidden=!(m.status==='active'||m.status==='attention');document.body.dataset.acMembershipTier=m.entitled?m.tier:'';
+    }catch(e){state.textContent=e.message||'Could not load membership status.'}
+  }
+  async function cancelMembership(){
+    if(!confirm('Turn off automatic renewal for your Acerola membership? Your current paid access will remain until its end date.'))return;
+    const b=$('#acMembershipCancel');b.disabled=true;setStatus('Requesting cancellation…');
+    try{const d=await membershipPost({action:'cancel'});setStatus(d.message||'Auto-renewal turned off.','ok');await refreshMembership()}catch(e){setStatus(e.message||'Could not cancel membership.','error')}finally{b.disabled=false}
+  }
+  async function updateMembershipPayment(){
+    const b=$('#acMembershipUpdate');b.disabled=true;try{const d=await membershipPost({action:'update-payment'});if(!d.url)throw new Error('No secure payment update link was returned.');window.open(d.url,'_blank','noopener,noreferrer');setStatus('Secure Paystack payment update page opened.','ok')}catch(e){setStatus(e.message||'Could not open payment update page.','error')}finally{b.disabled=false}
+  }
   function addCoreLink(){const drawer=$('#drawer');if(drawer&&!$('#acDrawerSupport')){const box=document.createElement('button');box.id='acDrawerSupport';box.type='button';box.className='ac-drawer-launch';box.innerHTML='<span style="font-size:20px;color:#20f6ff">✦</span><span><b>Support Acerola · Unlock Pro</b><small>Back the project and activate Pro features</small></span>';const foot=drawer.querySelector('.drawer-foot');drawer.insertBefore(box,foot||null);box.onclick=()=>open('pro')}const head=document.querySelector('.top');if(head&&!$('#acHeaderSupport')){const b=document.createElement('button');b.id='acHeaderSupport';b.type='button';b.className='ac-support-launch';b.innerHTML='✦ <span>Support</span>';b.setAttribute('aria-label','Support Acerola and unlock Pro');b.onclick=()=>open('pro');const anchor=$('#headerNew')||$('#about');head.insertBefore(b,anchor||null)}}
   function isPro(){return localStorage.getItem('acerola-premium-unlocked')==='1'}
   function applyProTheme(theme){if(!isPro())return;const allowed=['nebula','aurora','ember'];const chosen=allowed.includes(theme)?theme:'nebula';document.body.dataset.acProTheme=chosen;localStorage.setItem('acerola-pro-theme',chosen);if($('#acProTheme'))$('#acProTheme').value=chosen}
@@ -70,4 +104,5 @@
   }
   mount();addCoreLink();refreshProUI();syncProEntitlement();window.addEventListener('acerola:pro-ready',refreshProUI);window.addEventListener('storage',e=>{if(e.key==='acerola-premium-unlocked')refreshProUI()});const obs=new MutationObserver(addCoreLink);obs.observe(document.body,{childList:true,subtree:true});window.AcerolaSupport={open,close};
   if(new URLSearchParams(location.search).get('support')==='1')setTimeout(()=>open('pro'),250);
+  if(new URLSearchParams(location.search).has('membership'))setTimeout(()=>{open('membership');let n=0;const timer=setInterval(async()=>{await refreshMembership();if(++n>=12)clearInterval(timer)},5000)},500);
 })();
