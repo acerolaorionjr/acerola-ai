@@ -102,7 +102,7 @@ async function processMembershipEvent(event: any, secret: string, serviceKey: st
   }
 
   if (eventName === "charge.success") {
-    if (!reference.startsWith("ACEROLA_MEM_") && !subscriptionCode) return;
+    if (!reference.startsWith("ACEROLAMEM") && !subscriptionCode) return;
     let membership = reference ? await findByReference(reference, serviceKey) : null;
     if (!membership && subscriptionCode) membership = await findBySubscription(subscriptionCode, serviceKey);
     if (!membership) return;
