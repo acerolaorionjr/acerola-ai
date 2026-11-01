@@ -12,6 +12,19 @@ function reply(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: cors });
 }
 
+function normalizeReplyText(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const unfenced = raw.replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, "").trim();
+  if (!unfenced.startsWith("{") || !unfenced.endsWith("}")) return raw;
+  try {
+    const parsed = JSON.parse(unfenced);
+    if (parsed && typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+  } catch { /* Keep ordinary model text unchanged when it only resembles JSON. */ }
+  return raw;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
@@ -55,6 +68,7 @@ Deno.serve(async (req: Request) => {
         signal: AbortSignal.timeout(65000),
       });
       const data = await response.json().catch(() => ({}));
+      if (typeof data?.reply === "string") data.reply = normalizeReplyText(data.reply);
       if (!response.ok || !data?.ok || !data?.reply) {
         const reason = String(data?.error || data?.code || `Gateway returned HTTP ${response.status}`);
         await fetch(`${url}/rest/v1/rpc/finish_acerola_chat_job`, {
