@@ -34,3 +34,17 @@ def test_background_chat_client_persists_and_resumes_job_ids():
     assert "resumePendingBackgroundJobs()" in source
     assert "acerola-chat-jobs" in source
     assert "shouldQueueBackground(text,selected)" in source
+
+def test_web_push_keys_and_subscriptions_are_server_managed():
+    sql = (ROOT / "supabase/migrations/20261101125640_add_acerola_web_push_subscriptions.sql").read_text()
+    jobs = (ROOT / "supabase/functions/acerola-chat-jobs/index.ts").read_text()
+    worker = (ROOT / "supabase/functions/acerola-chat-worker/index.ts").read_text()
+    ux = (ROOT / "chatgpt-ux.js").read_text()
+    sw = (ROOT / "sw.js").read_text()
+    assert "enable row level security" in sql
+    assert "vault.create_secret" in sql
+    assert "action === \"subscribe\"" in jobs
+    assert "generateVAPIDKeys" in jobs
+    assert "sendNotification" in worker
+    assert "acerolaEnablePush" in ux
+    assert "self.addEventListener('push'" in sw
