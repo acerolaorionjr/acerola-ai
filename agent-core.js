@@ -88,15 +88,23 @@
 
   function normalizeGatewayResponse(result) {
     if (!result || typeof result !== 'object') return result;
-    const raw = typeof result.reply === 'string' ? result.reply.trim() : '';
-    if (result.plan?.message && raw.startsWith('{')) return { ...result, reply: String(result.plan.message) };
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') return { ...result, reply: parsed.message, plan: result.plan || parsed };
-      } catch (_) {}
+    let reply = typeof result.reply === 'string' ? result.reply.trim() : '';
+    let plan = result.plan || null;
+    // Unwrap nested serialized final envelopes before exposing replies to the UI.
+    for (let depth = 0; depth < 4 && reply.startsWith('{') && reply.endsWith('}'); depth++) {
+      let parsed;
+      try { parsed = JSON.parse(reply); } catch (_) { break; }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) break;
+      if (!plan && parsed.plan && typeof parsed.plan === 'object') plan = parsed.plan;
+      const candidates = [parsed.message, parsed.reply, parsed.content, parsed.output_text, parsed.result?.message, parsed.data?.message];
+      const next = candidates.find(value => typeof value === 'string' && value.trim());
+      if (typeof next !== 'string' || next.trim() === reply) break;
+      reply = next.trim();
     }
-    return result;
+    if ((!reply || /^\s*\{/.test(reply)) && typeof plan?.message === 'string' && plan.message.trim()) reply = plan.message.trim();
+    return reply !== (typeof result.reply === 'string' ? result.reply.trim() : '')
+      ? { ...result, reply, ...(plan ? { plan } : {}) }
+      : result;
   }
 
   class ModelGateway {
