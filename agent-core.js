@@ -255,12 +255,12 @@
         .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression')
         .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola interface')
         .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola interface')
-        .register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png' } = {}) => {
+        .register('media.generate_image', async ({ prompt, images = [], size = '1024x1024', quality = 'auto', output_format = 'png' } = {}) => {
           if (!this.gateway.accessToken) throw new Error('Acerola authentication is not ready.');
           const response = await fetch(`${SUPABASE_URL}/functions/v1/acerola-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${this.gateway.accessToken}` },
-            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), size, quality, output_format })
+            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), images: Array.isArray(images) ? images.filter(image => image && typeof image.data === 'string' && /^data:image\/(?:jpeg|png|webp);base64,/i.test(image.data)).slice(0, 4).map(image => ({ name: String(image.name || 'reference').slice(0, 160), mime_type: String(image.mime_type || image.mime || 'image/jpeg'), data: image.data })) : [], size, quality, output_format })
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data?.image) throw new Error(data?.error || `Image generation failed (${response.status})`);
@@ -421,6 +421,41 @@
       const maxSteps = Math.min(6, Math.max(1, Number(options.maxSteps) || 4));
       let request = { ...payload, agent_mode: true };
       const trace = [];
+      // Route explicit image-creation requests straight to the image tool. This
+      // avoids a planner choosing unrelated web research for a media-generation task.
+      const imageIntent = /\b(?:create|generate|draw|make|render|design|produce)\b[\s\S]{0,100}\b(?:image|picture|photo|portrait|poster|illustration|artwork)\b/i.test(String(request.message || ''));
+      if (imageIntent && this.tools.has('media.generate_image')) {
+        const action = await this.executePlannedAction({
+          type: 'tool_call',
+          tool: 'media.generate_image',
+          arguments: { prompt: String(request.message || '').slice(0, 5000) }
+        }, request);
+        if (action?.ok && action.result?.image) {
+          return {
+            ok: true,
+            type: 'media_result',
+            media: {
+              kind: 'image',
+              image: action.result.image,
+              size: action.result.size || null,
+              quality: action.result.quality || null,
+              format: action.result.format || null,
+              model: action.result.model || null
+            },
+            trace: [{ step: 1, type: 'tool_call', tool: 'media.generate_image', result: action }],
+            steps: 1,
+            final: true
+          };
+        }
+        return {
+          ok: false,
+          reply: 'I could not generate that image. Please check the connection and try again.',
+          error: action?.error || 'Image generation failed.',
+          trace: [{ step: 1, type: 'tool_call', tool: 'media.generate_image', result: action }],
+          steps: 1,
+          final: true
+        };
+      }
       for (let step = 0; step < maxSteps; step++) {
         const output = await this.gateway.complete(request, options.signal);
         const plan = output?.plan && typeof output.plan === 'object'
