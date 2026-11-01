@@ -423,7 +423,7 @@
       const trace = [];
       // Route explicit image-creation requests straight to the image tool. This
       // avoids a planner choosing unrelated web research for a media-generation task.
-      const imageIntent = /\\b(?:create|generate|draw|make|render|design|produce)\\b[\\s\\S]{0,100}\\b(?:image|picture|photo|portrait|poster|illustration|artwork)\\b/i.test(String(request.message || ''));
+      const imageIntent = /\b(?:create|generate|draw|make|render|design|produce)\b[\s\S]{0,100}\b(?:image|picture|photo|portrait|poster|illustration|artwork)\b/i.test(String(request.message || ''));
       if (imageIntent && this.tools.has('media.generate_image')) {
         const action = await this.executePlannedAction({
           type: 'tool_call',
