@@ -14,3 +14,9 @@ def test_research_indicator_requires_a_research_tool():
     source = (ROOT / "chatgpt-ux.js").read_text(encoding="utf-8")
     assert "const isResearchTool=tool.includes('search')||tool.includes('research')||tool.startsWith('web.')" in source
     assert "if(!isResearchTool)" in source
+
+def test_explicit_image_requests_bypass_general_planning():
+    source = (ROOT / "agent-core.js").read_text(encoding="utf-8")
+    assert "const imageIntent =" in source
+    assert "this.executePlannedAction" in source
+    assert "tool: 'media.generate_image'" in source
