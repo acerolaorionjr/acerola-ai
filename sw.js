@@ -92,7 +92,9 @@ self.addEventListener('notificationclick', event => {
         return;
       }
     }
-    const client = await self.clients.openWindow(self.registration.scope);
+    const target = new URL(self.registration.scope);
+    if (chatId) target.searchParams.set('acerola_chat', chatId);
+    const client = await self.clients.openWindow(target.href);
     if (client) client.postMessage({ type: 'ACEROLA_OPEN_CHAT', chatId });
   })());
 });
