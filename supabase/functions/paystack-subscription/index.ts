@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     const existingResponse = await fetch(
       supabaseUrl + "/rest/v1/acerola_memberships?select=id,status,next_payment_date&user_id=eq." +
-        encodeURIComponent(user.id) + "&status=in.(active,non_renewing)&limit=10",
+        encodeURIComponent(user.id) + "&status=in.(active,non_renewing,attention)&limit=10",
       { headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey } },
     );
     if (!existingResponse.ok) {
@@ -76,10 +76,10 @@ Deno.serve(async (req) => {
     const existing = await existingResponse.json();
     const now = Date.now();
     const stillEntitled = Array.isArray(existing) && existing.some((row) =>
-      row.status === "active" || (row.status === "non_renewing" && row.next_payment_date && Date.parse(row.next_payment_date) > now)
+      row.status === "active" || row.status === "attention" || (row.status === "non_renewing" && row.next_payment_date && Date.parse(row.next_payment_date) > now)
     );
     if (stillEntitled) {
-      return send({ error: "You already have an active membership. Manage or cancel it before changing plans.", code: "MEMBERSHIP_EXISTS" }, 409);
+      return send({ error: "You already have a membership that needs attention or is still active. Manage, update, or cancel it before choosing another plan.", code: "MEMBERSHIP_EXISTS" }, 409);
     }
 
     const reference = "ACEROLAMEM" + crypto.randomUUID().replaceAll("-", "");
