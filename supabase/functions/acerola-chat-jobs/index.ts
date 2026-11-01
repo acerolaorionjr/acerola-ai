@@ -36,7 +36,9 @@ Deno.serve(async (req: Request) => {
 
   const restHeaders = { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey, "Content-Type": "application/json" };
   if (req.method === "POST") {
-    let body: any;    if (body?.action === "subscribe") {
+    let body: any;
+    try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400, origin); }
+    if (body?.action === "subscribe") {
       const subscription = body.subscription, endpoint = String(subscription?.endpoint || "");
       if (!endpoint.startsWith("https://") || endpoint.length > 2048 || !subscription?.keys?.p256dh || !subscription?.keys?.auth) return json({ error: "Invalid push subscription" }, 400, origin);
       const saved = await fetch(`${url}/rest/v1/acerola_push_subscriptions?on_conflict=endpoint`, {
@@ -46,8 +48,6 @@ Deno.serve(async (req: Request) => {
       if (!saved.ok) return json({ error: "Could not save push subscription" }, 502, origin);
       return json({ ok: true, subscribed: true }, 200, origin);
     }
-
-    try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400, origin); }
     if (body?.action !== "submit") return json({ error: "Unknown action" }, 400, origin);
     const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
     const message = String(payload.message || "").trim();
