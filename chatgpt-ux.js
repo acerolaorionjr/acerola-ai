@@ -85,12 +85,15 @@ let menu=null,longTimer=null,downX=0,downY=0,progressTimer=null,chatSearchQuery=
 const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats-v6')||'[]')}catch(_){return[]}};
 const getActiveChatId=()=>localStorage.getItem('acerola-ai-active-v6')||window.activeId||'';
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
-const unread=()=>window.__acerolaUnread||(window.__acerolaUnread={});
+const unread=()=>{if(!window.__acerolaUnread){try{const saved=JSON.parse(localStorage.getItem('acerola_unread_v1')||'{}');window.__acerolaUnread=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{}}catch(_){window.__acerolaUnread={}}}return window.__acerolaUnread};
 function notifyReady(detail={}){
   const title='Acerola reply ready';
-  const body=detail.preview||'Acerola has finished replying.';
-  if(document.hidden&&'Notification'in window){
-    if(Notification.permission==='granted')new Notification(title,{body,icon:'icon.svg',tag:'acerola-reply'});
+  const body=String(detail.preview||'Acerola has finished replying.').slice(0,180);
+  if(document.hidden&&'Notification'in window&&Notification.permission==='granted'){
+    try{
+      const notification=new Notification(title,{body,icon:'icon.svg',tag:'acerola-reply-'+String(detail.chatId||'latest'),renotify:true});
+      notification.onclick=()=>{try{window.focus();window.dispatchEvent(new CustomEvent('acerola:notification-open',{detail:{chatId:detail.chatId||''}}))}catch(_){}notification.close()};
+    }catch(error){console.warn('Acerola desktop notification unavailable:',error)}
   }
   try{window.dispatchEvent(new CustomEvent('acerola:reply-notification',{detail:{title,body,...detail}}))}catch(_){}
 }
@@ -101,7 +104,7 @@ async function enableNotifications(){
 function markSeen(){
   const id=getActiveChatId();
   if(id&&unread()[id]){delete unread()[id];saveUnread()}
-  const h=$('#history');h?.querySelectorAll('.chat-item').forEach(b=>b.querySelector('.chat-unread-dot')?.remove());
+  renderUnread();
 }
 function renderUnread(){
   const u=unread(),h=$('#history');if(!h)return;
@@ -219,12 +222,14 @@ function researchLive(detail){
 }
 function finishResearch(){document.querySelector('.acerola-research-live')?.remove()}
 function observe(){
- enhanceHistory();attachMessageLongPress();collapseSources();sanitizeRenderedReplies();
+ enhanceHistory();attachMessageLongPress();collapseSources();sanitizeRenderedReplies();renderUnread();
  const inner=$('.inner');if(inner&&!inner.dataset.uxObserver){inner.dataset.uxObserver='1';new MutationObserver(()=>{enhanceHistory();attachMessageLongPress();collapseSources()}).observe(inner,{childList:true,subtree:true})}
 }
 window.addEventListener('acerola:engine-task',e=>{researchLive(e.detail);if(e.detail?.type==='complete'||e.detail?.type==='failed')finishResearch()});
 window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&d.chatId!==getActiveChatId()){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
+document.addEventListener('click',e=>{if(e.target.closest('#history .chat-item'))setTimeout(markSeen,0)},true);
+window.addEventListener('acerola:notification-open',e=>{const chatId=String(e.detail?.chatId||'');if(!chatId)return;const item=[...document.querySelectorAll('#history .chat-item[data-id]')].find(b=>b.dataset.id===chatId);if(item)item.click();else{window.AcerolaUI?.openDrawer?.();setTimeout(()=>document.querySelector('#history .chat-item[data-id="'+CSS.escape(chatId)+'"]')?.click(),100)}});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
 /* The main app already creates a fresh chat on boot. Do not create a second one here. */
