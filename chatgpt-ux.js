@@ -215,17 +215,17 @@ function researchLive(detail){
  const t=detail?.task||{};
  const tool=String(t.currentTool||'').toLowerCase();
  const msg=String(t.stepMessage||'').trim();
- const isResearchTool=tool.includes('search')||tool.includes('research')||tool.startsWith('web.');
+ const isResearchTool=detail?.type==='step'&&(tool==='web_search'||tool==='web.search'||tool==='search_web'||tool==='browser.search'||tool.startsWith('web.search'));
  // Do not label generic actions (especially image generation) as research.
  if(!isResearchTool){if(detail?.type==='complete'||detail?.type==='failed')finishResearch();return}
  if(detail?.type==='complete'||detail?.type==='failed'){finishResearch();return}
  let box=$('.acerola-research-live');
- if(!box){box=document.createElement('div');box.className='acerola-research-live';box.innerHTML='<b>Researching…</b><div class="research-places"></div>';$('.inner')?.appendChild(box)}
+ if(!box){box=document.createElement('div');box.className='acerola-research-live';box.innerHTML='<b>Checking sources…</b><div class="research-places"></div>';$('.inner')?.appendChild(box)}
  const places=box.querySelector('.research-places');
  const candidates=msg.split(' ').filter(x=>x.startsWith('http://')||x.startsWith('https://')).slice(-8);
  const unique=[...new Set(candidates)];
  if(unique.length)places.innerHTML=unique.map(x=>'<span class="research-place">'+esc(x.replace('https://','').replace('http://',''))+'</span>').join('');
- box.querySelector('b').textContent=msg&&/search|research|source|web/i.test(msg)?msg:'Researching…';
+ box.querySelector('b').textContent=msg&&/search|research|source|web/i.test(msg)?msg:'Checking sources…';
  messages?.scrollTo?.({top:messages.scrollHeight,behavior:'smooth'});
 }
 function finishResearch(){document.querySelector('.acerola-research-live')?.remove()}
