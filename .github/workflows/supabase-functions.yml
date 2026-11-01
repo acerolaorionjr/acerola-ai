@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for function in acerola-ai-gateway acerola-image acerola-audio acerola-music acerola-live-session paystack-payment paystack-verify paystack-webhook; do
+          for function in acerola-ai-gateway acerola-image acerola-audio acerola-music acerola-live-session acerola-chat-jobs acerola-chat-worker paystack-payment paystack-verify paystack-webhook paystack-subscription paystack-membership-manage; do
             echo "Deploying $function"
             supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_ID" --use-api
           done
