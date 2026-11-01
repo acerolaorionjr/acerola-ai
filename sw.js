@@ -1,6 +1,6 @@
 /* Acerola offline shell cache. Cloud AI still requires a working connection. */
 'use strict';
-const CACHE = 'acerola-shell-v4';
+const CACHE = 'acerola-shell-v5';
 const SHELL = [
   './',
   './index.html',
