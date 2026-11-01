@@ -12,10 +12,31 @@
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_c34TkPz6oG437WYMSPAKww_T5mFZPy7';
 
   class MemoryManager {
-    constructor(key = MEMORY_KEY) { this.key = key; this.items = this._load(); }
+    constructor(key = MEMORY_KEY, limit = 200) {
+      this.key = key;
+      this.limit = Math.max(1, Number(limit) || 200);
+      this.items = this._load().map(value => String(value)).filter(Boolean).slice(-this.limit);
+    }
     _load() { try { const value = global.localStorage?.getItem(this.key); const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
-    _save() { try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); } catch (_) {} }
-    add(text) { const value = String(text || '').trim(); if (!value) return false; this.items.push(value); this._save(); return true; }
+    _save() {
+      this.items = this.items.slice(-this.limit);
+      try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); return true; }
+      catch (error) {
+        // A full storage quota must not break chat replies or memory operations.
+        try { global.console?.warn?.('Acerola local memory could not be saved.', error); } catch (_) {}
+        return false;
+      }
+    }
+    add(text) {
+      const value = String(text || '').trim().slice(0, 2000);
+      if (!value) return false;
+      // Keep memory bounded and avoid filling storage with exact duplicates.
+      this.items = this.items.filter(item => item !== value);
+      this.items.push(value);
+      this.items = this.items.slice(-this.limit);
+      this._save();
+      return true;
+    }
     remove(query) { const q = String(query || '').toLowerCase().trim(); if (!q) return 0; const before = this.items.length; this.items = this.items.filter(item => !item.toLowerCase().includes(q)); this._save(); return before - this.items.length; }
     clear() { this.items = []; this._save(); }
     recent(limit = 5) { return this.items.slice(-Math.max(0, Number(limit) || 5)).reverse(); }
