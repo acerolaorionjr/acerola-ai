@@ -210,14 +210,21 @@ function collapseSources(){
  });
 }
 function researchLive(detail){
- const t=detail?.task||{};const msg=String(t.stepMessage||'').trim();if(!msg)return;
+ const t=detail?.task||{};
+ const tool=String(t.currentTool||'').toLowerCase();
+ const msg=String(t.stepMessage||'').trim();
+ const isResearchTool=/(?:^|[._-])(search|web_search|research)(?:$|[._-])|web\\.(?:search|research)|search_web/i.test(tool);
+ // A generic tool step such as media.generate_image must never be labelled
+ // "Researching". Only show this panel for an actual web/research tool.
+ if(!isResearchTool){if(detail?.type==='complete'||detail?.type==='failed')finishResearch();return}
+ if(detail?.type==='complete'||detail?.type==='failed'){finishResearch();return}
  let box=$('.acerola-research-live');
  if(!box){box=document.createElement('div');box.className='acerola-research-live';box.innerHTML='<b>Researching…</b><div class="research-places"></div>';$('.inner')?.appendChild(box)}
  const places=box.querySelector('.research-places');
- const candidates=msg.match(/https?:\/\/[^\s)]+|\b(?:Google|Wikipedia|YouTube|Reddit|GitHub|OpenAI|official website|web)\b/gi)||[];
+ const candidates=msg.match(/https?:\/\/[^\\s)]+|\\b(?:Google|Wikipedia|YouTube|Reddit|GitHub|OpenAI|official website|web)\\b/gi)||[];
  const unique=[...new Set(candidates)].slice(-8);
- if(unique.length)places.innerHTML=unique.map(x=>'<span class="research-place">'+esc(x.replace(/^https?:\/\//,''))+'</span>').join('');
- box.querySelector('b').textContent=/search|research|source|web/i.test(msg)?msg:'Researching…';
+ if(unique.length)places.innerHTML=unique.map(x=>'<span class="research-place">'+esc(x.replace(/^https?:\\/\\//,''))+'</span>').join('');
+ box.querySelector('b').textContent=msg&&/search|research|source|web/i.test(msg)?msg:'Researching…';
  messages?.scrollTo?.({top:messages.scrollHeight,behavior:'smooth'});
 }
 function finishResearch(){document.querySelector('.acerola-research-live')?.remove()}
