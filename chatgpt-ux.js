@@ -196,11 +196,24 @@ document.addEventListener('click',e=>{const b=e.target.closest?.('[data-message-
 
 function sanitizeRenderedReplies(){
  document.querySelectorAll('.row.assistant .bubble').forEach(b=>{
-  const text=b.textContent.trim();
-  if(/^[{\\[]/.test(text)&&/"(?:type|message|reply)"\\s*:/.test(text)){
+  const text=(b.querySelector('.md')?.textContent||b.textContent||'').trim();
+  if(/^[{\\[]/.test(text)&&/"(?:type|message|reply|content)"\\s*:/.test(text)){
    let message='';
-   try{const o=JSON.parse(text);message=typeof o.message==='string'?o.message:(typeof o.reply==='string'?o.reply:'')}catch(_){}
-   if(message){b.querySelector('.md')?.remove();const md=document.createElement('div');md.className='md';md.textContent=message;b.insertBefore(md,b.querySelector('.acerola-sources')||null);}
+   try{
+    const o=JSON.parse(text);
+    const candidates=[o.message,o.reply,o.content,o.output,o.result?.message,o.result?.reply,o.data?.message];
+    message=candidates.find(v=>typeof v==='string'&&v.trim())||'';
+    if(!message&&o.type==='final'&&typeof o.arguments==='object'&&o.arguments!==null){
+      const a=o.arguments;
+      message=[a.message,a.reply,a.content,a.text].find(v=>typeof v==='string'&&v.trim())||'';
+    }
+   }catch(_){}
+   if(message){
+    const md=b.querySelector('.md');
+    if(md)md.textContent=message;
+    else{const node=document.createElement('div');node.className='md';node.textContent=message;b.insertBefore(node,b.querySelector('.acerola-sources')||null);}
+    b.querySelectorAll('.acerola-research-live').forEach(n=>n.remove());
+   }
   }
   const lists=[...b.querySelectorAll('ol')];let offset=0;lists.forEach((ol,i)=>{if(i){ol.start=offset+1}offset+=ol.querySelectorAll(':scope > li').length});
  });
