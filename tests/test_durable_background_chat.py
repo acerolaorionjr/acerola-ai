@@ -7,6 +7,7 @@ def test_durable_chat_job_functions_are_present_and_private():
     sql = (ROOT / "supabase/migrations/20261101124719_add_durable_acerola_chat_jobs.sql").read_text()
     assert "create table if not exists public.acerola_chat_jobs" in sql
     assert "enable row level security" in sql
+    assert "acerola_push_subscriptions_user_idx" in (ROOT / "supabase/migrations/20261101130306_index_acerola_push_subscriptions_by_user.sql").read_text()
     assert "pgp_sym_encrypt" in sql
     assert "for update skip locked" in sql
     assert "revoke all on function public.claim_acerola_chat_jobs" in sql
