@@ -57,8 +57,7 @@ jobs:
               if allowed != origin:
                   raise SystemExit(f"Gateway does not allow required origin: {origin}")
           PY
-      - name: Run browser smoke tests (diagnostic)
-        continue-on-error: true
+      - name: Run browser smoke tests (required)
         run: |
           python -m pip install --disable-pip-version-check pytest requests playwright
           python -m playwright install --with-deps chromium
