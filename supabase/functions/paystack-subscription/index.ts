@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       return send({ error: "You already have an active membership. Manage or cancel it before changing plans.", code: "MEMBERSHIP_EXISTS" }, 409);
     }
 
-    const reference = "ACEROLA_MEM_" + crypto.randomUUID().replaceAll("-", "");
+    const reference = "ACEROLAMEM" + crypto.randomUUID().replaceAll("-", "");
     const membershipHeaders = { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json" };
     // Persist the reference before checkout so a fast webhook can resolve it.
     const pendingResponse = await fetch(supabaseUrl + "/rest/v1/acerola_memberships", {
