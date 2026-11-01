@@ -370,9 +370,25 @@ function add(role,text,atts=[],sources=[],durationMs=0){let c=cur(),content=role
 const ATTACH_DB='acerola-attachment-drafts-v2',ATTACH_STORE='records';
 function openAttachmentDB(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(new Error('IndexedDB unavailable'));return}const req=indexedDB.open(ATTACH_DB,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(ATTACH_STORE))db.createObjectStore(ATTACH_STORE,{keyPath:'key'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open attachment storage'))})}
 async function persistDraftAttachments(){try{const db=await openAttachmentDB();await new Promise((resolve,reject)=>{const tx=db.transaction(ATTACH_STORE,'readwrite');if(files.length)tx.objectStore(ATTACH_STORE).put({key:'draft:'+activeId,chatId:activeId,kind:'draft',updatedAt:Date.now(),files:files.map(({name,mime,kind,data})=>({name,mime,kind,data}))});else tx.objectStore(ATTACH_STORE).delete('draft:'+activeId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)});db.close();return true}catch(error){console.warn('Acerola attachment draft persistence unavailable:',error);return false}}
-async function restoreDraftAttachments(){try{const db=await openAttachmentDB();const record=await new Promise((resolve,reject)=>{const tx=db.transaction(ATTACH_STORE,'readonly');const req=tx.objectStore(ATTACH_STORE).get('draft:'+activeId);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)});db.close();if(record&&Array.isArray(record.files)){files=record.files.slice(0,5).filter(f=>f&&typeof f.data==='string').map(f=>({...f,preview:f.kind==='image'?f.data:null}));renderFiles()}}catch(error){console.warn('Acerola attachment draft restore unavailable:',error)}}
+async function restoreDraftAttachments(){try{const db=await openAttachmentDB();const record=await new Promise((resolve,reject)=>{const tx=db.transaction(ATTACH_STORE,'readonly');const req=tx.objectStore(ATTACH_STORE).get('draft:'+activeId);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)});db.close();if(record&&Array.isArray(record.files)&&files.length===0){files=record.files.slice(0,5).filter(f=>f&&typeof f.data==='string').map(f=>({...f,preview:f.kind==='image'?f.data:null}));renderFiles()}}catch(error){console.warn('Acerola attachment draft restore unavailable:',error)}}
 async function persistMessageAttachments(chatId,messageIndex,items){if(!items?.length)return;try{const db=await openAttachmentDB();await new Promise((resolve,reject)=>{const tx=db.transaction(ATTACH_STORE,'readwrite');tx.objectStore(ATTACH_STORE).put({key:'message:'+chatId+':'+messageIndex,chatId,kind:'message',messageIndex,updatedAt:Date.now(),files:items.map(({name,mime,kind,data})=>({name,mime,kind,data}))});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(error){console.warn('Acerola message attachment persistence failed:',error)}}
 async function restoreMessageAttachments(){try{const db=await openAttachmentDB();const records=await new Promise((resolve,reject)=>{const tx=db.transaction(ATTACH_STORE,'readonly'),req=tx.objectStore(ATTACH_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close();let changed=false;for(const rec of records){if(rec.chatId!==activeId||rec.kind!=='message'||!Array.isArray(rec.files))continue;const message=cur()?.messages?.[rec.messageIndex];if(message?.role==='user'){message.attachmentData=rec.files;changed=true}}if(changed){save();render()}}catch(error){console.warn('Acerola message attachment restore unavailable:',error)}}
+
+/* Re-check IndexedDB attachment drafts when Android restores a suspended tab.
+   Do not overwrite attachments the user has already selected in this live page. */
+let attachmentResumeTimer=0;
+function resumeAttachmentState(){
+  if(document.visibilityState==='hidden')return;
+  clearTimeout(attachmentResumeTimer);
+  attachmentResumeTimer=setTimeout(()=>{
+    restoreDraftAttachments();
+    restoreMessageAttachments();
+  },120);
+}
+document.addEventListener('visibilitychange',resumeAttachmentState);
+window.addEventListener('pageshow',resumeAttachmentState);
+window.addEventListener('pagehide',()=>{void persistDraftAttachments()});
+
 async function makeImage(prompt,signal,generation){
   if(!engine){engine=new AcerolaEngine();await engine.initialize()}
   const token=engine.gateway.accessToken;if(!token)throw Error('Acerola authentication is not ready.');
