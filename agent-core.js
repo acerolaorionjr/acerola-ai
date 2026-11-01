@@ -329,10 +329,27 @@
           }
           await new Promise((resolve) => {
             let done = false;
-            const finish = () => { if (done) return; done = true; global.removeEventListener('acerola:supabase-ready', finish); global.removeEventListener('acerola:supabase-unavailable', finish); resolve(); };
+            let timer = null;
+            const cleanup = () => {
+              global.removeEventListener('acerola:supabase-ready', finish);
+              global.removeEventListener('acerola:supabase-unavailable', finish);
+              if (timer) clearTimeout(timer);
+            };
+            const finish = () => {
+              if (done) return;
+              done = true;
+              cleanup();
+              resolve();
+            };
             global.addEventListener('acerola:supabase-ready', finish, { once: true });
             global.addEventListener('acerola:supabase-unavailable', finish, { once: true });
-            setTimeout(finish, 24000);
+            // Close the race where Supabase becomes available between the first
+            // check above and registration of these event listeners.
+            if (global.supabase?.createClient || global.__acerolaSupabaseUnavailable || global.navigator?.onLine === false) {
+              finish();
+              return;
+            }
+            timer = setTimeout(finish, 12000);
           });
         }
         if (!global.supabase?.createClient) return { authenticated: false, reason: 'Supabase client unavailable after CDN bootstrap' };
