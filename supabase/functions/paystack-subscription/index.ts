@@ -83,6 +83,17 @@ Deno.serve(async (req) => {
     }
 
     const reference = "ACEROLA_MEM_" + crypto.randomUUID().replaceAll("-", "");
+    const membershipHeaders = { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json" };
+    // Persist the reference before checkout so a fast webhook can resolve it.
+    const pendingResponse = await fetch(supabaseUrl + "/rest/v1/acerola_memberships", {
+      method: "POST",
+      headers: { ...membershipHeaders, Prefer: "return=minimal" },
+      body: JSON.stringify({ user_id: user.id, email, tier, plan_code: plan.code, amount: plan.amount, currency: "NGN", status: "pending", reference, metadata: { project: "Acerola", source: "acerola-core", checkout_status: "initializing" } }),
+    });
+    if (!pendingResponse.ok) {
+      console.error("Could not create pending membership:", await pendingResponse.text());
+      return send({ error: "Could not prepare your membership. Please try again." }, 502);
+    }
     const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: { Authorization: "Bearer " + secret, "Content-Type": "application/json" },
@@ -105,6 +116,11 @@ Deno.serve(async (req) => {
     const result = await paystackResponse.json();
     if (!paystackResponse.ok || !result.status || !result.data?.access_code || !result.data?.reference) {
       console.error("Paystack membership initialization failed:", result.message || "unknown");
+      await fetch(supabaseUrl + "/rest/v1/acerola_memberships?reference=eq." + encodeURIComponent(reference), {
+        method: "PATCH",
+        headers: { ...membershipHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "cancelled", metadata: { project: "Acerola", source: "acerola-core", checkout_status: "initialization_failed" } }),
+      });
       return send({ error: result.message || "Paystack could not start the membership checkout" }, 502);
     }
 
