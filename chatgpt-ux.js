@@ -101,6 +101,7 @@ async async function notifyReady(detail={}){
 async function enableNotifications(){
   if(!('Notification'in window))return;
   if(Notification.permission==='default'){try{await Notification.requestPermission()}catch(_){}}
+  if(Notification.permission==='granted'&&typeof window.acerolaEnablePush==='function'){try{await window.acerolaEnablePush()}catch(error){console.warn('Acerola push setup unavailable:',error)}}
 }
 function markSeen(){
   const id=getActiveChatId();
