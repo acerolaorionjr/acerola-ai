@@ -255,12 +255,12 @@
         .register('calculator.calculate', ({ expression }) => ({ expression: String(expression || '').trim(), result: calculate(expression) }), 'Safely calculate an arithmetic expression')
         .register('ui.open_module', ({ module }) => this.openModule(module), 'Open a module in the Acerola interface')
         .register('ui.notify', ({ message }) => this.notify(message), 'Show a safe notification in the Acerola interface')
-        .register('media.generate_image', async ({ prompt, size = '1024x1024', quality = 'auto', output_format = 'png' } = {}) => {
+        .register('media.generate_image', async ({ prompt, images = [], size = '1024x1024', quality = 'auto', output_format = 'png' } = {}) => {
           if (!this.gateway.accessToken) throw new Error('Acerola authentication is not ready.');
           const response = await fetch(`${SUPABASE_URL}/functions/v1/acerola-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${this.gateway.accessToken}` },
-            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), size, quality, output_format })
+            body: JSON.stringify({ prompt: String(prompt || '').slice(0, 5000), images: Array.isArray(images) ? images.filter(image => image && typeof image.data === 'string' && /^data:image\/(?:jpeg|png|webp);base64,/i.test(image.data)).slice(0, 4).map(image => ({ name: String(image.name || 'reference').slice(0, 160), mime_type: String(image.mime_type || image.mime || 'image/jpeg'), data: image.data })) : [], size, quality, output_format })
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data?.image) throw new Error(data?.error || `Image generation failed (${response.status})`);
