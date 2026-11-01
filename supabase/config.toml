@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.paystack-subscription]
 verify_jwt = false
+
+[functions.paystack-membership-manage]
+verify_jwt = false
