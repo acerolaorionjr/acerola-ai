@@ -31,27 +31,31 @@ jobs:
           find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -r -n1 node --check
           echo "All JavaScript syntax checks passed"
 
-      - name: Check Acerola gateway CORS preflight (diagnostic)
-        continue-on-error: true
+      - name: Validate Acerola gateway CORS for production and local development
         run: |
           python - <<'PY'
           import requests
           url = "https://djumpimcwzhjujysznox.supabase.co/functions/v1/acerola-ai-gateway"
-          origin = "http://localhost:5173"
-          preflight = requests.options(
-              url,
-              headers={
-                  "Origin": origin,
-                  "Access-Control-Request-Method": "POST",
-                  "Access-Control-Request-Headers": "authorization, apikey, content-type",
-              },
-              timeout=20,
+          origins = (
+              "https://acerolaorionjr.github.io",
+              "http://localhost:5173",
           )
-          print("Gateway OPTIONS:", preflight.status_code, preflight.headers.get("Access-Control-Allow-Origin"))
-          if preflight.status_code not in (200, 204):
-              raise SystemExit("Gateway CORS preflight failed")
-          if preflight.headers.get("Access-Control-Allow-Origin") != origin:
-              raise SystemExit("Gateway CORS origin is not allowed")
+          for origin in origins:
+              preflight = requests.options(
+                  url,
+                  headers={
+                      "Origin": origin,
+                      "Access-Control-Request-Method": "POST",
+                      "Access-Control-Request-Headers": "authorization, apikey, content-type",
+                  },
+                  timeout=20,
+              )
+              allowed = preflight.headers.get("Access-Control-Allow-Origin")
+              print(f"Gateway OPTIONS for {origin}: {preflight.status_code}; allow-origin={allowed}")
+              if preflight.status_code not in (200, 204):
+                  raise SystemExit(f"Gateway CORS preflight failed for {origin}")
+              if allowed != origin:
+                  raise SystemExit(f"Gateway does not allow required origin: {origin}")
           PY
       - name: Run browser smoke tests (diagnostic)
         continue-on-error: true
