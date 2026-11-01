@@ -84,7 +84,7 @@ async function processMembershipEvent(event: any, secret: string, serviceKey: st
     if (!customerEmail || !planCode || !subscriptionCode) return;
     const lookup = await dbRequest(
       "acerola_memberships?select=id&email=eq." + encodeURIComponent(customerEmail) +
-      "&plan_code=eq." + encodeURIComponent(planCode) + "&status=eq.pending&order=created_at.desc&limit=1",
+      "&plan_code=eq." + encodeURIComponent(planCode) + "&status=in.(pending,active,non_renewing)&paystack_subscription_code=is.null&order=created_at.desc&limit=1",
       serviceKey,
     );
     if (!lookup.ok) throw new Error("Pending membership lookup failed: " + await lookup.text());
