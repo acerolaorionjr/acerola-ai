@@ -86,14 +86,15 @@ const getChats=()=>{try{return JSON.parse(localStorage.getItem('acerola-ai-chats
 const getActiveChatId=()=>localStorage.getItem('acerola-ai-active-v6')||window.activeId||'';
 const saveUnread=()=>{try{localStorage.setItem('acerola_unread_v1',JSON.stringify(window.__acerolaUnread||{}))}catch(_){}};
 const unread=()=>{if(!window.__acerolaUnread){try{const saved=JSON.parse(localStorage.getItem('acerola_unread_v1')||'{}');window.__acerolaUnread=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{}}catch(_){window.__acerolaUnread={}}}return window.__acerolaUnread};
-function notifyReady(detail={}){
+async function notifyReady(detail={}){
   const title='Acerola reply ready';
   const body=String(detail.preview||'Acerola has finished replying.').slice(0,180);
   if(document.hidden&&'Notification'in window&&Notification.permission==='granted'){
+    const options={body,icon:new URL('icon.svg',location.href).href,tag:'acerola-reply-'+String(detail.chatId||'latest'),renotify:true,data:{chatId:String(detail.chatId||'')}};
     try{
-      const notification=new Notification(title,{body,icon:'icon.svg',tag:'acerola-reply-'+String(detail.chatId||'latest'),renotify:true});
-      notification.onclick=()=>{try{window.focus();window.dispatchEvent(new CustomEvent('acerola:notification-open',{detail:{chatId:detail.chatId||''}}))}catch(_){}notification.close()};
-    }catch(error){console.warn('Acerola desktop notification unavailable:',error)}
+      if('serviceWorker'in navigator){const registration=await navigator.serviceWorker.ready;await registration.showNotification(title,options)}
+      else {const notification=new Notification(title,options);notification.onclick=()=>{try{window.focus();window.dispatchEvent(new CustomEvent('acerola:notification-open',{detail:{chatId:detail.chatId||''}}))}catch(_){}notification.close()}}
+    }catch(error){console.warn('Acerola background notification unavailable:',error)}
   }
   try{window.dispatchEvent(new CustomEvent('acerola:reply-notification',{detail:{title,body,...detail}}))}catch(_){}
 }
@@ -232,10 +233,11 @@ function observe(){
  const inner=$('.inner');if(inner&&!inner.dataset.uxObserver){inner.dataset.uxObserver='1';new MutationObserver(()=>{enhanceHistory();attachMessageLongPress();collapseSources()}).observe(inner,{childList:true,subtree:true})}
 }
 window.addEventListener('acerola:engine-task',e=>{researchLive(e.detail);if(e.detail?.type==='complete'||e.detail?.type==='failed')finishResearch()});
-window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&d.chatId!==getActiveChatId()){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
+window.addEventListener('acerola:reply-ready',e=>{const d=e.detail||{};if(d.chatId&&(document.hidden||d.chatId!==getActiveChatId())){unread()[d.chatId]=true;saveUnread();renderUnread()}notifyReady(d)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)markSeen()});
 document.addEventListener('click',e=>{if(e.target.closest('#history .chat-item'))setTimeout(markSeen,0)},true);
 window.addEventListener('acerola:notification-open',e=>{const chatId=String(e.detail?.chatId||'');if(!chatId)return;const item=[...document.querySelectorAll('#history .chat-item[data-id]')].find(b=>b.dataset.id===chatId);if(item)item.click();else{window.AcerolaUI?.openDrawer?.();setTimeout(()=>document.querySelector('#history .chat-item[data-id="'+CSS.escape(chatId)+'"]')?.click(),100)}});
+if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='ACEROLA_OPEN_CHAT'&&e.data.chatId)window.dispatchEvent(new CustomEvent('acerola:notification-open',{detail:{chatId:e.data.chatId}}))});
 document.addEventListener('click',e=>{const b=e.target.closest('#send');if(!b)return;if(b.classList.contains('is-generating')){e.preventDefault();e.stopImmediatePropagation();window.acerolaCancelRequest?.();b.classList.remove('is-generating');b.removeAttribute('aria-label');return}enableNotifications()},{capture:true});
 const originalRenderHistory=window.renderHistory; // functions declared in the page are available after boot
 /* The main app already creates a fresh chat on boot. Do not create a second one here. */
