@@ -574,7 +574,7 @@
     if (!global.document) return;
     const style = document.createElement('style');
     style.id = 'acerola-agent-runtime-fixes';
-    style.textContent = '#app{position:relative}.chat{position:relative}.composer-area{position:absolute!important;left:0;right:0;bottom:0}.messages{min-height:0}.inner{scroll-padding-bottom:20px}';
+    style.textContent = '#app{position:relative}.chat{position:relative}.composer-area{position:absolute!important;left:0;right:0;bottom:0}.messages{min-height:0}.inner{scroll-padding-bottom:20px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}';
     document.head.appendChild(style);
     const syncViewport = () => {
       const vv = global.visualViewport;
