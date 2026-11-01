@@ -68,7 +68,11 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   if(action==="clear"){const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}`,{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});if(!r.ok)return json({error:"Unable to clear memory",request_id:id},502,origin);return json({ok:true,cleared:(await r.json()).length,request_id:id},200,origin);}
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }
-function needsWebSearch(text:string){return /\b(current|currently|latest|recent|today|tonight|tomorrow|yesterday|live|news|weather|price|prices|stock|score|scores|search|research|look up|verify|fact[- ]?check|source|sources|citation|citations|compare|as of|this week|this month|2026)\b/i.test(text);}
+function needsWebSearch(text:string){
+  const q=text.toLowerCase().trim();
+  if(/^(search|research|look up|browse|verify|fact[- ]?check)\b/.test(q)) return true;
+  return /\b(latest news|breaking news|news today|today.s news|current weather|weather today|weather tomorrow|forecast|live score|live scores|stock price|exchange rate|current price|latest price|today.s price|latest version|current version|recent results|today.s results|current requirements|latest requirements|deadline today|this week.s news)\b/i.test(q);
+}
 async function callOpenAI(apiKey:string,model:string,input:any,instructions:string,useSearch:boolean,signal:AbortSignal,researchMode=false){
   const body:any={model,instructions,input,max_output_tokens:researchMode?7000:5000};
   const complexity=/\b(explain|analy[sz]e|compare|debug|design|plan|research|reason|evaluate|calculate|code|build|write|study|why|how)\b/i.test(String(input||""));
