@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
         amount: plan.amount,
         plan: plan.code,
         currency: "NGN",
+        callback_url: "https://acerolaorionjr.github.io/acerola-ai/?membership=return",
         reference,
         metadata: {
           project: "Acerola",
