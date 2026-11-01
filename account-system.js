@@ -30,7 +30,30 @@
   function form(){body.innerHTML=`<button class="account-btn google" id="google">Continue with Google</button><div class="account-divider">OR EMAIL</div><input class="account-input" id="email" type="email" placeholder="Email address" autocomplete="email"><input class="account-input" id="pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password"><button class="account-btn" id="login">Log in</button><button class="account-btn secondary" id="signup">Create account</button><div class="account-msg" id="accMsg"></div>`;
     $('#google').onclick=async()=>{const {data:{session}}=await db.auth.getSession();const method=session?.user?.is_anonymous?'linkIdentity':'signInWithOAuth';const r=method==='linkIdentity'?await db.auth.linkIdentity({provider:'google'}):await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL('./',location.href).href}});if(r?.error)$('#accMsg').textContent=r.error.message};
     $('#login').onclick=()=>emailAuth(false);$('#signup').onclick=()=>emailAuth(true)}
-  async function emailAuth(signup){const email=$('#email').value.trim(),password=$('#pass').value;if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}$('#accMsg').textContent='Connecting…';const {data:{session}}=await db.auth.getSession();let r;if(signup&&session?.user?.is_anonymous){const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});r=u;if(!u.error){const p=await db.auth.updateUser({password});r=p}}else r=signup?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}}):await db.auth.signInWithPassword({email,password});if(r.error){$('#accMsg').textContent=r.error.message;return}$('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';setTimeout(()=>location.reload(),500)}
+  async function emailAuth(signup){
+    const email=$('#email').value.trim(),password=$('#pass').value;
+    if(!email||password.length<8){$('#accMsg').textContent='Enter a valid email and an 8+ character password.';return}
+    $('#accMsg').textContent='Connecting…';
+    try{
+      const {data:{session}}=await db.auth.getSession();
+      let r;
+      if(signup&&session?.user?.is_anonymous){
+        const u=await db.auth.updateUser({email,data:{name:email.split('@')[0]}});
+        r=u;
+        if(!u.error)r=await db.auth.updateUser({password});
+      }else{
+        r=signup
+          ?await db.auth.signUp({email,password,options:{data:{name:email.split('@')[0]}}})
+          :await db.auth.signInWithPassword({email,password});
+      }
+      if(r.error){$('#accMsg').textContent=r.error.message||'Authentication failed. Please try again.';return}
+      $('#accMsg').textContent=signup?'Check your email to verify your account, then sign in.':'Signed in. Syncing Acerola…';
+      setTimeout(()=>location.reload(),500);
+    }catch(error){
+      console.warn('Acerola email authentication failed:',error);
+      $('#accMsg').textContent=error?.message||'A temporary connection error interrupted authentication. Please retry.';
+    }
+  }
   function voices(){try{return globalThis.speechSynthesis?.getVoices?.()||[]}catch(_){return []}}
   function refreshVoiceOptions(selected=''){const v=$('#voice');if(!v)return;const apply=()=>{v.innerHTML=voiceOptions(selected||localStorage.getItem('acerola-voice-id')||'');};apply();[50,250,750,1500].forEach(ms=>setTimeout(apply,ms));}
   function voiceOptions(selected){
