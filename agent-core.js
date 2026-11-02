@@ -39,7 +39,11 @@
     }
     remove(query) { const q = String(query || '').toLowerCase().trim(); if (!q) return 0; const before = this.items.length; this.items = this.items.filter(item => !item.toLowerCase().includes(q)); this._save(); return before - this.items.length; }
     clear() { this.items = []; this._save(); }
-    recent(limit = 5) { return this.items.slice(-Math.max(0, Number(limit) || 5)).reverse(); }
+    recent(limit = 5) {
+      const requested = limit == null || limit === '' ? 5 : Number(limit);
+      const count = Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 5;
+      return count === 0 ? [] : this.items.slice(-count).reverse();
+    }
     search(query, limit = 8) {
       const normalize = value => String(value || '').toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').replace(/\s+/g, ' ').trim();
       const q = normalize(query);
@@ -67,7 +71,12 @@
     _load() { try { const value = global.localStorage?.getItem(this.key); const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
     _save() { try { global.localStorage?.setItem(this.key, JSON.stringify(this.items)); } catch (_) {} }
     add(role, content, meta = {}) { const r = role === 'assistant' ? 'assistant' : 'user'; const text = String(content || '').trim(); if (!text) return false; const sources = Array.isArray(meta?.sources) ? meta.sources.slice(0, 10).map(s => ({ url: String(s?.url || ''), title: String(s?.title || '') })).filter(s => /^https?:\/\//i.test(s.url)) : []; const last = this.items[this.items.length - 1]; if (last?.role === r && last?.content === text) { if (sources.length) { last.sources = sources; this._save(); } return true; } this.items.push({ role: r, content: text, sources: sources.map((s, i) => ({ ...s, number: i + 1 })), at: Date.now() }); if (this.items.length > this.limit) this.items = this.items.slice(-this.limit); this._save(); return true; }
-    recent(limit = this.limit) { return this.items.slice(-Math.max(0, Number(limit) || this.limit)).map(({ role, content, sources }) => ({ role, content, sources: Array.isArray(sources) ? sources.slice(0, 10).map((s, i) => ({ ...s, number: i + 1 })) : [] })); }
+    recent(limit = this.limit) {
+      const requested = limit == null || limit === '' ? this.limit : Number(limit);
+      const count = Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : this.limit;
+      if (count === 0) return [];
+      return this.items.slice(-count).map(({ role, content, sources }) => ({ role, content, sources: Array.isArray(sources) ? sources.slice(0, 10).map((s, i) => ({ ...s, number: i + 1 })) : [] }));
+    }
     clear() { this.items = []; this._save(); }
     count() { return this.items.length; }
   }
