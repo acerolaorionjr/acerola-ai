@@ -1,6 +1,9 @@
-# Acerola Intelligence System
+# Acerola AI — Your Personal Intelligence System
 
-Acerola is a personal intelligence system built around a browser client, an authenticated server gateway, an Agent Core orchestration layer, multimodal input, persistent memory, and modular workspaces.
+**Acerola AI** is a personal AI assistant built around a browser client, an authenticated server gateway, an Agent Core orchestration layer, multimodal input, persistent memory, and modular workspaces.
+
+**Live web app:** https://acerolaorionjr.github.io/acerola-ai/  
+**Source code:** https://github.com/acerolaorionjr/acerola-ai
 
 ## Current stack
 
