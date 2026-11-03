@@ -35,6 +35,9 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Machine-readable site files must never fall back to the cached app shell.
+  // Otherwise an offline/failed navigation to sitemap.xml can display index.html.
+  if (/\/(?:sitemap\.xml|robots\.txt)$/i.test(url.pathname)) return;
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
