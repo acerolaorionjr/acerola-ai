@@ -91,8 +91,8 @@
         const url = 'https://raw.githubusercontent.com/acerolaorionjr/acerola-ai/main/' + value;
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error('Repository file could not be read (' + response.status + ').');
-        const lines = (await response.text()).split('\\n');
-        return { ok: true, repository: 'acerolaorionjr/acerola-ai', path: value, start: s, end: Math.min(e, lines.length), content: lines.slice(s - 1, e).join('\\n') };
+        const lines = (await response.text()).split('\n');
+        return { ok: true, repository: 'acerolaorionjr/acerola-ai', path: value, start: s, end: Math.min(e, lines.length), content: lines.slice(s - 1, e).join('\n') };
       }, 'Inspect the current Acerola source code from its public GitHub repository. Use this to check code, debug files, verify implementations, and explain what the current code actually does.')
 
       .register('browser.open_url', ({ url }) => {
