@@ -72,7 +72,8 @@ def test_mobile_shell_and_controls_are_live(local_site):
             page.locator(".welcome h1").wait_for(state="visible", timeout=5000)
         except Exception:
             pytest.fail("Welcome heading did not render. Browser errors: " + (" | ".join(errors) if errors else "none captured"))
-        assert page.locator(".welcome h1").inner_text() == "What can I help you with?"
+        # The current branded home screen intentionally displays Acerola.
+        assert page.locator(".welcome h1").inner_text() == "Acerola"
         assert page.evaluate("typeof window.acerolaSend") == "function"
         assert page.evaluate("typeof window.AcerolaEngine") == "function"
 
