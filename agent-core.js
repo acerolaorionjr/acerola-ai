@@ -197,32 +197,6 @@
     return null;
   }
 
-  // Conservative automatic memory: retain only clear, low-risk preferences/profile facts.
-  // Never infer or store passwords, tokens, financial details, health, politics,
-  // religion, sexuality, or other sensitive information.
-  function extractAutomaticMemory(text) {
-    const source = String(text || '').trim().replace(/\s+/g, ' ');
-    if (!source || source.length > 500) return null;
-    const patterns = [
-      /^(?:hi[, ]*)?my name is ([A-Za-z][A-Za-z .'-]{1,60})[.!?]?$/i,
-      /^call me ([A-Za-z][A-Za-z .'-]{1,60})[.!?]?$/i,
-      /^i (?:really )?(?:like|love|prefer) (.{2,160})[.!?]?$/i,
-      /^i (?:don't|do not) like (.{2,160})[.!?]?$/i,
-      /^i (?:am|I'm) interested in (.{2,160})[.!?]?$/i,
-      /^i want to (.{2,180})[.!?]?$/i,
-      /^i use (.{2,120})[.!?]?$/i,
-      /^i (?:am )?building (.{2,180})[.!?]?$/i
-    ];
-    for (const pattern of patterns) {
-      const match = source.match(pattern);
-      if (!match) continue;
-      const value = match[1].trim();
-      if (!value || /password|passcode|otp|one[- ]time code|api key|secret|token|credit card|bank account/i.test(value)) return null;
-      return source.replace(/[.!?]+$/, '').slice(0, 200);
-    }
-    return null;
-  }
-
   async function safeRemoteMemoryError(error) {
     return error?.message || 'Persistent memory service is unavailable.';
   }
@@ -560,10 +534,9 @@
         if (saved?.persistent) return { type: 'memory', action: 'add', text: 'Stored in persistent memory.', persistent: true };
         return { type: 'memory', action: 'add', text: saved?.error || 'I could not save that to persistent memory.', persistent: false, local: !!saved?.local };
       }
-      const automaticMemory = extractAutomaticMemory(text);
-      if (automaticMemory && !memoryRequest) void this.remember(automaticMemory);
+      // Personal context is opt-in: ordinary statements are never saved automatically.
 
-      const forget = text.match(/^forget\s+(.+)/i); if (forget) { const removed = await this.forget(forget[1]); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
+      const forget = text.match(/^forget\s+(.+?)\s*[.!?]*$/i); if (forget) { const removed = await this.forget(forget[1].trim()); return { type: 'memory', action: 'remove', removed, text: removed ? 'Matching memory removed.' : 'No matching memory found.' }; }
       if (/^clear memory$/i.test(text)) { await this.clearMemory(); return { type: 'memory', action: 'clear', text: 'Persistent memory cleared.' }; }
       if (/^clear (?:chat|conversation|conversation history)$/i.test(text)) { this.clearConversation(); return { type: 'action', action: 'conversation.clear', result: 'Conversation context cleared.' }; }
       if (/^(what(?:'s|\s+is)\s+)?the\s+(current\s+)?time\??$/i.test(text) || /^time\??$/i.test(text)) return { type: 'action', action: 'system.time', result: await this.actions.execute('system.time') };
