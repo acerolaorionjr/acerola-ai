@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / "agent-core.js"
-INDEX = ROOT / "index.html"
+UI = ROOT / "ui-enhancements.js"
 
 
 def test_personal_context_is_saved_only_after_an_explicit_request():
@@ -84,7 +84,7 @@ vm.runInNewContext(source, sandbox, { filename: 'agent-core.js' });
 
 
 def test_memory_panel_explains_opt_in_controls():
-    page = INDEX.read_text(encoding="utf-8")
+    page = UI.read_text(encoding="utf-8")
     assert "Memory is opt-in." in page
     assert "Remember that" in page
     assert "Forget" in page
