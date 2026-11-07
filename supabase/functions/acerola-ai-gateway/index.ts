@@ -170,7 +170,7 @@ Deno.serve(async(req:Request)=>{
   const input=files.length?buildInput(userText,files):userText;
   const researchMode=Boolean(body?.research_mode)||/\bdeep research|research mode|study mode\b/i.test(message);
   const searchRequested=researchMode||needsWebSearch(message);
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
   // Provider fallback policy:
   // 1) Try the preferred provider first.
