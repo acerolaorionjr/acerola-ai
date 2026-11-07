@@ -184,7 +184,7 @@ Deno.serve(async(req:Request)=>{
 
   async function tryGemini(){
     if(!geminiKey) return false;
-    for(const model of ["gemini-3.8-flash","gemini-3.7-flash","gemini-3.6-flash","gemini-3.5-flash"]){
+    for(const model of ["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.7-flash","gemini-3.5-flash"]){
       try{
         const r=await callGemini(geminiKey,model,userText,system,files,controller.signal);
         if(r.ok){
