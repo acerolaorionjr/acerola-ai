@@ -10,7 +10,7 @@
 - Client: responsive HTML/CSS/JavaScript web app
 - Acerola Engine: v0.8.0
 - Agent Core: v1.4.0
-- AI gateway: Supabase Edge Function
+- AI gateway: authenticated Supabase Edge Function with bounded per-model timeouts, OpenAI-first routing, and Gemini failover
 - Authentication: Supabase Auth
 - Persistent memory: authenticated Supabase-backed memory with local fallback
 - Multimodal input: up to 5 attachments per request
