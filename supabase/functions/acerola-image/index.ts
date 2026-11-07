@@ -67,10 +67,14 @@ Deno.serve(async(req:Request)=>{
       method:"POST",
       headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},
       body:JSON.stringify({
-        model:"gpt-image-2",
+        // Responses needs a tool-capable mainline model. GPT Image is selected
+        // separately on the image_generation tool; it cannot be the orchestrator.
+        model:"gpt-6-luna",
         input,
+        tool_choice:{type:"image_generation"},
         tools:[{
           type:"image_generation",
+          model:"gpt-image-2",
           action:refs.length?"auto":"generate",
           background,
           size,
