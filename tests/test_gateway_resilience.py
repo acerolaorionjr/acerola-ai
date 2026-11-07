@@ -42,3 +42,7 @@ def test_auth_and_memory_lookups_cannot_block_ai_indefinitely():
     source = GATEWAY.read_text(encoding="utf-8")
     assert "signal:AbortSignal.timeout(6000)" in source
     assert "signal:AbortSignal.timeout(3000)" in source
+
+def test_ci_deployment_is_explicit_and_noninteractive():
+    workflow = (ROOT / ".github" / "workflows" / "supabase-functions.yml").read_text(encoding="utf-8")
+    assert 'supabase functions deploy "$function" --remote="$SUPABASE_PROJECT_ID" --yes --use-api' in workflow
