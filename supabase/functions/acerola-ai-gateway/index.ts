@@ -28,7 +28,7 @@ async function getUser(req: Request) {
   if (!auth?.startsWith("Bearer ")) return null;
   const url = Deno.env.get("SUPABASE_URL"), key = publishableKey();
   if (!url || !key) return null;
-  try { const r = await fetch(`${url}/auth/v1/user`, {headers:{Authorization:auth,apikey:key}}); if (!r.ok) return null; return await r.json(); } catch { return null; }
+  try { const r = await fetch(`${url}/auth/v1/user`, {headers:{Authorization:auth,apikey:key},signal:AbortSignal.timeout(6000)}); if (!r.ok) return null; return await r.json(); } catch { return null; }
 }
 
 async function getOwnerContext(user:any){
@@ -142,7 +142,7 @@ Deno.serve(async(req:Request)=>{
   const rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
-  if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey}});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
+  if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey},signal:AbortSignal.timeout(3000)});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
   const toolCatalog=Array.isArray(body.available_tools)?body.available_tools.slice(0,80):[];
   const toolResults=Array.isArray(body.tool_results)?body.tool_results.slice(-8):[];
   const system = [
