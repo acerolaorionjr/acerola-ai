@@ -28,7 +28,7 @@ async function getUser(req: Request) {
   if (!auth?.startsWith("Bearer ")) return null;
   const url = Deno.env.get("SUPABASE_URL"), key = publishableKey();
   if (!url || !key) return null;
-  try { const r = await fetch(`${url}/auth/v1/user`, {headers:{Authorization:auth,apikey:key}}); if (!r.ok) return null; return await r.json(); } catch { return null; }
+  try { const r = await fetch(`${url}/auth/v1/user`, {headers:{Authorization:auth,apikey:key},signal:AbortSignal.timeout(6000)}); if (!r.ok) return null; return await r.json(); } catch { return null; }
 }
 
 async function getOwnerContext(user:any){
@@ -128,7 +128,7 @@ Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
   if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed",request_id:id},403,origin,{"X-Request-Id":id});
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...baseHeaders(origin),"X-Request-Id":id}});
-  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"50",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
+  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"70",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
   if(req.method!=="POST")return json({error:"Method not allowed",request_id:id},405,origin,{"X-Request-Id":id});
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
@@ -142,7 +142,7 @@ Deno.serve(async(req:Request)=>{
   const rawFiles=Array.isArray(body.attachments)?body.attachments.slice(0,MAX_ATTACHMENTS):[];let total=0;const files:any[]=[];
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
-  if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey}});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
+  if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey},signal:AbortSignal.timeout(3000)});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
   const toolCatalog=Array.isArray(body.available_tools)?body.available_tools.slice(0,80):[];
   const toolResults=Array.isArray(body.tool_results)?body.tool_results.slice(-8):[];
   const system = [
@@ -170,72 +170,82 @@ Deno.serve(async(req:Request)=>{
   const input=files.length?buildInput(userText,files):userText;
   const researchMode=Boolean(body?.research_mode)||/\bdeep research|research mode|study mode\b/i.test(message);
   const searchRequested=researchMode||needsWebSearch(message);
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
+  const PROVIDER_BUDGET_MS=48000,PROVIDER_ATTEMPT_TIMEOUT_MS=11500;
+  const providerDeadline=Date.now()+PROVIDER_BUDGET_MS;
+  function createProviderAttempt(){
+    const controller=new AbortController();
+    const remaining=Math.max(0,providerDeadline-Date.now());
+    const timer=setTimeout(()=>controller.abort(),Math.min(PROVIDER_ATTEMPT_TIMEOUT_MS,remaining));
+    return {controller,timer};
+  }
+  let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
-  // Provider fallback policy:
-  // 1) Try the preferred provider first.
-  // 2) If it is rate-limited, quota-exhausted, unavailable, or a model is unavailable,
-  //    continue through that provider's model list instead of stopping on the first error.
-  // 3) If the preferred provider still fails, try the other configured provider.
-  // 4) Only authentication/configuration failures stop attempts for that provider.
-  const providerOrder = prefer==="gemini"
-    ? ["gemini","openai"]
-    : ["openai","gemini"];
+  const providerOrder=prefer==="gemini"?["gemini","openai"]:["openai","gemini"];
 
   async function tryGemini(){
-    if(!geminiKey) return false;
-    for(const model of ["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.7-flash","gemini-3.5-flash"]){
+    if(!geminiKey)return false;
+    for(const model of ["gemini-3.8-flash","gemini-3.5-flash-lite"]){
+      if(Date.now()>=providerDeadline)break;
+      const attempt=createProviderAttempt(),started=Date.now();
       try{
-        const r=await callGemini(geminiKey,model,userText,system,files,controller.signal);
+        const r=await callGemini(geminiKey,model,userText,system,files,attempt.controller.signal);
         if(r.ok){
-          upstream=r;usedModel=model;provider="gemini";return true;
+          upstream=r;usedModel=model;provider="gemini";
+          console.info("Acerola provider success",{id,provider:"gemini",model,elapsed_ms:Date.now()-started});
+          return true;
         }
         const text=await r.text();
-        lastError={status:r.status,body:text.slice(0,800),model,provider:"gemini"};
-        // 401/403 means this key/provider cannot authenticate. Let the other
-        // provider have a chance, but don't waste requests on more Gemini models.
-        if(r.status===401||r.status===403) break;
-        // 429, 408, 5xx, and model/request errors are retryable across the
-        // configured Gemini models, so continue instead of aborting fallback.
+        let errorCode="";
+        try{const parsed=JSON.parse(text);errorCode=String(parsed?.error?.status||parsed?.error?.code||"").slice(0,80);}catch{}
+        lastError={status:r.status,model,provider:"gemini",errorCode};
+        console.warn("Acerola provider attempt failed",{id,provider:"gemini",model,status:r.status,error_code:errorCode,elapsed_ms:Date.now()-started});
+        if(r.status===401||r.status===403)break;
       }catch(e){
-        lastError={status:0,body:e instanceof Error?e.message:"request failed",model,provider:"gemini"};
-      }
+        lastError={status:0,model,provider:"gemini",errorCode:"NETWORK_OR_TIMEOUT"};
+        console.warn("Acerola provider attempt failed",{id,provider:"gemini",model,status:0,error_code:"NETWORK_OR_TIMEOUT",elapsed_ms:Date.now()-started});
+      }finally{clearTimeout(attempt.timer);}
     }
     return false;
   }
 
   async function tryOpenAI(){
-    if(!openaiKey) return false;
+    if(!openaiKey)return false;
     const attempts=searchRequested
-      ? [["gpt-6-astra",true],["gpt-6.1-sol",true],["gpt-6-luna",true]] as const
-      : [["gpt-6-luna",false],["gpt-6.1-sol",false],["gpt-6-astra",false]] as const;
+      ? [["gpt-6-astra",true],["gpt-6.1-sol",true]] as const
+      : [["gpt-6-luna",false],["gpt-6.1-sol",false]] as const;
     for(const [model,useSearch] of attempts){
+      if(Date.now()>=providerDeadline)break;
+      const attempt=createProviderAttempt(),started=Date.now();
       try{
-        const r=await callOpenAI(openaiKey,model,input,system,useSearch,controller.signal,researchMode);
+        const r=await callOpenAI(openaiKey,model,input,system,useSearch,attempt.controller.signal,researchMode);
         if(r.ok){
-          upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";return true;
+          upstream=r;usedModel=model;usedSearch=useSearch;provider="openai";
+          console.info("Acerola provider success",{id,provider:"openai",model,elapsed_ms:Date.now()-started,web_search:useSearch});
+          return true;
         }
         const text=await r.text();
-        lastError={status:r.status,body:text.slice(0,800),model,useSearch,provider:"openai"};
-        // Authentication/permission errors cannot be repaired by switching models.
-        // Still allow the outer loop to try Gemini if it is configured.
-        if(r.status===401||r.status===403) break;
-        // IMPORTANT: do not break on 429. A single exhausted model must not
-        // prevent the remaining OpenAI models or Gemini from being tried.
+        let errorCode="";
+        try{const parsed=JSON.parse(text);errorCode=String(parsed?.error?.code||parsed?.error?.type||"").slice(0,80);}catch{}
+        lastError={status:r.status,model,useSearch,provider:"openai",errorCode};
+        console.warn("Acerola provider attempt failed",{id,provider:"openai",model,status:r.status,error_code:errorCode,elapsed_ms:Date.now()-started,web_search:useSearch});
+        if(r.status===401||r.status===403)break;
       }catch(e){
-        lastError={status:0,body:e instanceof Error?e.message:"request failed",model,useSearch,provider:"openai"};
-      }
+        lastError={status:0,model,useSearch,provider:"openai",errorCode:"NETWORK_OR_TIMEOUT"};
+        console.warn("Acerola provider attempt failed",{id,provider:"openai",model,status:0,error_code:"NETWORK_OR_TIMEOUT",elapsed_ms:Date.now()-started,web_search:useSearch});
+      }finally{clearTimeout(attempt.timer);}
     }
     return false;
   }
 
-  try{
-    for(const selectedProvider of providerOrder){
-      if(selectedProvider==="gemini" && await tryGemini()) break;
-      if(selectedProvider==="openai" && await tryOpenAI()) break;
-    }
-  }finally{clearTimeout(timer);}
-  if(!upstream){console.error("Acerola provider failure",id,lastError);const code=lastError?.status===401||lastError?.status===403?"AI_AUTH_FAILED":lastError?.status===429?"AI_QUOTA_OR_RATE_LIMIT":lastError?.status===0?"AI_NETWORK_FAILED":"AI_UPSTREAM_FAILED";return json({error:"AI provider request failed",code,provider_status:lastError?.status||0,request_id:id},lastError?.status===429?503:502,origin,common);}
+  for(const selectedProvider of providerOrder){
+    if(selectedProvider==="openai"&&await tryOpenAI())break;
+    if(selectedProvider==="gemini"&&await tryGemini())break;
+  }
+  if(!upstream){
+    console.error("Acerola provider failure",id,{provider:lastError?.provider,model:lastError?.model,status:lastError?.status,error_code:lastError?.errorCode||"UNKNOWN"});
+    const code=lastError?.status===401||lastError?.status===403?"AI_AUTH_FAILED":lastError?.status===429?"AI_QUOTA_OR_RATE_LIMIT":lastError?.status===0?"AI_NETWORK_FAILED":"AI_UPSTREAM_FAILED";
+    return json({error:"AI provider request failed",code,provider_status:lastError?.status||0,request_id:id},lastError?.status===429?503:502,origin,common);
+  }
   let result:any;try{result=await upstream.json();}catch{return json({error:"AI provider returned invalid data",code:"AI_INVALID_RESPONSE",request_id:id},502,origin,common);}
   const reply=provider==="gemini"?extractGeminiReply(result):extractReply(result);
   const sources=provider==="openai"&&usedSearch?extractSources(result):[];
