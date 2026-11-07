@@ -128,7 +128,7 @@ Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
   if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed",request_id:id},403,origin,{"X-Request-Id":id});
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...baseHeaders(origin),"X-Request-Id":id}});
-  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"50",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
+  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"70",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
   if(req.method!=="POST")return json({error:"Method not allowed",request_id:id},405,origin,{"X-Request-Id":id});
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
@@ -170,7 +170,15 @@ Deno.serve(async(req:Request)=>{
   const input=files.length?buildInput(userText,files):userText;
   const researchMode=Boolean(body?.research_mode)||/\bdeep research|research mode|study mode\b/i.test(message);
   const searchRequested=researchMode||needsWebSearch(message);
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
+  const PROVIDER_BUDGET_MS=48000,PROVIDER_ATTEMPT_TIMEOUT_MS=11500;
+  const providerDeadline=Date.now()+PROVIDER_BUDGET_MS;
+  function createProviderAttempt(){
+    const controller=new AbortController();
+    const remaining=Math.max(0,providerDeadline-Date.now());
+    const timer=setTimeout(()=>controller.abort(),Math.min(PROVIDER_ATTEMPT_TIMEOUT_MS,remaining));
+    return {controller,timer};
+  }
+  let upstream:Response|null=null,lastError:any=null,usedModel="",usedSearch=false,provider="";
   const prefer=providerPreference(message,Boolean(body.agent_mode),Boolean(geminiKey));
   // Provider fallback policy:
   // 1) Try the preferred provider first.
