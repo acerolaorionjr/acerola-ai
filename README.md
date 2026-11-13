@@ -80,6 +80,9 @@ The Python/pytest contract suite in tests/ covers core initialization, the five-
 
 ## Sponsorship and project readiness
 
+- [Sponsor readiness status](docs/SPONSOR_READINESS_STATUS.md)
+- [Sponsor cost worksheet](docs/SPONSOR_COST_WORKSHEET.md)
+
 Acerola is an early-stage project and does not claim verified active-user counts, retention, revenue, product-market fit or independent security certification. Payment, subscription and integrated feature paths require live end-to-end acceptance evidence before being presented as fully verified.
 
 - [Sponsorship overview](SPONSORSHIP.md)
