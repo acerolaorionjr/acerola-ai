@@ -74,9 +74,10 @@ Deno.serve(async (req: Request) => {
       if (typeof data?.reply === "string") data.reply = normalizeReplyText(data.reply);
       if (!response.ok || !data?.ok || !data?.reply) {
         const reason = String(data?.error || data?.code || `Gateway returned HTTP ${response.status}`);
+        const nonRetryable = response.status >= 400 && response.status < 500 && response.status !== 408;
         await fetch(`${url}/rest/v1/rpc/finish_acerola_chat_job`, {
           method: "POST", headers,
-          body: JSON.stringify({ p_job_id: job.job_id, p_response: null, p_error: reason }),
+          body: JSON.stringify({ p_job_id: job.job_id, p_response: null, p_error: nonRetryable ? `NON_RETRYABLE:${reason}` : reason }),
         });
         continue;
       }
