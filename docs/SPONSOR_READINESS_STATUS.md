@@ -34,6 +34,7 @@ Before the cron change, the worker poller ran 8,613 times in the preceding 24 ho
 | Supabase project | Project status reports `ACTIVE_HEALTHY` | Verified at review time |
 | Public table security | RLS enabled on all listed public application tables | Verified |
 | Sensitive RPC access | Job creation/finalization functions deny anon/authenticated and allow service role | Verified |
+| Profile role escalation | Server-side trigger forces normal inserts to `user` and blocks authenticated role changes; rollback-only probe confirmed the block | Verified |
 | AI gateway deployment | Current function version includes monthly usage enforcement | Deployed |
 | Chat worker deployment | Current function version includes terminal handling for permanent client errors | Deployed |
 | Gateway/provider response | No real authenticated model response was executed in this review | Not yet verified |
