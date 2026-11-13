@@ -67,3 +67,10 @@ def test_profile_role_is_server_managed():
     assert "NEW.role := 'user'" in migration
     assert "NEW.role IS DISTINCT FROM OLD.role" in migration
     assert "ERRCODE = '42501'" in migration
+
+
+def test_pro_verification_preserves_entitlement_failure_reason():
+    source = read("support.js")
+    assert "d.error||'Payment was verified, but Acerola Pro has not been activated yet." in source
+    assert "PRO_ENTITLEMENT_PENDING" in source
+    assert "e?.code==='PRO_ENTITLEMENT_PENDING'" in source
