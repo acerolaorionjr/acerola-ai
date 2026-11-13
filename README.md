@@ -3,6 +3,7 @@
 **Acerola** is a personal AI assistant built around a browser client, an authenticated server gateway, an Agent Core orchestration layer, multimodal input, persistent memory, and modular workspaces.
 
 **Live web app:** https://acerolaorionjr.github.io/acerola-ai/  
+**Sponsorship overview:** https://acerolaorionjr.github.io/acerola-ai/sponsorship.html  
 **Source code:** https://github.com/acerolaorionjr/acerola-ai
 
 ## Current stack
@@ -76,6 +77,17 @@ The interface provides a live 0 / 5 file counter, attachment previews/chips, rem
 ## Testing
 
 The Python/pytest contract suite in tests/ covers core initialization, the five-file boundary, overflow rejection, and workspace switching. An optional authenticated gateway smoke test is skipped unless its environment variables are explicitly provided.
+
+## Sponsorship and project readiness
+
+Acerola is an early-stage project and does not claim verified active-user counts, retention, revenue, product-market fit or independent security certification. Payment, subscription and integrated feature paths require live end-to-end acceptance evidence before being presented as fully verified.
+
+- [Sponsorship overview](SPONSORSHIP.md)
+- [Sponsor demonstration script](docs/SPONSOR_DEMO_SCRIPT.md)
+- [Sponsor due-diligence checklist](docs/SPONSOR_DUE_DILIGENCE.md)
+- [Proposed sponsorship milestones](docs/SPONSOR_MILESTONES.md)
+
+Any financial, contractual, payment-account, equity or ownership arrangement must involve an appropriate parent/guardian or responsible adult representative. Sponsors should not receive access to private user conversations or production secrets.
 
 ## GitHub Pages
 
