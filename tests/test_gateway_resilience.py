@@ -36,7 +36,7 @@ def test_provider_diagnostics_do_not_log_provider_error_bodies():
 
 def test_gateway_health_version_matches_next_deployment():
     source = GATEWAY.read_text(encoding="utf-8")
-    assert 'version:"70"' in source
+    assert 'version:"72"' in source
 
 def test_auth_and_memory_lookups_cannot_block_ai_indefinitely():
     source = GATEWAY.read_text(encoding="utf-8")
