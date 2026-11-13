@@ -1,4 +1,4 @@
-# Acerola AI — Sponsor Readiness Status
+# Acerola — Sponsor Readiness Status
 
 **Review date:** 13 November 2026  
 **Repository:** https://github.com/acerolaorionjr/acerola-ai  

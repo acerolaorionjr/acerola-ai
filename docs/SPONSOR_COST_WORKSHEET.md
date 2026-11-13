@@ -1,4 +1,4 @@
-# Acerola AI — Sponsor Cost Worksheet
+# Acerola — Sponsor Cost Worksheet
 
 **Purpose:** Build a defensible, capped sponsorship request from actual usage and written quotes. No funding total is assumed.
 
