@@ -60,3 +60,9 @@ def test_pages_workflow_runs_quality_checks_before_deploy():
     assert "node --check" in source
     assert "pytest -m 'not live' -q" in source
     assert "deploy-pages@v4" in source
+def test_profile_role_is_server_managed():
+    migration = read("supabase/migrations/20261113181431_server_manage_profile_roles.sql")
+    assert "enforce_server_managed_profile_role" in migration
+    assert "NEW.role := 'user'" in migration
+    assert "NEW.role IS DISTINCT FROM OLD.role" in migration
+    assert "ERRCODE = '42501'" in migration
