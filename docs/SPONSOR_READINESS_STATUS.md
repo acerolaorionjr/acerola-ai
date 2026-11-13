@@ -6,44 +6,75 @@
 
 ## Executive status
 
-**Status: sponsor-introduction ready; formal funding request pending verification.**
+**Status: sponsor-introduction ready; formal funding request still pending evidence.**
 
-The sponsorship page, overview, demonstration script, due-diligence checklist, milestone plan and pitch deck have been prepared and committed. The source repository contains a GitHub Pages deployment workflow that runs JavaScript syntax checks, production/local gateway CORS preflights, browser smoke tests, and required-file checks before deployment.
+The sponsorship overview, public sponsorship page, demo script, due-diligence checklist, milestone plan, cost worksheet, pitch deck and this readiness report are prepared. The live Supabase project reports `ACTIVE_HEALTHY`. The backend has received reliability and cost-control improvements, but a real authenticated user journey and the public Pages deployment still need independent confirmation.
 
-The existence of a workflow is not evidence that its latest run passed. During this review, the deployment and sponsorship URLs could not be independently loaded by the available browser checker, and the latest Actions run result could not be retrieved. Therefore publication, current deployment health and the browser smoke-test outcome remain **unverified** in this report.
+Do not present implementation or a successful infrastructure health check as proof that every product feature has passed production acceptance.
+
+## Changes completed in this review
+
+| Change | Evidence | Status |
+|---|---|---|
+| Monthly AI entitlements | Authenticated gateway now calls the service-role-only monthly usage RPC before provider requests; returns clear limit and usage metadata | Deployed; real user-limit journey not yet exercised |
+| Gemini fallback request | Removed a sampling parameter that current Gemini 3.8 guidance says to omit | Deployed |
+| Background chat dispatch | New jobs trigger an asynchronous worker wake-up; one-minute cron remains as a recovery path | Database migration applied |
+| Queue retry handling | Permanent 4xx client errors are marked terminal instead of being retried repeatedly; transient server failures retain bounded retries | Deployed |
+| Queue polling cost | Backup cron changed from a 10-second schedule to one minute | Verified at 18:08, 18:09 and 18:10 UTC |
+| Queue worker | Manual wake-up test returned HTTP 200 with an empty queue | Worker endpoint responds; no real user job processed in this test |
+| Database access | All listed public application tables have RLS enabled; sensitive RPC execution is restricted to service role | Verified |
+| Automated tests | Added pytest contract tests and Playwright desktop/mobile page smoke tests | Committed; latest Actions result not yet retrieved |
+
+Before the cron change, the worker poller ran 8,613 times in the preceding 24 hours, with no failed cron runs. The new one-minute schedule is expected to reduce idle scheduled polls from roughly 8,640/day to 1,440/day (about 83% fewer), while immediate dispatch handles new jobs. A full-day post-change measurement is still needed.
 
 ## Evidence register
 
 | Area | Current evidence | Status |
 |---|---|---|
-| Sponsor materials | Sponsorship page, overview, demo script, due-diligence checklist, milestones and pitch deck committed | Prepared |
-| Deployment automation | `.github/workflows/deploy-pages.yml` inspected; workflow includes syntax, CORS, browser smoke and file checks | Workflow verified; latest run unverified |
-| Public product page | Intended GitHub Pages URL recorded | Live availability not independently verified |
-| Sponsor page | Intended public URL recorded | Live availability not independently verified |
-| Core AI chat | Product architecture documented | Live end-to-end acceptance not evidenced |
-| OpenAI primary / Gemini fallback | Routing documented in repository | Controlled failover test not evidenced |
-| Authentication and account isolation | Supabase Auth architecture documented | Live isolation test not evidenced |
-| Memory | Authenticated persistent-memory design documented | Cross-account isolation test not evidenced |
-| Attachments and media | Limits and integrated functions documented | Full live acceptance not evidenced |
-| Security | Server-side credential design documented | Independent review and secret-history audit not evidenced |
-| Users and retention | No dated analytics evidence included in the sponsor pack | Not verified |
-| Payments and revenue | No reconciled payment report included | Not verified |
-| Operating costs | No current usage export or invoice evidence included | Not yet costed |
-| Governance | Pack requires parent/guardian or responsible adult for financial and contractual matters | Must be arranged before any commitment |
+| Supabase project | Project status reports `ACTIVE_HEALTHY` | Verified at review time |
+| Public table security | RLS enabled on all listed public application tables | Verified |
+| Sensitive RPC access | Job creation/finalization functions deny anon/authenticated and allow service role | Verified |
+| AI gateway deployment | Current function version includes monthly usage enforcement | Deployed |
+| Chat worker deployment | Current function version includes terminal handling for permanent client errors | Deployed |
+| Gateway/provider response | No real authenticated model response was executed in this review | Not yet verified |
+| OpenAI primary / Gemini fallback | Model IDs checked against current official provider model catalogues; controlled live fallback test not run | Partially verified |
+| Immediate job dispatch | Manual worker wake-up returned HTTP 200 with no queued work | Infrastructure check only |
+| Real background chat | No authenticated job was submitted in this review | Not yet verified |
+| Public product and sponsor pages | Browser checker could not independently fetch GitHub Pages URLs | Publication not independently verified |
+| GitHub Actions | Test suite and workflow committed; latest push run status unavailable through the connected GitHub action | Not yet verified |
+| Authentication and account isolation | Architecture and RLS inspected; no cross-account live test performed | Not yet verified |
+| Attachments and media | Limits and backend functions documented; no real authenticated upload/generation acceptance test performed | Not yet verified |
+| Paystack lifecycle | Webhook signature code is present; checkout, renewal, cancellation, refund and reconciliation were not tested | Not yet verified |
+| Users and retention | No dated analytics export included | Not verified |
+| Revenue | No reconciled transaction report included | Not verified |
+| Operating costs | No current provider usage export or invoices included | Not yet costed |
+
+## Supabase advisor findings
+
+The current advisor report still contains items that require attention:
+
+1. **Leaked-password protection is disabled.** Enable it in Supabase Authentication settings under password security. This setting could not be changed through the connected project tools.
+2. **Guest-session policy warnings remain.** Some own-row policies allow anonymous sessions for guest-facing features. Review the exact tables and use cases before changing them; disabling guest access blindly could break intended functionality.
+3. **The `pg_net` extension is installed in the `public` schema.** Moving it needs a dependency review because the queue dispatcher calls its `net.http_post` function. Do not move it without testing the extension schema and all dependent functions.
+4. **RLS init-plan performance warnings remain.** Review the 24 flagged policies and optimize them only where the actual expression needs it.
+5. **Unused-index notices remain informational.** Do not drop indexes without workload evidence.
+
+The two tables `acerola_monthly_usage` and `acerola_push_subscriptions` have RLS enabled with no client policies. This is intentional service-role-only access, not an invitation to add broad client policies.
 
 ## Conditions before a formal funding request
 
-1. Confirm both public pages load on a phone and desktop, and record the successful deployment run URL and commit.
-2. Run and save dated end-to-end results for chat, OpenAI routing, controlled Gemini fallback, sign-in/out, account isolation, memory, attachments and any media feature shown to the sponsor.
-3. Review Supabase RLS policies, Edge Function authorization, exposed client bundles, Git history, rate limits, retention and deletion practices. Obtain an independent review before claiming security certification.
-4. Export a dated, anonymized analytics summary with clearly defined active-user and returning-user metrics. If there is no meaningful usage yet, say so plainly.
-5. Reconcile real Paystack transactions, refunds, renewals and cancellations. Exclude test transactions; do not state revenue without records.
-6. Complete the cost worksheet using actual provider usage, invoices and quotes. Set a capped request and milestone-based spending plan.
-7. Have a parent/guardian or responsible adult review the sponsor contact, budget and any written terms before money, account access, equity, IP or contractual commitments.
+1. Confirm both public Pages URLs load on a phone and desktop; save the successful GitHub Actions deployment URL and commit.
+2. Complete a real authenticated chat, monthly quota, memory, attachment and background-job test using a designated test account.
+3. Exercise OpenAI primary routing and a controlled Gemini fallback test without exposing provider credentials.
+4. Test sign-in/out and account isolation with two controlled test accounts.
+5. Test Paystack checkout, webhook verification, renewal, cancellation and refunds using approved test-mode flows; reconcile records before making revenue claims.
+6. Export dated, anonymized analytics and actual provider/hosting usage. Calculate a capped pilot budget from real costs and written quotes.
+7. Arrange an independent security review. Do not claim certification or penetration-test completion until one exists.
+8. Have a parent/guardian or responsible adult review the sponsor contact, budget, payment-account ownership and any written terms before a financial or contractual commitment.
 
 ## Sponsor-safe language
 
-Use: “Acerola is an early-stage product with substantial implementation in place. We are seeking support for measured reliability, security, accessibility and user validation.”
+Use: “Acerola is an early-stage product with substantial implementation in place. Its backend now enforces monthly usage entitlements and uses event-driven background dispatch with a scheduled recovery path. We are seeking support for measured reliability, security, accessibility and user validation.”
 
 Do not claim verified traction, revenue, product-market fit, independent security certification, guaranteed uptime or full production acceptance unless dated evidence supports each claim.
 
