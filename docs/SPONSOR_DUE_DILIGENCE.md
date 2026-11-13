@@ -20,6 +20,7 @@ Use this checklist before asking for or accepting sponsorship. Mark an item comp
 ## Security and privacy
 - [ ] Data-flow diagram reviewed.
 - [ ] Supabase row-level security and Edge Function authorization independently checked.
+- [ ] Ordinary users cannot assign or change their own profile role.
 - [ ] Provider keys and service-role secrets confirmed absent from client bundles and Git history.
 - [ ] Rate limits, abuse controls and cost ceilings reviewed.
 - [ ] Data retention, deletion and backup practices documented.
