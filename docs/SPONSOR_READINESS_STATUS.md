@@ -68,7 +68,7 @@ The two tables `acerola_monthly_usage` and `acerola_push_subscriptions` have RLS
 2. Complete a real authenticated chat, monthly quota, memory, attachment and background-job test using a designated test account.
 3. Exercise OpenAI primary routing and a controlled Gemini fallback test without exposing provider credentials.
 4. Test sign-in/out and account isolation with two controlled test accounts.
-5. Test Paystack checkout, webhook verification, renewal, cancellation and refunds using approved test-mode flows; reconcile records before making revenue claims.
+5. Have a responsible adult and qualified developer review the one-time Pro entitlement authorization path and the wider payment lifecycle. Use approved test-mode records only; reconcile records before making revenue claims.
 6. Export dated, anonymized analytics and actual provider/hosting usage. Calculate a capped pilot budget from real costs and written quotes.
 7. Arrange an independent security review. Do not claim certification or penetration-test completion until one exists.
 8. Have a parent/guardian or responsible adult review the sponsor contact, budget, payment-account ownership and any written terms before a financial or contractual commitment.
