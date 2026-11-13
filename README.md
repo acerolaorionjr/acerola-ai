@@ -11,7 +11,8 @@
 - Client: responsive HTML/CSS/JavaScript web app
 - Acerola Engine: v0.8.0
 - Agent Core: v1.4.0
-- AI gateway: authenticated Supabase Edge Function with bounded per-model timeouts, OpenAI-first routing, and Gemini failover
+- AI gateway: authenticated Supabase Edge Function with bounded per-model timeouts, OpenAI-first routing, Gemini failover, and server-enforced monthly usage entitlements
+- Background replies: encrypted job access tokens, immediate asynchronous worker dispatch, a one-minute recovery poll, and bounded retry handling
 - Authentication: Supabase Auth
 - Persistent memory: authenticated Supabase-backed memory with local fallback
 - Multimodal input: up to 5 attachments per request
@@ -76,7 +77,7 @@ The interface provides a live 0 / 5 file counter, attachment previews/chips, rem
 
 ## Testing
 
-The Python/pytest contract suite in tests/ covers core initialization, the five-file boundary, overflow rejection, and workspace switching. An optional authenticated gateway smoke test is skipped unless its environment variables are explicitly provided.
+The Python/pytest contract suite in tests/ checks key product and backend contracts. Playwright tests load the home and sponsorship pages at desktop and mobile viewport sizes. These automated checks do not replace authenticated end-to-end tests of provider responses, account isolation, payment events or real media generation.
 
 ## Sponsorship and project readiness
 
