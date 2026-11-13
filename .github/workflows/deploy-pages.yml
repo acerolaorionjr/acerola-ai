@@ -81,3 +81,34 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Verify deployed Pages routes
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          import requests
+
+          base = os.environ["PAGE_URL"].rstrip("/") + "/"
+          for path, marker in (("", "Acerola"), ("sponsorship.html", "Sponsorship opportunity")):
+              url = base + path
+              last = None
+              for attempt in range(8):
+                  try:
+                      response = requests.get(url, timeout=20)
+                      if response.status_code == 200:
+                          last = response
+                          break
+                      last = response
+                  except requests.RequestException as exc:
+                      print(f"Attempt {attempt + 1} failed for {url}: {exc}")
+                  time.sleep(5)
+              if last is None:
+                  raise SystemExit(f"Could not reach deployed route: {url}")
+              last.raise_for_status()
+              if marker not in last.text:
+                  raise SystemExit(f"Expected content marker missing from {url}")
+              print(f"Verified {url} ({last.status_code})")
+          PY
