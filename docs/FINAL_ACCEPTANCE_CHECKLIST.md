@@ -1,4 +1,4 @@
-# Acerola AI — Final Manual Acceptance Checklist
+# Acerola — Final Manual Acceptance Checklist
 
 Use a separate test account and harmless test content. Do not send passwords, access tokens, API keys, service-role keys, private conversations or customer records to anyone.
 
