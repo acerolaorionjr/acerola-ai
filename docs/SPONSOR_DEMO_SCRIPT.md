@@ -1,4 +1,4 @@
-# Acerola AI — Sponsor Demonstration Script
+# Acerola — Sponsor Demonstration Script
 
 **Target length:** 6–8 minutes  
 **Live product:** https://acerolaorionjr.github.io/acerola-ai/
@@ -12,7 +12,7 @@
 - Have the public repository and sponsorship overview ready.
 
 ## 1. Opening — 30 seconds
-"Acerola AI is a personal intelligence system in development. The goal is to bring AI conversation, memory, multimodal input and focused workspaces into one accessible experience. Today I'll show the current product, explain the architecture and be clear about what still needs validation."
+"Acerola is a personal intelligence system in development. The goal is to bring AI conversation, memory, multimodal input and focused workspaces into one accessible experience. Today I'll show the current product, explain the architecture and be clear about what still needs validation."
 
 ## 2. Product experience — 2 minutes
 1. Open the live application.

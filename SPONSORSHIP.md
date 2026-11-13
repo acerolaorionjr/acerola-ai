@@ -1,4 +1,4 @@
-# Acerola AI — Sponsorship Overview
+# Acerola — Sponsorship Overview
 
 **Positioning:** Your Personal Intelligence System  
 **Stage:** Early-stage, founder-built product  
@@ -7,7 +7,7 @@
 **Last reviewed:** 13 November 2026
 
 ## Executive summary
-Acerola AI is an early-stage personal AI assistant designed to bring conversational AI, persistent user memory, multimodal input and focused workspaces into one browser-based experience. Its current architecture combines a responsive web client, an authenticated Supabase backend, an Agent Core orchestration layer and server-side AI provider routing.
+Acerola is an early-stage personal AI assistant designed to bring conversational AI, persistent user memory, multimodal input and focused workspaces into one browser-based experience. Its current architecture combines a responsive web client, an authenticated Supabase backend, an Agent Core orchestration layer and server-side AI provider routing.
 
 Acerola is seeking a suitable sponsor or strategic supporter to help validate, improve and responsibly grow the product. Useful support may include development infrastructure and API credits, technical mentorship, independent product testing, accessibility and security reviews, and carefully scoped financial sponsorship.
 

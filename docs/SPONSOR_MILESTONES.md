@@ -1,4 +1,4 @@
-# Acerola AI — Proposed Sponsorship Milestones
+# Acerola — Proposed Sponsorship Milestones
 
 This is a proposed validation plan, not a claim that funding has been secured or that dates are committed. Agree dates and budget with the sponsor after estimating actual costs.
 

@@ -1,4 +1,4 @@
-# Acerola AI — Sponsor Due-Diligence Checklist
+# Acerola — Sponsor Due-Diligence Checklist
 
 Use this checklist before asking for or accepting sponsorship. Mark an item complete only when its evidence exists and has been reviewed.
 
