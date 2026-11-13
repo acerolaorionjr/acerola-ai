@@ -18,15 +18,18 @@ People increasingly use separate tools for conversation, research, writing, codi
 The public repository documents these implemented or integrated elements:
 - Responsive browser-based application and mobile navigation.
 - Supabase authentication and an authenticated server-side AI gateway.
-- OpenAI-first model routing with Gemini failover.
+- OpenAI-first model routing with Gemini failover, using current documented provider model IDs.
+- Server-enforced monthly request entitlements, with usage status returned by the authenticated gateway.
+- Durable background chat jobs with immediate asynchronous dispatch and a one-minute recovery schedule.
+- Permanent client errors stop retrying; transient server failures retain bounded retry handling.
 - Agent Core orchestration, tool routing and task/workspace structure.
 - Authenticated persistent memory with a local fallback.
 - Multimodal request attachments, with a client limit of five files and an individual file-size limit of 8 MB.
 - Image generation and spoken-audio generation through backend functions.
 - Research, Create, Code, Analyze, Tasks and Memory workspaces.
-- GitHub Pages deployment checks and a Python/pytest contract test suite.
+- GitHub Pages deployment checks, Python/pytest contract tests and Playwright desktop/mobile smoke tests.
 
-Implementation in source code does not, by itself, prove that every feature is reliable in every production environment. Live end-to-end verification is part of the next milestone.
+Implementation in source code and successful infrastructure checks do not, by themselves, prove that every feature is reliable in every production environment. Live user-session testing, controlled provider-fallback testing and payment lifecycle acceptance remain part of the next milestone.
 
 ## What Acerola is not claiming
 Acerola does not currently claim:
