@@ -4,8 +4,11 @@ Use this checklist before asking for or accepting sponsorship. Mark an item comp
 
 ## Product and technology
 - [ ] Live product walkthrough completed on mobile and desktop.
+- [ ] Playwright desktop/mobile smoke tests pass in GitHub Actions.
 - [ ] Feature inventory separates live, beta, experimental and planned functionality.
 - [ ] Text chat tested repeatedly with dated results.
+- [ ] Monthly request entitlements verified with a designated test account and no production quota exhaustion.
+- [ ] Background jobs verified: immediate dispatch, one-minute recovery schedule, and bounded retry behaviour.
 - [ ] OpenAI primary route and Gemini fallback tested under controlled failure conditions.
 - [ ] Authentication, logout and account isolation tested.
 - [ ] Memory read/write and account separation tested.
@@ -23,6 +26,9 @@ Use this checklist before asking for or accepting sponsorship. Mark an item comp
 - [ ] Privacy notice and terms reviewed for accuracy.
 - [ ] Incident response and secret-rotation procedure documented.
 - [ ] Independent security review scoped; findings tracked to closure.
+- [ ] Supabase leaked-password protection enabled and verified.
+- [ ] Guest-session RLS warnings reviewed against intended guest features.
+- [ ] pg_net extension placement reviewed without breaking the queue dispatcher.
 
 ## Business and traction
 - [ ] Legal owner and account ownership documented.
