@@ -55,6 +55,26 @@ function rateLimit(user: any) {
   if (b.count>=limit) return {ok:false,remaining:0,retry:Math.max(1,Math.ceil((RATE_WINDOW_MS-(now-b.started))/1000))};
   b.count++; return {ok:true,remaining:limit-b.count,retry:0};
 }
+async function consumeMonthlyRequest(userId: string) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) throw new Error("Usage service is not configured");
+  const response = await fetch(`${url}/rest/v1/rpc/acerola_consume_monthly_request`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+      apikey: serviceKey,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ p_user_id: userId }),
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) throw new Error(`Usage service returned HTTP ${response.status}`);
+  const usage = await response.json();
+  if (!usage || typeof usage.allowed !== "boolean") throw new Error("Usage service returned an invalid response");
+  return usage;
+}
+
 const ALLOWED_MIMES=new Set(["image/jpeg","image/png","image/webp","image/gif","audio/wav","audio/mpeg","audio/mp3","application/pdf","application/json","text/csv","text/plain","text/markdown","text/html","application/xml","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
 function parseDataUrl(data:string){const m=data.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\r\n]+)$/);if(!m)return null;const mime=m[1].toLowerCase(),b64=m[2].replace(/\s+/g,"");if(!ALLOWED_MIMES.has(mime))return null;const bytes=Math.floor(b64.length*3/4)-(b64.endsWith("==")?2:b64.endsWith("=")?1:0);if(bytes<=0||bytes>MAX_ATTACHMENT_BYTES)return null;return{mime,b64,bytes};}
 function buildInput(message:string,files:any[]){const content:any[]=[{type:"input_text",text:message}];for(const f of files){const p=parseDataUrl(String(f.data||""));if(!p)continue;const name=String(f.name||"attachment").slice(0,160),data=`data:${p.mime};base64,${p.b64}`;if(p.mime.startsWith("image/"))content.push({type:"input_image",image_url:data,detail:"auto"});else if(p.mime.startsWith("audio/")){const format=p.mime.includes("wav")?"wav":p.mime.includes("mp4")||p.mime.includes("m4a")?"mp3":"mp3";content.push({type:"input_audio",input_audio:{data:p.b64,format}});}else content.push({type:"input_file",filename:name,file_data:data});}return[{role:"user",content}];}
@@ -99,7 +119,7 @@ async function callGemini(apiKey:string, model:string, input:string, instruction
   const body:any={
     system_instruction:{parts:[{text:instructions}]},
     contents:[{role:"user",parts}],
-    generationConfig:{temperature:0.7,maxOutputTokens:4000}
+    generationConfig:{maxOutputTokens:4000}
   };
   if(input.includes("return ONLY valid JSON")) body.generationConfig.responseMimeType="application/json";
   return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
@@ -128,7 +148,7 @@ Deno.serve(async(req:Request)=>{
   const origin=req.headers.get("Origin"),id=requestId();
   if(origin&&!ALLOWED_ORIGINS.has(origin))return json({error:"Origin not allowed",request_id:id},403,origin,{"X-Request-Id":id});
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{...baseHeaders(origin),"X-Request-Id":id}});
-  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"70",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
+  if(req.method==="GET")return json({ok:true,service:"acerola-ai-gateway",status:"online",version:"72",timestamp:new Date().toISOString()},200,origin,{"X-Request-Id":id});
   if(req.method!=="POST")return json({error:"Method not allowed",request_id:id},405,origin,{"X-Request-Id":id});
   const length=Number(req.headers.get("Content-Length")||0);if(length>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);
   let body:any;try{const raw=await req.text();if(new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return json({error:"Request too large",request_id:id},413,origin);body=JSON.parse(raw);}catch{return json({error:"Invalid JSON body",request_id:id},400,origin);}
@@ -143,6 +163,21 @@ Deno.serve(async(req:Request)=>{
   for(const f of rawFiles){const p=parseDataUrl(String(f?.data||""));if(!p)continue;total+=p.bytes;if(total>MAX_TOTAL_ATTACHMENT_BYTES)return json({error:"Total attachment size exceeds 20 MB",request_id:id},413,origin,common);files.push({name:String(f?.name||"attachment"),data:`data:${p.mime};base64,${p.b64}`});}
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");let memories:string[]=[];
   if(url&&serviceKey){try{const r=await fetch(`${url}/rest/v1/acerola_memory?user_id=eq.${encodeURIComponent(user.id)}&select=memory_value&order=updated_at.desc&limit=10`,{headers:{Authorization:`Bearer ${serviceKey}`,apikey:serviceKey},signal:AbortSignal.timeout(3000)});if(r.ok){const rows=await r.json();if(Array.isArray(rows))memories=rows.map((x:any)=>String(x.memory_value||"")).filter(Boolean);}}catch{/* fallback */}}
+  let usage:any;
+  try {
+    usage = await consumeMonthlyRequest(user.id);
+  } catch (error) {
+    console.error("Acerola usage entitlement check failed", id, error instanceof Error ? error.message : "unknown");
+    return json({error:"Usage limits are temporarily unavailable. Please try again shortly.",code:"USAGE_SERVICE_UNAVAILABLE",request_id:id},503,origin,common);
+  }
+  if (!usage.allowed) {
+    return json({
+      error:"Your monthly AI request limit has been reached.",
+      code:"MONTHLY_LIMIT_REACHED",
+      usage:{tier:usage.tier,limit:usage.limit,used:usage.used,status:usage.status},
+      request_id:id
+    },429,origin,common);
+  }
   const toolCatalog=Array.isArray(body.available_tools)?body.available_tools.slice(0,80):[];
   const toolResults=Array.isArray(body.tool_results)?body.tool_results.slice(-8):[];
   const system = [
