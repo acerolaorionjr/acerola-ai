@@ -96,7 +96,7 @@ Any financial, contractual, payment-account, equity or ownership arrangement mus
 
 ## GitHub Pages
 
-.github/workflows/deploy-pages.yml validates JavaScript syntax and required site files before publishing the site artifact.
+.github/workflows/deploy-pages.yml validates JavaScript syntax, production gateway CORS, pytest/Playwright smoke tests and required files before deployment, then checks the live home and sponsorship routes.
 
 ## Project direction
 
