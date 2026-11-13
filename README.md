@@ -83,6 +83,7 @@ The Python/pytest contract suite in tests/ checks key product and backend contra
 
 - [Sponsor readiness status](docs/SPONSOR_READINESS_STATUS.md)
 - [Sponsor cost worksheet](docs/SPONSOR_COST_WORKSHEET.md)
+- [Final manual acceptance checklist](docs/FINAL_ACCEPTANCE_CHECKLIST.md)
 
 Acerola is an early-stage project and does not claim verified active-user counts, retention, revenue, product-market fit or independent security certification. Payment, subscription and integrated feature paths require live end-to-end acceptance evidence before being presented as fully verified.
 
