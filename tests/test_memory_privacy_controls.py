@@ -82,6 +82,7 @@ vm.runInNewContext(source, sandbox, { filename: 'agent-core.js' });
   };
   const offline = new sandbox.AcerolaAI.AgentCore({ gateway: failingGateway });
   offline.remoteMemory = true;
+  offline.memory.clear();
   offline.memory.add('Original fact');
   const failedEdit = await offline.updateMemoryExact('Original fact', 'Changed fact');
   assert.strictEqual(failedEdit.ok, false, 'failed cloud edits must report failure');
