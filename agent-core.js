@@ -423,6 +423,7 @@
       const previous = String(oldValue || '').trim();
       const next = String(newValue || '').trim().slice(0, 2000);
       if (!previous || !next) return { ok: false, error: 'Enter a non-empty saved fact.' };
+      if (isCredentialMemory(next)) return { ok: false, error: 'For security, Acerola cannot store passwords, sign-in codes, API keys, access tokens, private keys, or payment credentials.' };
       if (previous === next) return { ok: true, unchanged: true, localUpdated: 0, remoteUpdated: 0, persistent: this.remoteMemory };
       let remoteUpdated = 0;
       if (this.remoteMemory) {
