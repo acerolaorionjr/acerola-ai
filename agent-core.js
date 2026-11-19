@@ -221,7 +221,7 @@
   // Never retain authentication or payment credentials, even after an explicit save request.
   function isCredentialMemory(value) {
     const text = String(value || '').trim();
-    return /(?:^|\\b)(?:my\\s+)?(?:password|passcode|one[- ]time\\s+(?:password|code)|otp|api\\s+key|access\\s+token|token|secret\\s+key|private\\s+key|credit\\s+card(?:\\s+number)?|debit\\s+card(?:\\s+number)?|cvv|cvc|bank\\s+account(?:\\s+number)?|security\\s+pin)(?:\\s*(?:is|:|=)|\\s*$)/i.test(text);
+    return /(?:^|\b)(?:my\s+)?(?:password|passcode|one[- ]time\s+(?:password|code)|otp|api\s+key|access\s+token|token|secret\s+key|private\s+key|credit\s+card(?:\s+number)?|debit\s+card(?:\s+number)?|cvv|cvc|bank\s+account(?:\s+number)?|security\s+pin)(?:\s*(?:is|:|=)|\s*$)/i.test(text);
   }
 
   async function safeRemoteMemoryError(error) {
