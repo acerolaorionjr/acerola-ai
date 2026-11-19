@@ -82,9 +82,28 @@ async function memoryAction(user:any,body:any,origin:string|null,id:string){
   const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!user?.id)return json({error:"Authentication required for persistent memory",request_id:id},401,origin);if(!url||!key)return json({error:"Memory service is not configured",request_id:id},503,origin);
   const base=`${url}/rest/v1/acerola_memory`,auth={Authorization:`Bearer ${key}`,apikey:key,"Content-Type":"application/json"},action=String(body.memory_action||"");
+  const exactMemoryUrl=(value:string)=>{
+    const escaped=String(value).replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+    const filter=`eq."${escaped}"`;
+    return `${base}?user_id=eq.${encodeURIComponent(user.id)}&memory_value=${encodeURIComponent(filter)}`;
+  };
   if(action==="load"){const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}&select=id,memory_key,memory_value,memory_type,created_at,updated_at&order=updated_at.desc&limit=100`,{headers:auth});if(!r.ok)return json({error:"Unable to load memory",request_id:id},502,origin);return json({ok:true,memories:await r.json(),request_id:id},200,origin);}
   if(action==="add"){const m=body.memory||{},value=String(m.value||"").trim();if(!value||value.length>2000)return json({error:"memory value must be 1-2000 characters",request_id:id},400,origin);const row={user_id:user.id,memory_key:String(m.key||crypto.randomUUID()).slice(0,160),memory_value:value,memory_type:String(m.type||"fact").slice(0,40)},r=await fetch(base,{method:"POST",headers:{...auth,Prefer:"return=representation"},body:JSON.stringify(row)});if(!r.ok)return json({error:"Unable to save memory",request_id:id},502,origin);return json({ok:true,memory:(await r.json())[0]||null,request_id:id},200,origin);}
   if(action==="remove"){const q=String(body.query||"").trim().slice(0,200);if(!q)return json({error:"query is required",request_id:id},400,origin);const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}&memory_value=ilike.*${encodeURIComponent(q)}*`,{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});if(!r.ok)return json({error:"Unable to remove memory",request_id:id},502,origin);return json({ok:true,removed:(await r.json()).length,request_id:id},200,origin);}
+  if(action==="remove_exact"){
+    const q=String(body.query||"").trim();
+    if(!q||q.length>2000)return json({error:"A memory value of 1-2000 characters is required",request_id:id},400,origin);
+    const r=await fetch(exactMemoryUrl(q),{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});
+    if(!r.ok)return json({error:"Unable to remove the selected memory",request_id:id},502,origin);
+    return json({ok:true,removed:(await r.json()).length,request_id:id},200,origin);
+  }
+  if(action==="update_exact"){
+    const oldValue=String(body.old_value||"").trim(),newValue=String(body.new_value||"").trim();
+    if(!oldValue||oldValue.length>2000||!newValue||newValue.length>2000)return json({error:"Old and new memory values must each contain 1-2000 characters",request_id:id},400,origin);
+    const r=await fetch(exactMemoryUrl(oldValue),{method:"PATCH",headers:{...auth,Prefer:"return=representation"},body:JSON.stringify({memory_value:newValue,updated_at:new Date().toISOString()})});
+    if(!r.ok)return json({error:"Unable to update the selected memory",request_id:id},502,origin);
+    return json({ok:true,updated:(await r.json()).length,request_id:id},200,origin);
+  }
   if(action==="clear"){const r=await fetch(`${base}?user_id=eq.${encodeURIComponent(user.id)}`,{method:"DELETE",headers:{...auth,Prefer:"return=representation"}});if(!r.ok)return json({error:"Unable to clear memory",request_id:id},502,origin);return json({ok:true,cleared:(await r.json()).length,request_id:id},200,origin);}
   return json({error:"Unknown memory action",request_id:id},400,origin);
 }

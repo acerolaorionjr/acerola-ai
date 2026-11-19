@@ -35,6 +35,17 @@ for (let i = 0; i < 5; i++) legacy.add('item-' + i);
 assert.deepStrictEqual(Array.from(legacy.all()), ['item-2', 'item-3', 'item-4']);
 legacy.add('item-3');
 assert.deepStrictEqual(Array.from(legacy.all()), ['item-2', 'item-4', 'item-3']);
+
+const exact = new MemoryManager('exact', 8);
+exact.add('I like anime');
+exact.add('I like anime and manga');
+exact.add('I like manga');
+assert.strictEqual(exact.removeExact('I like anime'), 1, 'exact removal deletes only the selected fact');
+assert.deepStrictEqual(Array.from(exact.all()), ['I like anime and manga', 'I like manga']);
+assert.strictEqual(exact.replaceExact('I like manga', 'I enjoy manga'), 1, 'exact edit updates one selected fact');
+assert.deepStrictEqual(Array.from(exact.all()), ['I like anime and manga', 'I enjoy manga']);
+assert.strictEqual(exact.removeExact('missing fact'), 0, 'missing exact memories are not changed');
+
 legacy.add('x'.repeat(2500));
 assert.strictEqual(legacy.all().at(-1).length, 2000);
 assert.ok(legacy.all().length <= 3);
