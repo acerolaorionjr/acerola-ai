@@ -68,6 +68,14 @@ def test_mobile_shell_and_controls_are_live(local_site):
         page.locator("#input").wait_for(state="visible", timeout=5000)
         page.locator("#send").wait_for(state="visible", timeout=5000)
 
+        # Icon-only composer controls must expose meaningful accessible names.
+        assert page.get_by_role("textbox", name="Message Acerola").count() == 1
+        assert page.get_by_role("button", name="Attach files").count() == 1
+        assert page.get_by_role("button", name="Voice input").count() == 1
+        assert page.get_by_role("button", name="Send message").count() == 1
+        assert page.locator("#ac-file-counter").get_attribute("role") == "status"
+        assert page.locator("#ac-file-counter").get_attribute("aria-live") == "polite"
+
         try:
             page.locator(".welcome h1").wait_for(state="visible", timeout=5000)
         except Exception:
