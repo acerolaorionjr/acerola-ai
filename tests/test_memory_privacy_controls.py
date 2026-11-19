@@ -67,6 +67,10 @@ vm.runInNewContext(source, sandbox, { filename: 'agent-core.js' });
   assert.strictEqual(edited.persistent, true);
   assert.deepStrictEqual(Array.from(core.memory.all()), ['I enjoy manga'], 'exact edit updates the selected local fact');
 
+  const deniedEdit = await core.updateMemoryExact('I enjoy manga', 'My API key is example-only');
+  assert.strictEqual(deniedEdit.ok, false, 'credential-like edits must also be blocked');
+  assert.deepStrictEqual(Array.from(core.memory.all()), ['I enjoy manga'], 'blocked credential edits must leave memory unchanged');
+
   assert.deepStrictEqual(calls.map(call => call.action), ['remove_exact', 'update_exact']);
   assert.strictEqual(calls[0].payload.query, 'I like anime');
   assert.strictEqual(calls[1].payload.old_value, 'I like manga');
