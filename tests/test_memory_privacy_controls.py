@@ -106,7 +106,13 @@ vm.runInNewContext(source, sandbox, { filename: 'agent-core.js' });
         capture_output=True,
         text=True,
         timeout=10,
-        check=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        "Memory control harness failed.\\nSTDOUT:\\n"
+        + result.stdout
+        + "\\nSTDERR:\\n"
+        + result.stderr
     )
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report == {
